@@ -1,0 +1,140 @@
+created:
+    - app/Http/Controllers/ProjectController.php
+    - app/Http/Controllers/PublicationController.php
+    - app/Http/Controllers/UserController.php
+    - app/Http/Controllers/PaymentController.php
+    - database/factories/AdminFactory.php
+    - database/factories/AbonnementFactory.php
+    - database/factories/AskQuestionFactory.php
+    - database/factories/CategoryProjectFactory.php
+    - database/factories/CommentFactory.php
+    - database/factories/ConnectedFactory.php
+    - database/factories/ContactFactory.php
+    - database/factories/CountryFactory.php
+    - database/factories/CreditAgentFactory.php
+    - database/factories/CurrencyFactory.php
+    - database/factories/DeconnectedFactory.php
+    - database/factories/FeeFactory.php
+    - database/factories/JobFactory.php
+    - database/factories/LikeFactory.php
+    - database/factories/MediaFactory.php
+    - database/factories/NotificationFactory.php
+    - database/factories/PackPubFactory.php
+    - database/factories/PageFactory.php
+    - database/factories/PaymentFactory.php
+    - database/factories/PaymentCountryFactory.php
+    - database/factories/PaymentDonationFactory.php
+    - database/factories/PaymentOperatorCountryFactory.php
+    - database/factories/ProjectFactory.php
+    - database/factories/PublicationFactory.php
+    - database/factories/PublicityFactory.php
+    - database/factories/RoundFactory.php
+    - database/factories/ShareFactory.php
+    - database/factories/UserFactory.php
+    - database/factories/UsersPackPubSeenFactory.php
+    - database/factories/UsersProjectFactory.php
+    - database/factories/ViewFactory.php
+    - database/factories/VisitorFactory.php
+    - database/migrations/2026_01_17_110609_create_admins_table.php
+    - database/migrations/2026_01_17_110610_create_abonnements_table.php
+    - database/migrations/2026_01_17_110611_create_ask_questions_table.php
+    - database/migrations/2026_01_17_110612_create_category_projects_table.php
+    - database/migrations/2026_01_17_110613_create_comments_table.php
+    - database/migrations/2026_01_17_110614_create_connecteds_table.php
+    - database/migrations/2026_01_17_110615_create_contacts_table.php
+    - database/migrations/2026_01_17_110616_create_countries_table.php
+    - database/migrations/2026_01_17_110617_create_credit_agents_table.php
+    - database/migrations/2026_01_17_110618_create_currencies_table.php
+    - database/migrations/2026_01_17_110619_create_deconnecteds_table.php
+    - database/migrations/2026_01_17_110620_create_fees_table.php
+    - database/migrations/2026_01_17_110621_create_jobs_table.php
+    - database/migrations/2026_01_17_110622_create_likes_table.php
+    - database/migrations/2026_01_17_110623_create_media_table.php
+    - database/migrations/2026_01_17_110624_create_notifications_table.php
+    - database/migrations/2026_01_17_110625_create_pack_pubs_table.php
+    - database/migrations/2026_01_17_110626_create_pages_table.php
+    - database/migrations/2026_01_17_110627_create_payments_table.php
+    - database/migrations/2026_01_17_110628_create_payment_countries_table.php
+    - database/migrations/2026_01_17_110629_create_payment_donations_table.php
+    - database/migrations/2026_01_17_110630_create_payment_operator_countries_table.php
+    - database/migrations/2026_01_17_110631_create_projects_table.php
+    - database/migrations/2026_01_17_110632_create_publications_table.php
+    - database/migrations/2026_01_17_110633_create_publicities_table.php
+    - database/migrations/2026_01_17_110634_create_rounds_table.php
+    - database/migrations/2026_01_17_110635_create_shares_table.php
+    - database/migrations/2026_01_17_110636_create_users_table.php
+    - database/migrations/2026_01_17_110637_create_users_pack_pub_seens_table.php
+    - database/migrations/2026_01_17_110638_create_users_projects_table.php
+    - database/migrations/2026_01_17_110639_create_views_table.php
+    - database/migrations/2026_01_17_110640_create_visitors_table.php
+    - app/Models/Admin.php
+    - app/Models/Abonnement.php
+    - app/Models/AskQuestion.php
+    - app/Models/CategoryProject.php
+    - app/Models/Comment.php
+    - app/Models/Connected.php
+    - app/Models/Contact.php
+    - app/Models/Country.php
+    - app/Models/CreditAgent.php
+    - app/Models/Currency.php
+    - app/Models/Deconnected.php
+    - app/Models/Fee.php
+    - app/Models/Job.php
+    - app/Models/Like.php
+    - app/Models/Media.php
+    - app/Models/Notification.php
+    - app/Models/PackPub.php
+    - app/Models/Page.php
+    - app/Models/Payment.php
+    - app/Models/PaymentCountry.php
+    - app/Models/PaymentDonation.php
+    - app/Models/PaymentOperatorCountry.php
+    - app/Models/Project.php
+    - app/Models/Publication.php
+    - app/Models/Publicity.php
+    - app/Models/Round.php
+    - app/Models/Share.php
+    - app/Models/User.php
+    - app/Models/UsersPackPubSeen.php
+    - app/Models/UsersProject.php
+    - app/Models/View.php
+    - app/Models/Visitor.php
+    - tests/Feature/Http/Controllers/ProjectControllerTest.php
+    - tests/Feature/Http/Controllers/PublicationControllerTest.php
+    - tests/Feature/Http/Controllers/UserControllerTest.php
+    - tests/Feature/Http/Controllers/PaymentControllerTest.php
+updated:
+    - routes/web.php
+models:
+    Admin: { email: 'string:255', status: 'enum:Success,pending,failed', timestamps: timestamps, relationships: { hasMany: CreditAgent } }
+    Abonnement: { id_user: 'id foreign:users', id_project: 'id foreign:projects nullable', id_page: 'id foreign:pages nullable', status: 'enum:Success,pending,failed', ip_address: 'string:255 nullable', timestamps: timestamps }
+    AskQuestion: { id_user: 'id foreign:users', response: 'enum:facebook,instagram,twitter,whatsapp,friend,other nullable', timestamps: timestamps }
+    CategoryProject: { name: 'string:255', icone: 'string:255 nullable', status: 'enum:pending,Success,failed,waiting', color: 'string:255 nullable', timestamps: timestamps, relationships: { hasMany: Project } }
+    Comment: { id_user: 'id foreign:users', id_publication: 'id foreign:publications nullable', id_project: 'id foreign:projects nullable', id_page: 'id foreign:pages nullable', body: longtext, status: 'enum:Success,pending,failed,waiting', timestamps: timestamps }
+    Connected: { id_user: 'id foreign:users', ip_address: 'string:255 nullable', country: 'string:255', timestamps: timestamps }
+    Contact: { name: 'string:191', email: 'string:191', message: text, timestamps: timestamps }
+    Country: { name: 'string:255', sortname: 'string:255', phoneCode: integer, timestamps: timestamps }
+    CreditAgent: { ref: 'string:255', id_user: 'id foreign:users', id_admin: 'bigInteger foreign:admins', status: 'enum:pending,Success,failed', amount: integer, currency: 'string:255', commentaire: 'longtext nullable', timestamps: timestamps }
+    Currency: { name_abr: 'string:10 unique', name: 'string:100', timestamps: timestamps }
+    Deconnected: { id_user: 'id foreign:users', ip_address: 'string:255 nullable', timestamps: timestamps }
+    Fee: { name: 'string:255 nullable', type: 'enum:invest,don,studyFees,pub', value: integer, status: 'enum:pending,Success,failed,waiting', timestamps: timestamps, relationships: { hasMany: 'Payment, PaymentDonation' } }
+    Job: { queue: 'string:500 nullable', payload: 'longtext nullable', attempts: tinyInteger, reserved_at: 'integer nullable', available_at: integer, created_at: integer }
+    Like: { id_user: 'bigInteger nullable', ip_address: 'string:15 nullable', id_publication: 'id foreign:publications nullable', id_project: 'id foreign:projects nullable', id_page: 'id foreign:pages nullable', status: 'enum:Success,pending,failed,waiting', timestamps: timestamps }
+    Media: { type: 'string:100', location: 'string:100', name: 'string:100', id_users_pack_pub: 'integer nullable', id_publication: 'integer nullable', id_project: 'integer nullable', id_fundraising: 'integer nullable', timestamps: timestamps }
+    Notification: { type: 'enum:project,publication,payment', body: text, status: 'enum:Success,pending,failed,waiting', id_project: 'id foreign:projects nullable', id_publication: 'id foreign:publications nullable', id_user: bigInteger, timestamps: timestamps }
+    PackPub: { id_user: 'integer nullable', id_currency: 'integer nullable', payment_method: 'string:255 nullable', ref: 'string:255', title: 'string:100', description: 'text nullable', amount: 'float nullable', url_payment: 'string:255 nullable', fees: 'float nullable', video: 'string:255 nullable', image: 'string:255 nullable', forfait: 'string:255 nullable', website: 'string:255 nullable', payment_status: integer, visibility_status: integer, timestamps: timestamps }
+    Page: { id_user: 'id foreign:users', name: 'string:500', description: 'longtext nullable', ref: 'string:150 nullable', website_url: 'string:500 nullable', status: 'enum:pending,Success,failed,waiting', logo_125_125: 'string:255', img_banniere_1202_425: 'string:100 nullable', facebook: 'string:255 nullable', twitter: 'string:255 nullable', instagram: 'string:255 nullable', youtube: 'string:255 nullable', sigle: 'string:20', bio: 'string:255 nullable', video: 'longtext nullable', whatsapp: 'longtext nullable', country: 'string:255', country_code: integer, timestamps: timestamps, relationships: { hasMany: 'Publication, Comment, Like, Share, View, Abonnement' } }
+    Payment: { ref: 'string:255 nullable', id_round: 'id foreign:rounds nullable', id_project: 'id foreign:projects nullable', id_publication: 'id foreign:publications nullable', id_user: 'id foreign:users', id_agent: 'id foreign:users nullable', amount: float, total_amount: 'float nullable', fees: 'float default:0', id_fees: 'id foreign:fees nullable', currency: 'string:10 nullable', services: 'enum:invest,don,studyFees,pub', share: 'float nullable', status: 'enum:pending,Failed,Success,Refunded,Cancelled', type_paiement: 'enum:Contact,Mobile,Bank,Bonus', error_code: 'string:255 nullable', customer_number: 'string:255 nullable', payment_number: 'string:255 nullable', customer_email: 'string:255 nullable', customer_name: 'string:255 nullable', customer_postal_code: 'string:255 nullable', description_payment: 'text nullable', http_request: 'string:500 nullable', ip_adress: 'string:100 nullable', network_adress: 'string:255 nullable', payment_country: 'string:255 nullable', url_payment: 'string:255 nullable', payment_country_code: 'integer nullable', fees_operator: 'decimal:5,2 nullable', operator_after_notify_payment: 'string:255 nullable', ref_paiement_api: 'longtext nullable', sign_operator: 'longtext nullable', id_operator: 'id foreign:payment_operator_countries nullable', code_agent_temporaire: 'longtext nullable', timestamps: timestamps }
+    PaymentCountry: { name: 'string:255', api_end_point: longtext, status: 'enum:pending,Success,failes', timestamps: timestamps }
+    PaymentDonation: { ref: 'string:255', customer_name: 'string:255 nullable', customer_email: 'string:255 nullable', id_user: 'id foreign:users nullable', amount: integer, country: 'string:255 nullable', payment_country: 'string:255', payment_country_code: 'string:255', currency: 'string:255', id_project: 'id foreign:projects', status: 'enum:pending,Success,failed,waiting', type_paiement: 'enum:Contact,Mobile,Bank', payment_number: 'string:255 nullable', id_fees: 'id foreign:fees', fees: 'integer nullable', total_amount: 'integer nullable', customer_number: 'string:255 nullable', description: 'longtext nullable', timestamps: timestamps }
+    PaymentOperatorCountry: { ref: 'string:255', name: 'string:255', api_end_point: 'longtext nullable', currency: 'string:255', fees: 'decimal:5,2 nullable', status: 'enum:pending,Success,failed', country_code: 'string:11', country_cdial: integer, message: 'longtext nullable', otpOption: 'tinyInteger default:0', timestamps: timestamps, relationships: { hasMany: Payment } }
+    Publication: { ref: 'string:255', title: 'string:255 nullable', text: 'text nullable', id_user: 'id foreign:users', id_project: 'id foreign:projects nullable', id_page: 'id foreign:pages nullable', status: 'enum:Success,pending,failed,waiting,deleted', nbr_vews: 'integer nullable', image: 'string:500 nullable', video: 'string:255 nullable', audio: 'string:500 nullable', type: 'enum:publicity,publication', typeServicePublicity: 'enum:sms,email nullable', country: 'string:255 nullable', id_country: 'id nullable', ip_address: 'string:255 nullable', attachment: 'string:1000 nullable', amount: 'integer nullable', timestamps: timestamps, relationships: { hasMany: 'Comment, Like, Share, View, Payment', belongsTo: 'User, Project, Page' } }
+    Publicity: { id_user: 'id foreign:users', id_project: 'id foreign:projects nullable', object: longtext, text: longtext, status: 'enum:pending,Success,failed', timestamps: timestamps }
+    Round: { name: 'string:255', begin: datetime, end: datetime, id_project: 'id foreign:projects', amount: integer, status: 'enum:pending,Success,failed,waiting', timestamps: timestamps }
+    Share: { id_project: 'id foreign:projects nullable', id_publication: 'id foreign:publications nullable', id_user: 'id foreign:users nullable', id_page: 'id foreign:pages nullable', ip_address: 'string:255 nullable', status: 'enum:Success,pending,failed', timestamps: timestamps }
+    User: { ref: 'string:255 nullable', id_father: 'id foreign:users nullable', name: 'string:191', last_name: "string:255 default:' '", email: 'string:191 unique', password: 'string:255', remember_token: 'string:100 nullable', role: 'enum:user,agent,admin', valid: 'tinyInteger default:0', confirmed: 'tinyInteger default:0', confirmation_code: 'string:191 nullable', default_currency: 'integer nullable', referral_code: 'string:255 nullable', status: 'enum:pending,Success,failed,waiting', country: 'string:100 nullable', phone: 'string:100 nullable', ville: 'string:100 nullable', last_connect: 'datetime nullable', cover_img: 'string:200 nullable', last_active: 'datetime nullable', photo: 'longtext nullable', description: 'string:255 nullable', birth: 'date nullable', country_code: 'integer nullable', recoveryPass_code: 'string:255 nullable', sexe: 'enum:H,F', id_country: bigInteger, timestamps: timestamps, relationships: { hasMany: 'Project, Publication, Publicity, Comment, Share, View, Connected, Deconnected, AskQuestion, CreditAgent, Payment, PaymentDonation, Page, Abonnement' } }
+    UsersPackPubSeen: { id_user: integer, id_pack_pub: integer, timestamps: timestamps }
+    View: { id_user: 'id foreign:users', id_publication: 'id foreign:publications nullable', id_project: 'id foreign:projects nullable', id_page: 'id foreign:pages nullable', status: 'enum:Success,pending,failed', ip_address: 'longtext nullable', timestamps: timestamps }
+    Visitor: { ip_address: 'string:255 nullable', timestamps: timestamps }
+    Project: { id_user: 'id foreign:users', category_id: 'id foreign:category_projects nullable', type: 'enum:invest,don', name: 'string:500', description: 'longtext nullable', public_key: 'string:150 unique nullable', secret_key: 'string:150 unique nullable', website_url: 'string:500 nullable', status: 'enum:pending,Success,failed,waiting', status_invest: 'enum:pending,invest,vote,trade,deleted,end', objective: float, currency: 'string:5', project_book: 'string:255', private_policy: 'string:255', business_plan: 'string:255', logo_125_125: 'string:255', img_banniere_1202_425: 'string:100 nullable', organizer_name: 'string:255 nullable', organizer_address: 'text nullable', organizer_city: 'string:255 nullable', organizer_email: 'string:255 nullable', organizer_cdial: 'string:10 nullable', organizer_phone: 'string:255 nullable', organizer_cname: 'string:255 nullable', organizer_country_code: 'string:10 nullable', organizer_website_url: 'string:300 nullable', organizer_country: 'string:255 nullable', cachet: 'string:255 nullable', registre_comm: 'string:255 nullable', numero_cont: 'string:255 nullable', video: 'string:255 nullable', pack_vue: 'integer nullable', duration: 'string:3', facebook: 'string:255 nullable', twitter: 'string:255 nullable', instagram: 'string:255 nullable', youtube: 'string:255 nullable', cni: 'string:255', logo_105_200: 'string:255 nullable', img_banniere_263_240: 'string:255 nullable', sigle: 'string:20', contract_color: 'string:255 nullable', feesStudy: 'enum:0,1', feesStudyValue: 'integer default:50000', timestamps: timestamps, relationships: { hasMany: 'Round, Publication, Publicity, Comment, Like, Share, View, Abonnement, Payment, PaymentDonation', belongsTo: 'CategoryProject, User' } }
+    UsersProject: { id_user: integer, id_project: integer, role: 'string:100', timestamps: timestamps }

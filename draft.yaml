@@ -1,0 +1,407 @@
+models:
+  Admin:
+    email: string:255
+    status: enum:Success,pending,failed
+    timestamps: true
+    relationships:
+      hasMany: CreditAgent
+
+  Abonnement:
+    id_user: id foreign:users
+    id_project: id foreign:projects nullable
+    id_page: id foreign:pages nullable
+    status: enum:Success,pending,failed
+    ip_address: string:255 nullable
+    timestamps: true
+
+  AskQuestion:
+    id_user: id foreign:users
+    response: enum:facebook,instagram,twitter,whatsapp,friend,other nullable
+    timestamps: true
+
+  CategoryProject:
+    name: string:255
+    icone: string:255 nullable
+    status: enum:pending,Success,failed,waiting
+    color: string:255 nullable
+    timestamps: true
+    relationships:
+      hasMany: Project
+
+  Comment:
+    id_user: id foreign:users
+    id_publication: id foreign:publications nullable
+    id_project: id foreign:projects nullable
+    id_page: id foreign:pages nullable
+    body: longtext
+    status: enum:Success,pending,failed,waiting
+    timestamps: true
+
+  Connected:
+    id_user: id foreign:users
+    ip_address: string:255 nullable
+    country: string:255
+    timestamps: true
+
+  Contact:
+    name: string:191
+    email: string:191
+    message: text
+    timestamps: true
+
+  Country:
+    name: string:255
+    sortname: string:255
+    phoneCode: integer
+    timestamps: true
+
+  CreditAgent:
+    ref: string:255
+    id_user: id foreign:users
+    id_admin: bigInteger foreign:admins
+    status: enum:pending,Success,failed
+    amount: integer
+    currency: string:255
+    commentaire: longtext nullable
+    timestamps: true
+
+  Currency:
+    name_abr: string:10 unique
+    name: string:100
+    timestamps: true
+
+  Deconnected:
+    id_user: id foreign:users
+    ip_address: string:255 nullable
+    timestamps: true
+
+  Fee:
+    name: string:255 nullable
+    type: enum:invest,don,studyFees,pub
+    value: integer
+    status: enum:pending,Success,failed,waiting
+    timestamps: true
+    relationships:
+      hasMany: Payment, PaymentDonation
+
+  Job:
+    queue: string:500 nullable
+    payload: longtext nullable
+    attempts: tinyInteger
+    reserved_at: integer nullable
+    available_at: integer
+    created_at: integer
+
+  Like:
+    id_user: bigInteger nullable
+    ip_address: string:15 nullable
+    id_publication: id foreign:publications nullable
+    id_project: id foreign:projects nullable
+    id_page: id foreign:pages nullable
+    status: enum:Success,pending,failed,waiting
+    timestamps: true
+
+  Media:
+    type: string:100
+    location: string:100
+    name: string:100
+    id_users_pack_pub: integer nullable
+    id_publication: integer nullable
+    id_project: integer nullable
+    id_fundraising: integer nullable
+    timestamps: true
+
+  Notification:
+    type: enum:project,publication,payment
+    body: text
+    status: enum:Success,pending,failed,waiting
+    id_project: id foreign:projects nullable
+    id_publication: id foreign:publications nullable
+    id_user: bigInteger
+    timestamps: true
+
+  PackPub:
+    id_user: integer nullable
+    id_currency: integer nullable
+    payment_method: string:255 nullable
+    ref: string:255
+    title: string:100
+    description: text nullable
+    amount: float nullable
+    url_payment: string:255 nullable
+    fees: float nullable
+    video: string:255 nullable
+    image: string:255 nullable
+    forfait: string:255 nullable
+    website: string:255 nullable
+    payment_status: integer
+    visibility_status: integer
+    timestamps: true
+
+  Page:
+    id_user: id foreign:users
+    name: string:500
+    description: longtext nullable
+    ref: string:150 nullable
+    website_url: string:500 nullable
+    status: enum:pending,Success,failed,waiting
+    logo_125_125: string:255
+    img_banniere_1202_425: string:100 nullable
+    facebook: string:255 nullable
+    twitter: string:255 nullable
+    instagram: string:255 nullable
+    youtube: string:255 nullable
+    sigle: string:20
+    bio: string:255 nullable
+    video: longtext nullable
+    whatsapp: longtext nullable
+    country: string:255
+    country_code: integer
+    timestamps: true
+    relationships:
+      hasMany: Publication, Comment, Like, Share, View, Abonnement
+
+  Payment:
+    ref: string:255 nullable
+    id_round: id foreign:rounds nullable
+    id_project: id foreign:projects nullable
+    id_publication: id foreign:publications nullable
+    id_user: id foreign:users
+    id_agent: id foreign:users nullable
+    amount: float
+    total_amount: float nullable
+    fees: float default:0
+    id_fees: id foreign:fees nullable
+    currency: string:10 nullable
+    services: enum:invest,don,studyFees,pub
+    share: float nullable
+    status: enum:pending,Failed,Success,Refunded,Cancelled
+    type_paiement: enum:Contact,Mobile,Bank,Bonus
+    error_code: string:255 nullable
+    customer_number: string:255 nullable
+    payment_number: string:255 nullable
+    customer_email: string:255 nullable
+    customer_name: string:255 nullable
+    customer_postal_code: string:255 nullable
+    description_payment: text nullable
+    http_request: string:500 nullable
+    ip_adress: string:100 nullable
+    network_adress: string:255 nullable
+    payment_country: string:255 nullable
+    url_payment: string:255 nullable
+    payment_country_code: integer nullable
+    fees_operator: decimal:5,2 nullable
+    operator_after_notify_payment: string:255 nullable
+    ref_paiement_api: longtext nullable
+    sign_operator: longtext nullable
+    id_operator: id foreign:payment_operator_countries nullable
+    code_agent_temporaire: longtext nullable
+    timestamps: true
+
+  PaymentCountry:
+    name: string:255
+    api_end_point: longtext
+    status: enum:pending,Success,failes
+    timestamps: true
+
+  PaymentDonation:
+    ref: string:255
+    customer_name: string:255 nullable
+    customer_email: string:255 nullable
+    id_user: id foreign:users nullable
+    amount: integer
+    country: string:255 nullable
+    payment_country: string:255
+    payment_country_code: string:255
+    currency: string:255
+    id_project: id foreign:projects
+    status: enum:pending,Success,failed,waiting
+    type_paiement: enum:Contact,Mobile,Bank
+    payment_number: string:255 nullable
+    id_fees: id foreign:fees
+    fees: integer nullable
+    total_amount: integer nullable
+    customer_number: string:255 nullable
+    description: longtext nullable
+    timestamps: true
+
+  PaymentOperatorCountry:
+    ref: string:255
+    name: string:255
+    api_end_point: longtext nullable
+    currency: string:255
+    fees: decimal:5,2 nullable
+    status: enum:pending,Success,failed
+    country_code: string:11
+    country_cdial: integer
+    message: longtext nullable
+    otpOption: tinyInteger default:0
+    timestamps: true
+    relationships:
+      hasMany: Payment
+
+  Project:
+    id_user: id foreign:users
+    category_id: id foreign:category_projects nullable
+    type: enum:invest,don
+    name: string:500
+    description: longtext nullable
+    public_key: string:150 unique nullable
+    secret_key: string:150 unique nullable
+    website_url: string:500 nullable
+    status: enum:pending,Success,failed,waiting
+    status_invest: enum:pending,invest,vote,trade,deleted,end
+    objective: float
+    currency: string:5
+    project_book: string:255
+    private_policy: string:255
+    business_plan: string:255
+    logo_125_125: string:255
+    img_banniere_1202_425: string:100 nullable
+    organizer_name: string:255 nullable
+    organizer_address: text nullable
+    organizer_city: string:255 nullable
+    organizer_email: string:255 nullable
+    organizer_cdial: string:10 nullable
+    organizer_phone: string:255 nullable
+    organizer_cname: string:255 nullable
+    organizer_country_code: string:10 nullable
+    organizer_website_url: string:300 nullable
+    organizer_country: string:255 nullable
+    cachet: string:255 nullable
+    registre_comm: string:255 nullable
+    numero_cont: string:255 nullable
+    video: string:255 nullable
+    pack_vue: integer nullable
+    duration: string:3
+    facebook: string:255 nullable
+    twitter: string:255 nullable
+    instagram: string:255 nullable
+    youtube: string:255 nullable
+    cni: string:255
+    logo_105_200: string:255 nullable
+    img_banniere_263_240: string:255 nullable
+    sigle: string:20
+    contract_color: string:255 nullable
+    feesStudy: enum:0,1
+    feesStudyValue: integer default:50000
+    timestamps: true
+    relationships:
+      hasMany: Round, Publication, Publicity, Comment, Like, Share, View, Abonnement, Payment, PaymentDonation
+      belongsTo: CategoryProject, User
+
+  Publication:
+    ref: string:255
+    title: string:255 nullable
+    text: text nullable
+    id_user: id foreign:users
+    id_project: id foreign:projects nullable
+    id_page: id foreign:pages nullable
+    status: enum:Success,pending,failed,waiting,deleted
+    nbr_vews: integer nullable
+    image: string:500 nullable
+    video: string:255 nullable
+    audio: string:500 nullable
+    type: enum:publicity,publication
+    typeServicePublicity: enum:sms,email nullable
+    country: string:255 nullable
+    id_country: id nullable
+    ip_address: string:255 nullable
+    attachment: string:1000 nullable
+    amount: integer nullable
+    timestamps: true
+    relationships:
+      hasMany: Comment, Like, Share, View, Payment
+      belongsTo: User, Project, Page
+
+  Publicity:
+    id_user: id foreign:users
+    id_project: id foreign:projects nullable
+    object: longtext
+    text: longtext
+    status: enum:pending,Success,failed
+    timestamps: true
+
+  Round:
+    name: string:255
+    begin: datetime
+    end: datetime
+    id_project: id foreign:projects
+    amount: integer
+    status: enum:pending,Success,failed,waiting
+    timestamps: true
+
+  Share:
+    id_project: id foreign:projects nullable
+    id_publication: id foreign:publications nullable
+    id_user: id foreign:users nullable
+    id_page: id foreign:pages nullable
+    ip_address: string:255 nullable
+    status: enum:Success,pending,failed
+    timestamps: true
+
+  User:
+    ref: string:255 nullable
+    id_father: id foreign:users nullable
+    name: string:191
+    last_name: string:255 default:' '
+    email: string:191 unique
+    password: string:255
+    remember_token: string:100 nullable
+    role: enum:user,agent,admin
+    valid: tinyInteger default:0
+    confirmed: tinyInteger default:0
+    confirmation_code: string:191 nullable
+    default_currency: integer nullable
+    referral_code: string:255 nullable
+    status: enum:pending,Success,failed,waiting
+    country: string:100 nullable
+    phone: string:100 nullable
+    ville: string:100 nullable
+    last_connect: datetime nullable
+    cover_img: string:200 nullable
+    last_active: datetime nullable
+    photo: longtext nullable
+    description: string:255 nullable
+    birth: date nullable
+    country_code: integer nullable
+    recoveryPass_code: string:255 nullable
+    sexe: enum:H,F
+    id_country: bigInteger
+    timestamps: true
+    relationships:
+      hasMany: Project, Publication, Publicity, Comment, Share, View, Connected, Deconnected, AskQuestion, CreditAgent, Payment, PaymentDonation, Page, Abonnement
+
+  UsersPackPubSeen:
+    id_user: integer
+    id_pack_pub: integer
+    timestamps: true
+
+  UsersProject:
+    id_user: integer
+    id_project: integer
+    role: string:100
+    timestamps: true
+
+  View:
+    id_user: id foreign:users
+    id_publication: id foreign:publications nullable
+    id_project: id foreign:projects nullable
+    id_page: id foreign:pages nullable
+    status: enum:Success,pending,failed
+    ip_address: longtext nullable
+    timestamps: true
+
+  Visitor:
+    ip_address: string:255 nullable
+    timestamps: true
+
+controllers:
+  Project:
+    resource: all
+  Publication:
+    resource: all
+  User:
+    resource: all
+  Payment:
+    resource: all
