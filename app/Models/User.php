@@ -94,11 +94,10 @@ public function categories(): HasMany
         return $this->hasMany(Publicity::class);
     }
 
-    public function comments(): HasMany
-    {
-        return $this->hasMany(Comment::class);
-    }
-
+   public function comments(): HasMany
+{
+    return $this->hasMany(Comment::class, 'id_user');
+}
     public function shares(): HasMany
     {
         return $this->hasMany(Share::class);

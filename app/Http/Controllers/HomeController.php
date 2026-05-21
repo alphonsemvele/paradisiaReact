@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Comment;
 use App\Models\CommentLike;
 use App\Models\Like;
+use App\Models\PointDeVente;
 use App\Models\Product;
 use App\Models\Publication;
 use App\Models\Share;
@@ -18,93 +19,88 @@ use Inertia\Response;
 
 class HomeController extends Controller
 {
-    // ... (gardez la méthode index existante mais utilisez la nouvelle formatPublication ci-dessous)
-
     public function index(Request $request): Response
-{
-    $highlightId = $request->query('highlight');
+    {
+        $highlightId = $request->query('highlight');
 
-    // Récupérer les publications normales
-    $publications = Publication::with([
-        'user',
-        'comments.user',
-        'comments.replies.user',
-        'likes',
-    ])
-        ->where('status', 'Success')
-        ->orderBy('created_at', 'desc')
-        ->limit(10)
-        ->get();
-
-    // 🆕 Récupérer la publication highlight séparément (pour le modal)
-    $highlightedPublication = null;
-    if ($highlightId) {
-        $highlightedPublication = Publication::with([
+        $publications = Publication::with([
             'user',
             'comments.user',
             'comments.replies.user',
             'likes',
         ])
-            ->where('id', $highlightId)
             ->where('status', 'Success')
-            ->first();
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        $highlightedPublication = null;
+        if ($highlightId) {
+            $highlightedPublication = Publication::with([
+                'user',
+                'comments.user',
+                'comments.replies.user',
+                'likes',
+            ])
+                ->where('id', $highlightId)
+                ->where('status', 'Success')
+                ->first();
+        }
+
+        $allCommentIds = $publications
+            ->flatMap(fn ($p) => $p->comments->pluck('id'))
+            ->merge(
+                $highlightedPublication
+                    ? $highlightedPublication->comments->pluck('id')
+                    : []
+            )
+            ->toArray();
+
+        $userCommentLikes = Auth::check()
+            ? CommentLike::where('id_user', Auth::id())
+                ->whereIn('id_comment', $allCommentIds)
+                ->pluck('id_comment')
+                ->toArray()
+            : [];
+
+        $commentLikesCounts = CommentLike::whereIn('id_comment', $allCommentIds)
+            ->selectRaw('id_comment, count(*) as count')
+            ->groupBy('id_comment')
+            ->pluck('count', 'id_comment')
+            ->toArray();
+
+        $formattedPublications = $publications->map(
+            fn ($pub) => $this->formatPublication($pub, $userCommentLikes, $commentLikesCounts)
+        );
+
+        $formattedHighlight = $highlightedPublication
+            ? $this->formatPublication($highlightedPublication, $userCommentLikes, $commentLikesCounts)
+            : null;
+
+        $featuredProducts = Product::with(['user', 'categories'])
+            ->where('status', 'Success')
+            ->orderBy('created_at', 'desc')
+            ->limit(3)
+            ->get()
+            ->map(fn ($p) => $this->formatProduct($p));
+
+        $otherProducts = Product::with(['user', 'categories'])
+            ->where('status', 'Success')
+            ->orderBy('created_at', 'desc')
+            ->skip(3)
+            ->take(4)
+            ->get()
+            ->map(fn ($p) => $this->formatProduct($p));
+
+        return Inertia::render('dashboard/home/index', [
+            'publications' => $formattedPublications,
+            'highlightedPublication' => $formattedHighlight,
+            'featuredProducts' => $featuredProducts,
+            'otherProducts' => $otherProducts,
+            'pointsDeVente' => $this->getPointsDeVente(),
+        ]);
     }
 
-    // Récupérer tous les IDs des commentaires pour les likes
-    $allCommentIds = $publications
-        ->flatMap(fn ($p) => $p->comments->pluck('id'))
-        ->merge(
-            $highlightedPublication
-                ? $highlightedPublication->comments->pluck('id')
-                : []
-        )
-        ->toArray();
-
-    $userCommentLikes = Auth::check()
-        ? CommentLike::where('id_user', Auth::id())
-            ->whereIn('id_comment', $allCommentIds)
-            ->pluck('id_comment')
-            ->toArray()
-        : [];
-
-    $commentLikesCounts = CommentLike::whereIn('id_comment', $allCommentIds)
-        ->selectRaw('id_comment, count(*) as count')
-        ->groupBy('id_comment')
-        ->pluck('count', 'id_comment')
-        ->toArray();
-
-    $formattedPublications = $publications->map(
-        fn ($pub) => $this->formatPublication($pub, $userCommentLikes, $commentLikesCounts)
-    );
-
-    // 🆕 Formatter la publication highlight
-    $formattedHighlight = $highlightedPublication
-        ? $this->formatPublication($highlightedPublication, $userCommentLikes, $commentLikesCounts)
-        : null;
-
-    $featuredProducts = Product::with(['user', 'categories'])
-        ->where('status', 'Success')
-        ->orderBy('created_at', 'desc')
-        ->limit(3)
-        ->get()
-        ->map(fn ($p) => $this->formatProduct($p));
-
-    $otherProducts = Product::with(['user', 'categories'])
-        ->where('status', 'Success')
-        ->orderBy('created_at', 'desc')
-        ->skip(3)
-        ->take(4)
-        ->get()
-        ->map(fn ($p) => $this->formatProduct($p));
-
-    return Inertia::render('dashboard/home/index', [
-        'publications' => $formattedPublications,
-        'highlightedPublication' => $formattedHighlight, // 🆕
-        'featuredProducts' => $featuredProducts,
-        'otherProducts' => $otherProducts,
-        'pointsDeVente' => $this->getPointsDeVente(),
-    ]);
-}
     public function toggleLike(Request $request, int $publicationId): RedirectResponse
     {
         if (! Auth::check()) {
@@ -129,9 +125,6 @@ class HomeController extends Controller
         return back();
     }
 
-    /**
-     * 🆕 Liker / Unliker un commentaire
-     */
     public function toggleCommentLike(Request $request, int $commentId): RedirectResponse
     {
         if (! Auth::check()) {
@@ -249,9 +242,6 @@ class HomeController extends Controller
         return back();
     }
 
-    /**
-     * 🆕 Modifier une publication
-     */
     public function updatePost(Request $request, int $publicationId): RedirectResponse
     {
         if (! Auth::check()) {
@@ -273,9 +263,6 @@ class HomeController extends Controller
         return back();
     }
 
-    /**
-     * 🆕 Supprimer une publication
-     */
     public function deletePost(int $publicationId): RedirectResponse
     {
         if (! Auth::check()) {
@@ -288,7 +275,6 @@ class HomeController extends Controller
             return back()->withErrors(['error' => 'Action non autorisée']);
         }
 
-        // Supprimer les fichiers associés
         if ($publication->img_1) {
             Storage::disk('public')->delete($publication->img_1);
         }
@@ -296,7 +282,6 @@ class HomeController extends Controller
             Storage::disk('public')->delete($publication->video);
         }
 
-        // Supprimer les commentaires, likes, shares en cascade
         Comment::where('id_publication', $publicationId)->delete();
         Like::where('id_publication', $publicationId)->delete();
         Share::where('id_publication', $publicationId)->delete();
@@ -322,9 +307,6 @@ class HomeController extends Controller
         return back();
     }
 
-    /**
-     * 🔄 Mise à jour : inclut les likes des commentaires
-     */
     private function formatPublication(Publication $pub, array $userCommentLikes, array $commentLikesCounts): array
     {
         $images = collect([
@@ -340,7 +322,7 @@ class HomeController extends Controller
             'created_at' => $pub->created_at,
             'created_at_human' => $pub->created_at->diffForHumans(),
             'user' => $this->formatUser($pub->user),
-            'is_owner' => Auth::check() && Auth::id() === $pub->id_user, // 🆕
+            'is_owner' => Auth::check() && Auth::id() === $pub->id_user,
             'likes_count' => $pub->likes->count(),
             'comments_count' => $pub->comments->where('status', 'Success')->count(),
             'shares_count' => Share::where('id_publication', $pub->id)->count(),
@@ -358,8 +340,8 @@ class HomeController extends Controller
                         'created_at_human' => $comment->created_at->diffForHumans(),
                         'user' => $this->formatUser($comment->user),
                         'is_owner' => Auth::check() && Auth::id() === $comment->id_user,
-                        'likes_count' => $commentLikesCounts[$comment->id] ?? 0, // 🆕
-                        'has_liked' => in_array($comment->id, $userCommentLikes), // 🆕
+                        'likes_count' => $commentLikesCounts[$comment->id] ?? 0,
+                        'has_liked' => in_array($comment->id, $userCommentLikes),
                         'replies' => $pub->comments
                             ->where('parent_id', $comment->id)
                             ->sortBy('created_at')
@@ -370,8 +352,8 @@ class HomeController extends Controller
                                 'created_at_human' => $reply->created_at->diffForHumans(),
                                 'user' => $this->formatUser($reply->user),
                                 'is_owner' => Auth::check() && Auth::id() === $reply->id_user,
-                                'likes_count' => $commentLikesCounts[$reply->id] ?? 0, // 🆕
-                                'has_liked' => in_array($reply->id, $userCommentLikes), // 🆕
+                                'likes_count' => $commentLikesCounts[$reply->id] ?? 0,
+                                'has_liked' => in_array($reply->id, $userCommentLikes),
                             ]),
                     ];
                 }),
@@ -406,14 +388,25 @@ class HomeController extends Controller
         ];
     }
 
+    /**
+     * 🆕 Récupère les 5 premiers points de vente actifs depuis la BDD
+     */
     private function getPointsDeVente(): array
     {
-        return [
-            ['id' => 1, 'name' => 'PARADISIA Akwa', 'address' => 'Rue Joss, Akwa, Douala', 'phone' => '+237 6XX XXX XXX', 'lat' => 4.0511, 'lng' => 9.7679, 'hours' => '8h - 20h'],
-            ['id' => 2, 'name' => 'PARADISIA Bonamoussadi', 'address' => 'Carrefour Maetur, Bonamoussadi, Douala', 'phone' => '+237 6XX XXX XXX', 'lat' => 4.0833, 'lng' => 9.7333, 'hours' => '8h - 21h'],
-            ['id' => 3, 'name' => 'PARADISIA Bonapriso', 'address' => 'Avenue De Gaulle, Bonapriso, Douala', 'phone' => '+237 6XX XXX XXX', 'lat' => 4.0167, 'lng' => 9.7000, 'hours' => '9h - 19h'],
-            ['id' => 4, 'name' => 'PARADISIA Yaoundé Centre', 'address' => 'Avenue Kennedy, Centre-ville, Yaoundé', 'phone' => '+237 6XX XXX XXX', 'lat' => 3.8480, 'lng' => 11.5021, 'hours' => '8h - 20h'],
-            ['id' => 5, 'name' => 'PARADISIA Bastos', 'address' => 'Quartier Bastos, Yaoundé', 'phone' => '+237 6XX XXX XXX', 'lat' => 3.8833, 'lng' => 11.5167, 'hours' => '9h - 20h'],
-        ];
+        return PointDeVente::where('status', 'Success')
+            ->orderBy('name')
+            ->limit(5)
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'address' => $p->address,
+                'phone' => $p->phone,
+                'hours' => $p->hours,
+                'lat' => (float) $p->latitude,
+                'lng' => (float) $p->longitude,
+                'image' => $p->image ? asset($p->image) : null,
+            ])
+            ->toArray();
     }
 }

@@ -8,7 +8,14 @@ use App\Http\Controllers\ShopController;
 use App\Http\Controllers\InvestController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
-
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\VisitorController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\ProductController;
+use App\Http\Controllers\Admin\PublicationController;
+use App\Http\Controllers\Admin\PointDeVenteController;
+use App\Http\Controllers\Admin\SaleController;
+use App\Http\Controllers\PublicStatsController;
 
 // Route::view('/', 'welcome');
 
@@ -22,7 +29,78 @@ use App\Http\Controllers\Auth\RegisteredUserController;
 
 // require __DIR__.'/auth.php';
 
+Route::prefix('admin')
+    ->middleware(['auth', 'admin'])
+    ->name('admin.')
+    ->group(function () {
 
+        Route::get('/', [DashboardController::class, 'index'])
+            ->name('dashboard');
+
+        // À venir : visitors, users, products, etc.
+           // 🆕 Visiteurs
+        Route::get('/visitors', [VisitorController::class, 'index'])
+            ->name('visitors');
+
+            // 🆕 Utilisateurs
+        Route::get('/users', ["App\Http\Controllers\Admin\UserController", 'index'])->name('users.index');
+        Route::get('/users/{user}', ["App\Http\Controllers\Admin\UserController", 'show'])->name('users.show');
+        Route::patch('/users/{user}', ["App\Http\Controllers\Admin\UserController", 'update'])->name('users.update');
+        Route::patch('/users/{user}/toggle-status', ["App\Http\Controllers\Admin\UserController", 'toggleStatus'])->name('users.toggle-status');
+        Route::patch('/users/{user}/toggle-validation', ["App\Http\Controllers\Admin\UserController", 'toggleValidation'])->name('users.toggle-validation');
+        Route::delete('/users/{user}', ["App\Http\Controllers\Admin\UserController", 'destroy'])->name('users.destroy');
+
+
+
+
+        // 🆕 Catégories
+        Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
+        Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
+        Route::patch('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
+        Route::patch('/categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
+        Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+        // 🆕 Produits
+        Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+        Route::get('/products/create', [ProductController::class, 'create'])->name('products.create');
+        Route::post('/products', [ProductController::class, 'store'])->name('products.store');
+        Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
+        Route::post('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+        Route::patch('/products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])->name('products.toggle-status');
+        Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
+
+
+
+// 🆕 Publications
+Route::get('/publications', [PublicationController::class, 'index'])->name('publications.index');
+Route::get('/publications/{publication}', [PublicationController::class, 'show'])->name('publications.show');
+Route::patch('/publications/{publication}', [PublicationController::class, 'update'])->name('publications.update');
+Route::patch('/publications/{publication}/status', [PublicationController::class, 'updateStatus'])->name('publications.update-status');
+Route::delete('/publications/{publication}', [PublicationController::class, 'destroy'])->name('publications.destroy');
+Route::delete('/publications/{publication}/comments/{comment}', [PublicationController::class, 'deleteComment'])->name('publications.delete-comment');
+
+
+
+// 🆕 Points de vente
+Route::get('/points-de-vente', [PointDeVenteController::class, 'index'])->name('points-de-vente.index');
+Route::get('/points-de-vente/create', [PointDeVenteController::class, 'create'])->name('points-de-vente.create');
+Route::post('/points-de-vente', [PointDeVenteController::class, 'store'])->name('points-de-vente.store');
+Route::get('/points-de-vente/{point_de_vente}/edit', [PointDeVenteController::class, 'edit'])->name('points-de-vente.edit');
+Route::post('/points-de-vente/{point_de_vente}', [PointDeVenteController::class, 'update'])->name('points-de-vente.update');
+Route::patch('/points-de-vente/{point_de_vente}/toggle-status', [PointDeVenteController::class, 'toggleStatus'])->name('points-de-vente.toggle-status');
+Route::delete('/points-de-vente/{point_de_vente}', [PointDeVenteController::class, 'destroy'])->name('points-de-vente.destroy');
+
+
+
+// 🆕 Ventes
+Route::get('/sales', [SaleController::class, 'dashboard'])->name('sales.dashboard');
+Route::get('/sales/list', [SaleController::class, 'index'])->name('sales.index');
+Route::get('/sales/create', [SaleController::class, 'create'])->name('sales.create');
+Route::post('/sales', [SaleController::class, 'store'])->name('sales.store');
+Route::get('/sales/{sale}', [SaleController::class, 'show'])->name('sales.show');
+Route::patch('/sales/{sale}/status', [SaleController::class, 'updateStatus'])->name('sales.update-status');
+Route::delete('/sales/{sale}', [SaleController::class, 'destroy'])->name('sales.destroy');
+    });
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -48,6 +126,15 @@ Route::middleware('guest')->group(function () {
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
+
+
+
+Route::get('/points-de-vente', [PublicStatsController::class, 'pointsDeVente'])->name('points-de-vente.public.index');
+Route::get('/points-de-vente/{pointDeVente}', [PublicStatsController::class, 'pointDeVenteShow'])->name('points-de-vente.public.show');
+Route::get('/statistiques', [PublicStatsController::class, 'statistiques'])->name('statistiques.public');
+Route::get('/products/{product}/stats', [PublicStatsController::class, 'productStats'])->name('products.public.stats');
+
+
 
 Route::middleware('auth')->group(function () {
     // Publications

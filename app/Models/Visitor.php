@@ -15,7 +15,7 @@ class Visitor extends Model
      * @var array
      */
     protected $fillable = [
-        'ip_address',
+        'ip_address'
     ];
 
     /**

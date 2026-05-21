@@ -24,6 +24,7 @@ class HandleInertiaRequests extends Middleware
                     'id' => $request->user()->id,
                     'name' => $request->user()->name,
                     'email' => $request->user()->email,
+                    'role' => $request->user()->role, 
                     'photo' => $request->user()->photo
                         ? Storage::url($request->user()->photo)
                         : null,
