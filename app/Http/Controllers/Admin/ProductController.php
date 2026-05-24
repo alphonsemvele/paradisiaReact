@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -118,8 +119,8 @@ class ProductController extends Controller
                 'price' => $product->price,
                 'id_category' => $product->id_category,
                 'status' => $product->status,
-                'img_1' => $product->img_1 ? asset($product->img_1) : null,
-                'img_2' => $product->img_2 ? asset($product->img_2) : null,
+                'img_1' => $this->fileUrl($product->img_1),
+                'img_2' => $this->fileUrl($product->img_2),
             ],
             'categories' => Category::orderBy('name')->get(['id', 'name']),
         ]);
@@ -207,8 +208,8 @@ class ProductController extends Controller
             'price_formatted' => number_format((float) $p->price, 0, ',', ' ') . ' FCFA',
             'status' => $p->status,
             'is_active' => $p->status === 'Success',
-            'img_1' => $p->img_1 ? asset($p->img_1) : null,
-            'img_2' => $p->img_2 ? asset($p->img_2) : null,
+            'img_1' => $this->fileUrl($p->img_1),
+            'img_2' => $this->fileUrl($p->img_2),
             'category' => $p->categories ? [
                 'id' => $p->categories->id,
                 'name' => $p->categories->name,
@@ -218,35 +219,49 @@ class ProductController extends Controller
         ];
     }
 
+    /**
+     * Génère l'URL publique d'un fichier stocké.
+     * Gère les anciens chemins (uploads/...) et les nouveaux (storage disk).
+     */
+    private function fileUrl(?string $path): ?string
+    {
+        if (! $path) return null;
+
+        // Déjà une URL complète
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return Storage::disk('public')->url($path);
+    }
+
+    /**
+     * Upload un fichier dans storage/app/public/uploads/products/
+     * Retourne le path relatif (ex: "uploads/products/prod_xxx.jpg")
+     */
     private function uploadFile($file): string
     {
         $extension = $file->getClientOriginalExtension();
         $filename = 'prod_' . uniqid() . '_' . time() . '.' . $extension;
-        $folder = 'uploads/products';
 
-        $destinationPath = public_path($folder);
-        if (! file_exists($destinationPath)) {
-            mkdir($destinationPath, 0755, true);
-        }
-
-        $file->move($destinationPath, $filename);
-
-        return $folder . '/' . $filename;
+        return $file->storeAs('uploads/products', $filename, 'public');
     }
 
+    /**
+     * Supprime un fichier du disk public.
+     */
     private function deleteFile(?string $path): void
     {
         if (! $path) return;
 
-        // Si c'est une URL complète (asset()), extraire le path relatif
+        // Si c'est une URL complète, extraire le path relatif
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            $path = parse_url($path, PHP_URL_PATH);
-            $path = ltrim($path, '/');
+            $parsed = parse_url($path, PHP_URL_PATH) ?? '';
+            $path = ltrim(str_replace('/storage/', '', $parsed), '/');
         }
 
-        $fullPath = public_path($path);
-        if (file_exists($fullPath)) {
-            @unlink($fullPath);
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
         }
     }
 }
