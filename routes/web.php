@@ -16,6 +16,9 @@ use App\Http\Controllers\Admin\PublicationController;
 use App\Http\Controllers\Admin\PointDeVenteController;
 use App\Http\Controllers\Admin\SaleController;
 use App\Http\Controllers\PublicStatsController;
+use App\Http\Controllers\FormationController;
+use App\Http\Controllers\Admin\FormationController as AdminFormationController;
+use App\Http\Controllers\Admin\InscriptionController as AdminInscriptionController;
 
 // Route::view('/', 'welcome');
 
@@ -92,6 +95,21 @@ Route::delete('/points-de-vente/{point_de_vente}', [PointDeVenteController::clas
 
 
 
+// 🆕 Formations (catalogue géré par l'admin)
+Route::get('/formations', [AdminFormationController::class, 'index'])->name('formations.index');
+Route::get('/formations/create', [AdminFormationController::class, 'create'])->name('formations.create');
+Route::post('/formations', [AdminFormationController::class, 'store'])->name('formations.store');
+Route::get('/formations/{formation}/edit', [AdminFormationController::class, 'edit'])->name('formations.edit');
+Route::post('/formations/{formation}', [AdminFormationController::class, 'update'])->name('formations.update');
+Route::patch('/formations/{formation}/toggle-status', [AdminFormationController::class, 'toggleStatus'])->name('formations.toggle-status');
+Route::delete('/formations/{formation}', [AdminFormationController::class, 'destroy'])->name('formations.destroy');
+
+// 🆕 Inscriptions aux formations
+Route::get('/inscriptions', [AdminInscriptionController::class, 'index'])->name('inscriptions.index');
+Route::patch('/inscriptions/{inscription}/status', [AdminInscriptionController::class, 'updateStatus'])->name('inscriptions.update-status');
+Route::delete('/inscriptions/{inscription}', [AdminInscriptionController::class, 'destroy'])->name('inscriptions.destroy');
+
+
 // 🆕 Ventes
 Route::get('/sales', [SaleController::class, 'dashboard'])->name('sales.dashboard');
 Route::get('/sales/list', [SaleController::class, 'index'])->name('sales.index');
@@ -132,6 +150,11 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 Route::get('/points-de-vente', [PublicStatsController::class, 'pointsDeVente'])->name('points-de-vente.public.index');
 Route::get('/points-de-vente/{pointDeVente}', [PublicStatsController::class, 'pointDeVenteShow'])->name('points-de-vente.public.show');
 Route::get('/statistiques', [PublicStatsController::class, 'statistiques'])->name('statistiques.public');
+
+// Formations en présentiel (liste publique + inscription)
+Route::get('/formations', [FormationController::class, 'index'])->name('formations.index');
+Route::get('/formations/{formation}', [FormationController::class, 'show'])->name('formations.show');
+Route::post('/formations/{formation}/inscription', [FormationController::class, 'register'])->name('formations.register');
 Route::get('/products/{product}/stats', [PublicStatsController::class, 'productStats'])->name('products.public.stats');
 
 

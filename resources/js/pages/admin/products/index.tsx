@@ -13,6 +13,7 @@ import {
     ChevronDown,
     TrendingUp,
     ImageOff,
+    Layers,
 } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 
@@ -22,6 +23,8 @@ interface ProductItem {
     description: string | null;
     price: number;
     price_formatted: string;
+    type: 'simple' | 'compose';
+    components_count: number;
     status: string | null;
     is_active: boolean;
     img_1: string | null;
@@ -208,6 +211,11 @@ export default function ProductsIndex({ products, categories, stats, filters }: 
                                         </p>
                                     )}
                                     <h3 className="font-semibold text-zinc-900 mb-1 truncate">{product.name}</h3>
+                                    {product.type === 'compose' && (
+                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 mb-2 bg-orange-50 text-orange-700 text-[10px] font-semibold rounded uppercase">
+                                            <Layers className="w-3 h-3" /> Composé · {product.components_count}
+                                        </span>
+                                    )}
                                     <p className="text-lg font-bold text-emerald-600 mb-3">{product.price_formatted}</p>
 
                                     <div className="flex items-center gap-1 pt-3 border-t border-zinc-100">

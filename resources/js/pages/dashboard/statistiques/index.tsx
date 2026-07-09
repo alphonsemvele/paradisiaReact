@@ -1,7 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import {
-    TrendingUp,
     ShoppingBag,
     Package,
     Store,
@@ -18,9 +17,6 @@ import {
     CartesianGrid,
 } from 'recharts';
 import AppLayout from '@/components/layouts/AppLayout';
-
-const formatFCFA = (n: number) =>
-    new Intl.NumberFormat('fr-FR').format(Math.round(n)) + ' FCFA';
 
 export default function StatistiquesPublique({ kpis, chart, topProducts, topPoints }: any) {
     return (
@@ -47,18 +43,12 @@ export default function StatistiquesPublique({ kpis, chart, topProducts, topPoin
                 </motion.div>
 
                 {/* KPIs */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <KpiCard
                         icon={ShoppingBag}
                         label="Ventes totales"
                         value={kpis.total_sales.toLocaleString('fr-FR')}
                         color="emerald"
-                    />
-                    <KpiCard
-                        icon={TrendingUp}
-                        label="CA Total"
-                        value={formatFCFA(kpis.total_ca)}
-                        color="blue"
                     />
                     <KpiCard
                         icon={Package}
@@ -81,7 +71,7 @@ export default function StatistiquesPublique({ kpis, chart, topProducts, topPoin
                     className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-5 mb-6"
                 >
                     <h3 className="font-semibold text-zinc-900 mb-1">
-                        Chiffre d'affaires global
+                        Nombre de ventes
                     </h3>
                     <p className="text-xs text-zinc-500 mb-4">30 derniers jours</p>
 
@@ -100,7 +90,7 @@ export default function StatistiquesPublique({ kpis, chart, topProducts, topPoin
                                 fontSize={11}
                                 tickLine={false}
                                 axisLine={false}
-                                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                                allowDecimals={false}
                             />
                             <Tooltip
                                 contentStyle={{
@@ -110,11 +100,11 @@ export default function StatistiquesPublique({ kpis, chart, topProducts, topPoin
                                     color: '#fff',
                                     fontSize: 12,
                                 }}
-                                formatter={(value: any) => [formatFCFA(value), 'CA']}
+                                formatter={(value: any) => [value, 'Ventes']}
                             />
                             <Area
                                 type="monotone"
-                                dataKey="ca"
+                                dataKey="count"
                                 stroke="#10b981"
                                 strokeWidth={2.5}
                                 fill="url(#globalGrad)"
@@ -196,8 +186,8 @@ export default function StatistiquesPublique({ kpis, chart, topProducts, topPoin
                                 </p>
                             )}
                             {topPoints.map((p: any, i: number) => {
-                                const max = topPoints[0]?.ca || 1;
-                                const percent = (p.ca / max) * 100;
+                                const max = topPoints[0]?.sales || 1;
+                                const percent = (p.sales / max) * 100;
                                 return (
                                     <Link
                                         key={p.id}
@@ -224,7 +214,7 @@ export default function StatistiquesPublique({ kpis, chart, topProducts, topPoin
                                                     {p.name}
                                                 </p>
                                                 <p className="text-xs text-zinc-500">
-                                                    {p.sales} ventes · {formatFCFA(p.ca)}
+                                                    {p.sales} ventes
                                                 </p>
                                             </div>
                                         </div>

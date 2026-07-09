@@ -35,4 +35,21 @@ return [
         ],
     ],
 
+    // Alerte à chaque nouvelle inscription (WhatsApp ou Telegram)
+    'whatsapp' => [
+        'driver'         => env('WHATSAPP_DRIVER', 'greenapi'), // greenapi | telegram | callmebot
+        'phone'          => env('WHATSAPP_ALERT_PHONE'),        // ex : 237687984282 (ou un id de groupe ...@g.us)
+
+        // Green API (passerelle WhatsApp)
+        'green_instance' => env('GREENAPI_ID_INSTANCE'),
+        'green_token'    => env('GREENAPI_API_TOKEN'),
+
+        // Telegram (Bot API)
+        'telegram_token' => env('TELEGRAM_BOT_TOKEN'),
+        'telegram_chat'  => env('TELEGRAM_CHAT_ID'),
+
+        // CallMeBot (relais)
+        'callmebot_key'  => env('CALLMEBOT_APIKEY'),
+    ],
+
 ];

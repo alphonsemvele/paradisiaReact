@@ -6,6 +6,7 @@ use App\Models\PointDeVente;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Services\SalesStats;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -128,45 +129,24 @@ class PublicStatsController extends Controller
     public function statistiques(): Response
     {
         $totalSales = Sale::where('status', 'Success')->count();
-        $totalCA = (float) Sale::where('status', 'Success')->sum('total');
         $totalProducts = Product::count();
         $totalPoints = PointDeVente::where('status', 'Success')->count();
 
-        // Graphique CA 30j
+        // Graphique : nombre de ventes sur 30j (le CA reste réservé à l'admin)
         $chart = [];
         for ($i = 29; $i >= 0; $i--) {
             $date = Carbon::today()->subDays($i);
             $chart[] = [
                 'label' => $date->format('d/m'),
-                'ca' => (float) Sale::where('status', 'Success')
-                    ->whereDate('sale_date', $date)
-                    ->sum('total'),
                 'count' => Sale::where('status', 'Success')
                     ->whereDate('sale_date', $date)
                     ->count(),
             ];
         }
 
-        // Top 10 produits
-        $topProducts = SaleItem::select(
-                'id_product',
-                'product_name',
-                DB::raw('SUM(quantity) as total_qty'),
-            )
-            ->whereHas('sale', fn ($q) => $q->where('status', 'Success'))
-            ->groupBy('id_product', 'product_name')
-            ->orderByDesc('total_qty')
-            ->limit(10)
-            ->get()
-            ->map(function ($i) {
-                $product = Product::find($i->id_product);
-                return [
-                    'id' => $i->id_product,
-                    'name' => $i->product_name,
-                    'image' => $product?->img_1 ? asset($product->img_1) : null,
-                    'qty' => (int) $i->total_qty,
-                ];
-            });
+        // Top 10 produits SIMPLES (les ventes de produits composés sont
+        // décomposées en leurs bouteilles/unités simples).
+        $topProducts = SalesStats::simpleProductQuantities(10);
 
         // Top points de vente
         $topPoints = Sale::select(
@@ -187,14 +167,12 @@ class PublicStatsController extends Controller
                     'name' => $point?->name ?? 'Inconnu',
                     'image' => $point?->image ? asset($point->image) : null,
                     'sales' => (int) $s->sales_count,
-                    'ca' => (float) $s->total_ca,
                 ];
             });
 
         return Inertia::render('dashboard/statistiques/index', [
             'kpis' => [
                 'total_sales' => $totalSales,
-                'total_ca' => $totalCA,
                 'total_products' => $totalProducts,
                 'total_points' => $totalPoints,
             ],

@@ -8,6 +8,7 @@ import {
     Package,
     FolderTree,
     FileText,
+    GraduationCap,
     TrendingUp,
     DollarSign,
     ShoppingCart,
@@ -62,6 +63,13 @@ const menuSections: MenuSection[] = [
         items: [
             { label: 'Catégories', href: '/admin/categories', icon: FolderTree },
             { label: 'Produits', href: '/admin/products', icon: Package },
+        ],
+    },
+    {
+        title: 'Formations',
+        items: [
+            { label: 'Formations', href: '/admin/formations', icon: GraduationCap },
+            { label: 'Inscriptions', href: '/admin/inscriptions', icon: Users },
         ],
     },
     {

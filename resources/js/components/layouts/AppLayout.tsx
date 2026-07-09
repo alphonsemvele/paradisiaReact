@@ -5,6 +5,7 @@ import {
     Home,
     Store,
     BarChart3,
+    GraduationCap,
     User,
     LogOut,
     Menu,
@@ -23,6 +24,7 @@ const navLinks = [
     { label: 'Accueil', href: '/', icon: Home },
     { label: 'Points de vente', href: '/points-de-vente', icon: Store },
     { label: 'Statistiques', href: '/statistiques', icon: BarChart3 },
+    { label: 'Formations', href: '/formations', icon: GraduationCap },
 ];
 
 export default function AppLayout({ children }: Props) {

@@ -1,14 +1,16 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import { ArrowLeft, Upload, X, Save, ImageIcon, Package } from 'lucide-react';
+import { ArrowLeft, X, Save, ImageIcon, Package } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import { TypeSelector, CompositionBuilder, type ComponentRow } from '@/components/admin/ProductComposition';
 
 interface Props {
     categories: Array<{ id: number; name: string }>;
+    simpleProducts: Array<{ id: number; name: string }>;
 }
 
-export default function ProductCreate({ categories }: Props) {
+export default function ProductCreate({ categories, simpleProducts }: Props) {
     const [preview1, setPreview1] = useState<string | null>(null);
     const [preview2, setPreview2] = useState<string | null>(null);
 
@@ -16,7 +18,9 @@ export default function ProductCreate({ categories }: Props) {
         name: '',
         description: '',
         price: '',
+        type: 'simple' as 'simple' | 'compose',
         id_category: '',
+        components: [] as ComponentRow[],
         img_1: null as File | null,
         img_2: null as File | null,
     });
@@ -112,6 +116,19 @@ export default function ProductCreate({ categories }: Props) {
                             </select>
                         </div>
                     </div>
+
+                    {/* Type de produit */}
+                    <TypeSelector value={data.type} onChange={(v) => setData('type', v)} />
+
+                    {/* Composition (si composé) */}
+                    {data.type === 'compose' && (
+                        <CompositionBuilder
+                            value={data.components}
+                            onChange={(rows) => setData('components', rows)}
+                            simpleProducts={simpleProducts}
+                            errors={errors as Record<string, string>}
+                        />
+                    )}
 
                     {/* Description */}
                     <div>
