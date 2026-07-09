@@ -9,7 +9,6 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,7 +20,7 @@ class ProductController extends Controller
         $categoryId = $request->get('category');
         $status = $request->get('status');
 
-        $query = Product::with(['categories', 'user']);
+        $query = Product::with(['categories', 'user'])->withCount('components');
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -71,6 +70,9 @@ class ProductController extends Controller
             'categories' => Category::where(fn ($q) => $q->where('status', '!=', 'Inactive')->orWhereNull('status'))
                 ->orderBy('name')
                 ->get(['id', 'name']),
+            'simpleProducts' => Product::where('type', 'simple')
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -80,15 +82,20 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:5000',
             'price' => 'required|numeric|min:0',
+            'type' => 'required|in:simple,compose',
             'id_category' => 'nullable|exists:categories,id',
             'img_1' => 'nullable|image|max:5120',
             'img_2' => 'nullable|image|max:5120',
+            'components' => 'required_if:type,compose|array|min:1',
+            'components.*.id_component_product' => 'required|integer|exists:products,id',
+            'components.*.quantity' => 'required|integer|min:1',
         ]);
 
         $data = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'],
+            'type' => $validated['type'],
             'id_category' => $validated['id_category'] ?? null,
             'id_user' => Auth::id(),
             'status' => 'Success',
@@ -102,7 +109,11 @@ class ProductController extends Controller
             $data['img_2'] = $this->uploadFile($request->file('img_2'));
         }
 
-        Product::create($data);
+        $product = Product::create($data);
+
+        if ($validated['type'] === 'compose') {
+            $this->syncComponents($product, $validated['components'] ?? []);
+        }
 
         return redirect()
             ->route('admin.products.index')
@@ -117,12 +128,21 @@ class ProductController extends Controller
                 'name' => $product->name,
                 'description' => $product->description,
                 'price' => $product->price,
+                'type' => $product->type,
                 'id_category' => $product->id_category,
                 'status' => $product->status,
-                'img_1' => $this->fileUrl($product->img_1),
-                'img_2' => $this->fileUrl($product->img_2),
+                'img_1' => $product->img_1 ? asset($product->img_1) : null,
+                'img_2' => $product->img_2 ? asset($product->img_2) : null,
+                'components' => $product->components->map(fn ($c) => [
+                    'id_component_product' => $c->id_component_product,
+                    'quantity' => $c->quantity,
+                ])->values(),
             ],
             'categories' => Category::orderBy('name')->get(['id', 'name']),
+            'simpleProducts' => Product::where('type', 'simple')
+                ->where('id', '!=', $product->id)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 
@@ -132,17 +152,22 @@ class ProductController extends Controller
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:5000',
             'price' => 'required|numeric|min:0',
+            'type' => 'required|in:simple,compose',
             'id_category' => 'nullable|exists:categories,id',
             'img_1' => 'nullable|image|max:5120',
             'img_2' => 'nullable|image|max:5120',
             'remove_img_1' => 'nullable|boolean',
             'remove_img_2' => 'nullable|boolean',
+            'components' => 'required_if:type,compose|array|min:1',
+            'components.*.id_component_product' => 'required|integer|exists:products,id',
+            'components.*.quantity' => 'required|integer|min:1',
         ]);
 
         $data = [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'price' => $validated['price'],
+            'type' => $validated['type'],
             'id_category' => $validated['id_category'] ?? null,
         ];
 
@@ -174,7 +199,30 @@ class ProductController extends Controller
 
         $product->update($data);
 
+        // Recomposer : on remplace toute la composition existante
+        $product->components()->delete();
+        if ($validated['type'] === 'compose') {
+            $this->syncComponents($product, $validated['components'] ?? []);
+        }
+
         return back()->with('success', 'Produit mis à jour.');
+    }
+
+    /**
+     * (Re)crée les lignes de composition d'un produit composé.
+     * Ignore les composants pointant sur le produit lui-même.
+     */
+    private function syncComponents(Product $product, array $components): void
+    {
+        foreach ($components as $c) {
+            if ((int) $c['id_component_product'] === $product->id) {
+                continue;
+            }
+            $product->components()->create([
+                'id_component_product' => $c['id_component_product'],
+                'quantity' => $c['quantity'],
+            ]);
+        }
     }
 
     public function toggleStatus(Product $product): RedirectResponse
@@ -206,10 +254,12 @@ class ProductController extends Controller
             'description' => $p->description,
             'price' => $p->price,
             'price_formatted' => number_format((float) $p->price, 0, ',', ' ') . ' FCFA',
+            'type' => $p->type,
+            'components_count' => $p->components_count ?? 0,
             'status' => $p->status,
             'is_active' => $p->status === 'Success',
-            'img_1' => $this->fileUrl($p->img_1),
-            'img_2' => $this->fileUrl($p->img_2),
+            'img_1' => $p->img_1 ? asset($p->img_1) : null,
+            'img_2' => $p->img_2 ? asset($p->img_2) : null,
             'category' => $p->categories ? [
                 'id' => $p->categories->id,
                 'name' => $p->categories->name,
@@ -219,49 +269,35 @@ class ProductController extends Controller
         ];
     }
 
-    /**
-     * Génère l'URL publique d'un fichier stocké.
-     * Gère les anciens chemins (uploads/...) et les nouveaux (storage disk).
-     */
-    private function fileUrl(?string $path): ?string
-    {
-        if (! $path) return null;
-
-        // Déjà une URL complète
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return Storage::disk('public')->url($path);
-    }
-
-    /**
-     * Upload un fichier dans storage/app/public/uploads/products/
-     * Retourne le path relatif (ex: "uploads/products/prod_xxx.jpg")
-     */
     private function uploadFile($file): string
     {
         $extension = $file->getClientOriginalExtension();
         $filename = 'prod_' . uniqid() . '_' . time() . '.' . $extension;
+        $folder = 'uploads/products';
 
-        return $file->storeAs('uploads/products', $filename, 'public');
+        $destinationPath = public_path($folder);
+        if (! file_exists($destinationPath)) {
+            mkdir($destinationPath, 0755, true);
+        }
+
+        $file->move($destinationPath, $filename);
+
+        return $folder . '/' . $filename;
     }
 
-    /**
-     * Supprime un fichier du disk public.
-     */
     private function deleteFile(?string $path): void
     {
         if (! $path) return;
 
-        // Si c'est une URL complète, extraire le path relatif
+        // Si c'est une URL complète (asset()), extraire le path relatif
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            $parsed = parse_url($path, PHP_URL_PATH) ?? '';
-            $path = ltrim(str_replace('/storage/', '', $parsed), '/');
+            $path = parse_url($path, PHP_URL_PATH);
+            $path = ltrim($path, '/');
         }
 
-        if (Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
+        $fullPath = public_path($path);
+        if (file_exists($fullPath)) {
+            @unlink($fullPath);
         }
     }
 }

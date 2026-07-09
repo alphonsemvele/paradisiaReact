@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { ArrowLeft, X, Save, ImageIcon, Package } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import { TypeSelector, CompositionBuilder, type ComponentRow } from '@/components/admin/ProductComposition';
 
 interface Props {
     product: {
@@ -10,15 +11,18 @@ interface Props {
         name: string;
         description: string | null;
         price: number;
+        type: 'simple' | 'compose';
         id_category: number | null;
         status: string | null;
         img_1: string | null;
         img_2: string | null;
+        components: ComponentRow[];
     };
     categories: Array<{ id: number; name: string }>;
+    simpleProducts: Array<{ id: number; name: string }>;
 }
 
-export default function ProductEdit({ product, categories }: Props) {
+export default function ProductEdit({ product, categories, simpleProducts }: Props) {
     const [preview1, setPreview1] = useState<string | null>(product.img_1);
     const [preview2, setPreview2] = useState<string | null>(product.img_2);
 
@@ -27,7 +31,9 @@ export default function ProductEdit({ product, categories }: Props) {
         name: product.name,
         description: product.description || '',
         price: product.price.toString(),
+        type: (product.type || 'simple') as 'simple' | 'compose',
         id_category: product.id_category?.toString() || '',
+        components: (product.components || []) as ComponentRow[],
         img_1: null as File | null,
         img_2: null as File | null,
         remove_img_1: false,
@@ -135,6 +141,19 @@ export default function ProductEdit({ product, categories }: Props) {
                             </select>
                         </div>
                     </div>
+
+                    {/* Type de produit */}
+                    <TypeSelector value={data.type} onChange={(v) => setData('type', v)} />
+
+                    {/* Composition (si composé) */}
+                    {data.type === 'compose' && (
+                        <CompositionBuilder
+                            value={data.components}
+                            onChange={(rows) => setData('components', rows)}
+                            simpleProducts={simpleProducts}
+                            errors={errors as Record<string, string>}
+                        />
+                    )}
 
                     <div>
                         <label className="block text-sm font-medium text-zinc-700 mb-1.5">Description</label>
