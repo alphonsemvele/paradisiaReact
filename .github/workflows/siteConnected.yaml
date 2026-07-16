@@ -17,7 +17,8 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          # Aligné sur la version du serveur (php -v => 8.3)
+          php-version: '8.3'
           extensions: mbstring, bcmath, ctype, json, tokenizer, xml, curl, dom, fileinfo, pdo, pdo_mysql
           coverage: none
 
@@ -43,7 +44,7 @@ jobs:
       - name: Build assets (Inertia/React/Vite)
         run: npm run build
 
-      # ── NOUVEAU : backup de la version en ligne AVANT le rsync ──
+      # Backup de la version en ligne AVANT le rsync
       - name: Backup version actuelle
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -58,12 +59,12 @@ jobs:
             BACKUP="$HOME/paradisia_old_$STAMP"
             if [ -d "$DEPLOY" ]; then
               # Copie (pas de mv : le .env n'existe que sur le serveur)
-              # On exclut vendor et node_modules pour alléger le backup
+              # vendor et node_modules exclus pour alléger le backup
               rsync -a --exclude='vendor/' --exclude='node_modules/' "$DEPLOY/" "$BACKUP/"
               echo "Backup créé : $BACKUP"
             fi
             # Rotation : on ne garde que les 2 backups les plus récents
-            ls -dt "$HOME"/paradisia_old_* 2>/dev/null | tail -n +3 | xargs -r rm -rf
+            ls -dt "$HOME"/paradisia_old_2* 2>/dev/null | tail -n +3 | xargs -r rm -rf
 
       - name: Deploy via rsync
         uses: burnett01/rsync-deployments@7.0.1
@@ -80,6 +81,7 @@ jobs:
             --exclude='storage/framework/sessions/'
             --exclude='storage/framework/views/'
             --exclude='storage/app/public/'
+            --exclude='storage/app/private/'
           path: ./
           remote_path: ${{ secrets.DEPLOY_PATH }}
           remote_host: ${{ secrets.SSH_HOST }}
@@ -96,8 +98,9 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             set -e
-            PHP=/opt/alt/php82/usr/bin/php
+            # PHP du sélecteur N0C (~/bin/php => /usr/bin/php 8.3, avec pdo/dom/etc.)
             export PATH=$HOME/bin:$PATH
+            PHP=php
             DEPLOY="${{ secrets.DEPLOY_PATH }}"
             cd "$DEPLOY"
 
@@ -107,6 +110,7 @@ jobs:
             mkdir -p storage/framework/cache/data
             mkdir -p storage/logs
             mkdir -p storage/app/public
+            mkdir -p storage/app/private
 
             # Permissions
             chmod -R 775 storage bootstrap/cache
@@ -120,14 +124,19 @@ jobs:
             # Recharger les caches (clear avant cache pour éviter les chemins figés)
             $PHP artisan config:clear
             $PHP artisan config:cache
-            $PHP artisan route:cache
+            # route:cache peut échouer à cause d'une page Folio défectueuse
+            # (show.blade.php : parameter() on null) -> toléré avec avertissement
+            $PHP artisan route:cache || echo "::warning::route:cache a échoué (page Folio à corriger), déploiement poursuivi"
             $PHP artisan view:cache
 
             # Resync des assets publics vers public_html
-            # (préserve index.php modifié, .htaccess, .well-known et le symlink storage)
+            # (préserve index.php modifié, .htaccess, .well-known, le symlink
+            # storage et env_node géré par N0C)
             rsync -a --delete \
               --exclude='index.php' \
               --exclude='.htaccess' \
               --exclude='.well-known/' \
               --exclude='storage' \
+              --exclude='env_node/' \
+              --exclude='uploads/' \
               "$DEPLOY/public/" ~/public_html/
