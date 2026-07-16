@@ -1,0 +1,133 @@
+name: Deploy to N0C
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, bcmath, ctype, json, tokenizer, xml, curl, dom, fileinfo, pdo, pdo_mysql
+          coverage: none
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Composer install
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build assets (Inertia/React/Vite)
+        run: npm run build
+
+      # ── NOUVEAU : backup de la version en ligne AVANT le rsync ──
+      - name: Backup version actuelle
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            DEPLOY="${{ secrets.DEPLOY_PATH }}"
+            STAMP=$(date +%Y%m%d_%H%M%S)
+            BACKUP="$HOME/paradisia_old_$STAMP"
+            if [ -d "$DEPLOY" ]; then
+              # Copie (pas de mv : le .env n'existe que sur le serveur)
+              # On exclut vendor et node_modules pour alléger le backup
+              rsync -a --exclude='vendor/' --exclude='node_modules/' "$DEPLOY/" "$BACKUP/"
+              echo "Backup créé : $BACKUP"
+            fi
+            # Rotation : on ne garde que les 2 backups les plus récents
+            ls -dt "$HOME"/paradisia_old_* 2>/dev/null | tail -n +3 | xargs -r rm -rf
+
+      - name: Deploy via rsync
+        uses: burnett01/rsync-deployments@7.0.1
+        with:
+          switches: >-
+            -avzr --delete
+            --exclude='.env'
+            --exclude='.git/'
+            --exclude='.github/'
+            --exclude='node_modules/'
+            --exclude='tests/'
+            --exclude='storage/logs/'
+            --exclude='storage/framework/cache/'
+            --exclude='storage/framework/sessions/'
+            --exclude='storage/framework/views/'
+            --exclude='storage/app/public/'
+          path: ./
+          remote_path: ${{ secrets.DEPLOY_PATH }}
+          remote_host: ${{ secrets.SSH_HOST }}
+          remote_user: ${{ secrets.SSH_USER }}
+          remote_port: ${{ secrets.SSH_PORT }}
+          remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Post-deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          port: ${{ secrets.SSH_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            PHP=/opt/alt/php82/usr/bin/php
+            export PATH=$HOME/bin:$PATH
+            DEPLOY="${{ secrets.DEPLOY_PATH }}"
+            cd "$DEPLOY"
+
+            # S'assurer que les dossiers storage existent (exclus du rsync)
+            mkdir -p storage/framework/views
+            mkdir -p storage/framework/sessions
+            mkdir -p storage/framework/cache/data
+            mkdir -p storage/logs
+            mkdir -p storage/app/public
+
+            # Permissions
+            chmod -R 775 storage bootstrap/cache
+
+            # Lien symbolique storage (idempotent)
+            $PHP artisan storage:link || true
+
+            # Migrations
+            $PHP artisan migrate --force
+
+            # Recharger les caches (clear avant cache pour éviter les chemins figés)
+            $PHP artisan config:clear
+            $PHP artisan config:cache
+            $PHP artisan route:cache
+            $PHP artisan view:cache
+
+            # Resync des assets publics vers public_html
+            # (préserve index.php modifié, .htaccess, .well-known et le symlink storage)
+            rsync -a --delete \
+              --exclude='index.php' \
+              --exclude='.htaccess' \
+              --exclude='.well-known/' \
+              --exclude='storage' \
+              "$DEPLOY/public/" ~/public_html/
