@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { ArrowLeft, Save, GraduationCap, ImageIcon, X, FileText, MapPin, Monitor, Check } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import { resizeImageFile } from '@/utils/resizeImage';
 
 export default function FormationCreate() {
     const [preview, setPreview] = useState<string | null>(null);
@@ -18,12 +19,13 @@ export default function FormationCreate() {
         document: null as File | null,
     });
 
-    const handleImage = (file: File | null) => {
-        setData('image', file);
-        if (!file) return setPreview(null);
+    const handleImage = async (file: File | null) => {
+        const optimized = file ? await resizeImageFile(file) : null;
+        setData('image', optimized);
+        if (!optimized) return setPreview(null);
         const reader = new FileReader();
         reader.onload = (e) => setPreview(e.target?.result as string);
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(optimized);
     };
 
     const submit = (e: React.FormEvent) => {

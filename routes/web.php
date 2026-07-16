@@ -69,7 +69,8 @@ Route::prefix('admin')
         Route::get('/products/create', [ProductController::class, 'create'])->name('products.create');
         Route::post('/products', [ProductController::class, 'store'])->name('products.store');
         Route::get('/products/{product}/edit', [ProductController::class, 'edit'])->name('products.edit');
-        Route::post('/products/{product}', [ProductController::class, 'update'])->name('products.update');
+        // POST + PATCH : l'upload multipart exige POST, mais le front spoofe _method=PATCH
+        Route::match(['post', 'patch'], '/products/{product}', [ProductController::class, 'update'])->name('products.update');
         Route::patch('/products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])->name('products.toggle-status');
         Route::delete('/products/{product}', [ProductController::class, 'destroy'])->name('products.destroy');
 
@@ -90,7 +91,8 @@ Route::get('/points-de-vente', [PointDeVenteController::class, 'index'])->name('
 Route::get('/points-de-vente/create', [PointDeVenteController::class, 'create'])->name('points-de-vente.create');
 Route::post('/points-de-vente', [PointDeVenteController::class, 'store'])->name('points-de-vente.store');
 Route::get('/points-de-vente/{point_de_vente}/edit', [PointDeVenteController::class, 'edit'])->name('points-de-vente.edit');
-Route::post('/points-de-vente/{point_de_vente}', [PointDeVenteController::class, 'update'])->name('points-de-vente.update');
+// POST + PATCH : l'upload multipart exige POST, mais le front spoofe _method=PATCH
+Route::match(['post', 'patch'], '/points-de-vente/{point_de_vente}', [PointDeVenteController::class, 'update'])->name('points-de-vente.update');
 Route::patch('/points-de-vente/{point_de_vente}/toggle-status', [PointDeVenteController::class, 'toggleStatus'])->name('points-de-vente.toggle-status');
 Route::delete('/points-de-vente/{point_de_vente}', [PointDeVenteController::class, 'destroy'])->name('points-de-vente.destroy');
 

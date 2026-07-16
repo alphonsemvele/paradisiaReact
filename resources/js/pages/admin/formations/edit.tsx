@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowLeft, Save, GraduationCap, FileDown, Trash2 } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { FormFields } from './create';
+import { resizeImageFile } from '@/utils/resizeImage';
 
 interface Formation {
     id: number;
@@ -35,12 +36,13 @@ export default function FormationEdit({ formation }: { formation: Formation }) {
         remove_document: false as boolean,
     });
 
-    const handleImage = (file: File | null) => {
-        setData('image', file);
-        if (!file) return setPreview(null);
+    const handleImage = async (file: File | null) => {
+        const optimized = file ? await resizeImageFile(file) : null;
+        setData('image', optimized);
+        if (!optimized) return setPreview(null);
         const reader = new FileReader();
         reader.onload = (e) => setPreview(e.target?.result as string);
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(optimized);
     };
 
     const submit = (e: React.FormEvent) => {

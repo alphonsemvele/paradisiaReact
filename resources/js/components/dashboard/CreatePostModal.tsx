@@ -2,6 +2,7 @@ import { useState, FormEvent, ChangeEvent } from 'react';
 import { useForm } from '@inertiajs/react';
 import { X, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
 import type { User } from '@/types';
+import { resizeImageFile } from '@/utils/resizeImage';
 
 interface Props {
     user: User | null;
@@ -27,11 +28,12 @@ export default function CreatePostModal({ user, onClose }: Props) {
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [videoPreview, setVideoPreview] = useState<string | null>(null);
 
-    const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
-            setData('image', file);
-            setImagePreview(URL.createObjectURL(file));
+            const optimized = await resizeImageFile(file);
+            setData('image', optimized);
+            setImagePreview(URL.createObjectURL(optimized));
             // Reset video si une image est ajoutée
             setData('video', null);
             setVideoPreview(null);

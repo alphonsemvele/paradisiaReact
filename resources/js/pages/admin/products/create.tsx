@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowLeft, X, Save, ImageIcon, Package } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { TypeSelector, CompositionBuilder, type ComponentRow } from '@/components/admin/ProductComposition';
+import { resizeImageFile } from '@/utils/resizeImage';
 
 interface Props {
     categories: Array<{ id: number; name: string }>;
@@ -25,7 +26,8 @@ export default function ProductCreate({ categories, simpleProducts }: Props) {
         img_2: null as File | null,
     });
 
-    const handleFile = (key: 'img_1' | 'img_2', file: File | null) => {
+    const handleFile = async (key: 'img_1' | 'img_2', file: File | null) => {
+        file = file ? await resizeImageFile(file) : null;
         setData(key, file);
         if (!file) {
             key === 'img_1' ? setPreview1(null) : setPreview2(null);

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ArrowLeft, X, Save, ImageIcon, Package } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 import { TypeSelector, CompositionBuilder, type ComponentRow } from '@/components/admin/ProductComposition';
+import { resizeImageFile } from '@/utils/resizeImage';
 
 interface Props {
     product: {
@@ -40,7 +41,8 @@ export default function ProductEdit({ product, categories, simpleProducts }: Pro
         remove_img_2: false,
     });
 
-    const handleFile = (key: 'img_1' | 'img_2', file: File | null) => {
+    const handleFile = async (key: 'img_1' | 'img_2', file: File | null) => {
+        file = file ? await resizeImageFile(file) : null;
         setData(key, file);
         if (key === 'img_1') {
             setData('remove_img_1', false);

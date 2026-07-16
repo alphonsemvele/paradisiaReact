@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { ArrowLeft, X, Save, ImageIcon, Store, MapPin, Phone, Clock } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import { resizeImageFile } from '@/utils/resizeImage';
 
 export default function PointDeVenteEdit({ point }: any) {
     const [preview, setPreview] = useState<string | null>(point?.image || null);
@@ -19,16 +20,17 @@ export default function PointDeVenteEdit({ point }: any) {
         remove_image: false,
     });
 
-    const handleFile = (file: File | null) => {
-        setData('image', file);
+    const handleFile = async (file: File | null) => {
+        const optimized = file ? await resizeImageFile(file) : null;
+        setData('image', optimized);
         setData('remove_image', false);
-        if (!file) {
+        if (!optimized) {
             setPreview(null);
             return;
         }
         const reader = new FileReader();
         reader.onload = (e) => setPreview(e.target?.result as string);
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(optimized);
     };
 
     const removeImage = () => {
