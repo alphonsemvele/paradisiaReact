@@ -29,46 +29,53 @@ class TrackVisit
             return $response;
         }
 
-        try {
-            $userAgent = $request->userAgent();
-            $sessionId = $request->session()->getId();
-            $ip = $request->ip();
+        // On capture ce dont on a besoin maintenant, mais tout le travail
+        // (anti-doublon, géolocalisation HTTP, insertion) s'exécute APRÈS
+        // l'envoi de la réponse : le tracking ne ralentit jamais la page.
+        $userAgent = $request->userAgent();
+        $sessionId = $request->session()->getId();
+        $ip = $request->ip();
+        $fullUrl = $request->fullUrl();
+        $path = $request->path() ?: '/';
+        $referer = $request->headers->get('referer');
+        $user = Auth::user();
 
-            // Anti-doublon : même session + même page dans 30 min
-            $alreadyVisited = Visit::where('session_id', $sessionId)
-                ->where('path', $request->path())
-                ->where('created_at', '>=', now()->subMinutes(30))
-                ->exists();
+        app()->terminating(function () use ($userAgent, $sessionId, $ip, $fullUrl, $path, $referer, $user) {
+            try {
+                // Anti-doublon : même session + même page dans 30 min
+                $alreadyVisited = Visit::where('session_id', $sessionId)
+                    ->where('path', $path)
+                    ->where('created_at', '>=', now()->subMinutes(30))
+                    ->exists();
 
-            if ($alreadyVisited) {
-                return $response;
+                if ($alreadyVisited) {
+                    return;
+                }
+
+                // 🌍 Géolocalisation par IP (avec cache 24h)
+                $geo = $this->getGeoFromIp($ip);
+
+                Visit::create([
+                    'ip_address' => $ip,
+                    'session_id' => $sessionId,
+                    'id_user' => $user?->id,
+                    'url' => $fullUrl,
+                    'path' => $path,
+                    'referer' => $referer,
+                    'user_agent' => mb_substr($userAgent ?? '', 0, 500),
+                    'device_type' => $this->detectDevice($userAgent),
+                    'browser' => $this->detectBrowser($userAgent),
+                    'os' => $this->detectOS($userAgent),
+
+                    // 🆕 Priorité : user > géo IP
+                    'country' => $user?->country ?? $geo['country'] ?? null,
+                    'country_code' => $user?->country_code ?? $geo['country_code'] ?? null,
+                    'city' => $geo['city'] ?? null,
+                ]);
+            } catch (\Throwable $e) {
+                \Log::warning('TrackVisit failed: ' . $e->getMessage());
             }
-
-            // 🌍 Géolocalisation par IP (avec cache 24h)
-            $geo = $this->getGeoFromIp($ip);
-
-            $user = Auth::user();
-
-            Visit::create([
-                'ip_address' => $ip,
-                'session_id' => $sessionId,
-                'id_user' => Auth::id(),
-                'url' => $request->fullUrl(),
-                'path' => $request->path() ?: '/',
-                'referer' => $request->headers->get('referer'),
-                'user_agent' => mb_substr($userAgent ?? '', 0, 500),
-                'device_type' => $this->detectDevice($userAgent),
-                'browser' => $this->detectBrowser($userAgent),
-                'os' => $this->detectOS($userAgent),
-
-                // 🆕 Priorité : user > géo IP
-                'country' => $user?->country ?? $geo['country'] ?? null,
-                'country_code' => $user?->country_code ?? $geo['country_code'] ?? null,
-                'city' => $geo['city'] ?? null,
-            ]);
-        } catch (\Throwable $e) {
-            \Log::warning('TrackVisit failed: ' . $e->getMessage());
-        }
+        });
 
         return $response;
     }

@@ -42,7 +42,7 @@ export default function PublicationMedia({ publication }: Props) {
                             className="cursor-pointer"
                             onClick={() => openLightbox(0)}
                         >
-                            <img
+                            <img loading="lazy" decoding="async"
                                 src={images[0]}
                                 alt="Publication"
                                 className="w-full object-cover max-h-[500px] hover:opacity-95 transition-opacity"
@@ -58,7 +58,7 @@ export default function PublicationMedia({ publication }: Props) {
                                     className="cursor-pointer aspect-square overflow-hidden"
                                     onClick={() => openLightbox(i)}
                                 >
-                                    <img
+                                    <img loading="lazy" decoding="async"
                                         src={img}
                                         alt="Publication"
                                         className="w-full h-full object-cover hover:opacity-95 transition-opacity"
@@ -74,7 +74,7 @@ export default function PublicationMedia({ publication }: Props) {
                                 className="row-span-2 cursor-pointer"
                                 onClick={() => openLightbox(0)}
                             >
-                                <img
+                                <img loading="lazy" decoding="async"
                                     src={images[0]}
                                     alt="Publication"
                                     className="w-full h-full object-cover hover:opacity-95 transition-opacity"
@@ -84,7 +84,7 @@ export default function PublicationMedia({ publication }: Props) {
                                 className="cursor-pointer aspect-square overflow-hidden"
                                 onClick={() => openLightbox(1)}
                             >
-                                <img
+                                <img loading="lazy" decoding="async"
                                     src={images[1]}
                                     alt="Publication"
                                     className="w-full h-full object-cover hover:opacity-95 transition-opacity"
@@ -94,7 +94,7 @@ export default function PublicationMedia({ publication }: Props) {
                                 className="cursor-pointer aspect-square overflow-hidden"
                                 onClick={() => openLightbox(2)}
                             >
-                                <img
+                                <img loading="lazy" decoding="async"
                                     src={images[2]}
                                     alt="Publication"
                                     className="w-full h-full object-cover hover:opacity-95 transition-opacity"
@@ -111,7 +111,7 @@ export default function PublicationMedia({ publication }: Props) {
                                     className="cursor-pointer aspect-square overflow-hidden"
                                     onClick={() => openLightbox(i)}
                                 >
-                                    <img
+                                    <img loading="lazy" decoding="async"
                                         src={img}
                                         alt="Publication"
                                         className="w-full h-full object-cover hover:opacity-95 transition-opacity"
@@ -127,7 +127,7 @@ export default function PublicationMedia({ publication }: Props) {
                                 className="col-span-2 cursor-pointer"
                                 onClick={() => openLightbox(0)}
                             >
-                                <img
+                                <img loading="lazy" decoding="async"
                                     src={images[0]}
                                     alt="Publication"
                                     className="w-full h-64 object-cover hover:opacity-95 transition-opacity"
@@ -139,7 +139,7 @@ export default function PublicationMedia({ publication }: Props) {
                                     className="cursor-pointer aspect-square overflow-hidden relative"
                                     onClick={() => openLightbox(i)}
                                 >
-                                    <img
+                                    <img loading="lazy" decoding="async"
                                         src={images[i]}
                                         alt="Publication"
                                         className="w-full h-full object-cover hover:opacity-95 transition-opacity"
@@ -225,7 +225,7 @@ export default function PublicationMedia({ publication }: Props) {
                     )}
 
                     <div className="max-w-5xl max-h-[90vh] px-16">
-                        <img
+                        <img loading="lazy" decoding="async"
                             src={images[currentIndex]}
                             alt="Publication"
                             className="max-w-full max-h-[85vh] object-contain mx-auto rounded-lg shadow-2xl"

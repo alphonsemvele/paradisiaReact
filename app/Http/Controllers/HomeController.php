@@ -22,12 +22,12 @@ class HomeController extends Controller
     {
         $highlightId = $request->query('highlight');
 
-        $publications = Publication::with([
-            'user',
-            'comments.user',
-            'comments.replies.user',
-            'likes',
-        ])
+        $publications = Publication::with('user')
+            ->withCount([
+                'likes',
+                'shares',
+                'comments as comments_success_count' => fn ($q) => $q->where('status', 'Success'),
+            ])
             ->where('status', 'Success')
             ->orderBy('created_at', 'desc')
             ->limit(10)
@@ -35,16 +35,33 @@ class HomeController extends Controller
 
         $highlightedPublication = null;
         if ($highlightId) {
-            $highlightedPublication = Publication::with([
-                'user',
-                'comments.user',
-                'comments.replies.user',
-                'likes',
-            ])
+            $highlightedPublication = Publication::with('user')
+                ->withCount([
+                    'likes',
+                    'shares',
+                    'comments as comments_success_count' => fn ($q) => $q->where('status', 'Success'),
+                ])
                 ->where('id', $highlightId)
                 ->where('status', 'Success')
                 ->first();
         }
+
+        // Charge uniquement les commentaires récents (payload borné : une
+        // publication très commentée n'envoie plus des milliers de lignes).
+        $this->attachRecentComments(
+            $highlightedPublication ? $publications->concat([$highlightedPublication]) : $publications
+        );
+
+        // Likes de l'utilisateur sur les publications affichées : une seule requête
+        $publicationIds = $publications->pluck('id')
+            ->when($highlightedPublication, fn ($ids) => $ids->push($highlightedPublication->id));
+
+        $likedPublicationIds = Auth::check()
+            ? Like::where('id_user', Auth::id())
+                ->whereIn('id_publication', $publicationIds)
+                ->pluck('id_publication')
+                ->all()
+            : [];
 
         $allCommentIds = $publications
             ->flatMap(fn ($p) => $p->comments->pluck('id'))
@@ -69,34 +86,32 @@ class HomeController extends Controller
             ->toArray();
 
         $formattedPublications = $publications->map(
-            fn ($pub) => $this->formatPublication($pub, $userCommentLikes, $commentLikesCounts)
+            fn ($pub) => $this->formatPublication($pub, $userCommentLikes, $commentLikesCounts, $likedPublicationIds)
         );
 
         $formattedHighlight = $highlightedPublication
-            ? $this->formatPublication($highlightedPublication, $userCommentLikes, $commentLikesCounts)
+            ? $this->formatPublication($highlightedPublication, $userCommentLikes, $commentLikesCounts, $likedPublicationIds)
             : null;
 
-        $featuredProducts = Product::with(['user', 'categories'])
-            ->where('status', 'Success')
-            ->orderBy('created_at', 'desc')
-            ->limit(3)
-            ->get()
-            ->map(fn ($p) => $this->formatProduct($p));
-
-        $otherProducts = Product::with(['user', 'categories'])
-            ->where('status', 'Success')
-            ->orderBy('created_at', 'desc')
-            ->skip(3)
-            ->take(4)
-            ->get()
-            ->map(fn ($p) => $this->formatProduct($p));
-
+        // Closures : évaluées uniquement quand la prop est demandée
+        // (les rechargements partiels Inertia sautent le travail inutile).
         return Inertia::render('dashboard/home/index', [
             'publications' => $formattedPublications,
             'highlightedPublication' => $formattedHighlight,
-            'featuredProducts' => $featuredProducts,
-            'otherProducts' => $otherProducts,
-            'pointsDeVente' => $this->getPointsDeVente(),
+            'featuredProducts' => fn () => Product::with(['user', 'categories'])
+                ->where('status', 'Success')
+                ->orderBy('created_at', 'desc')
+                ->limit(3)
+                ->get()
+                ->map(fn ($p) => $this->formatProduct($p)),
+            'otherProducts' => fn () => Product::with(['user', 'categories'])
+                ->where('status', 'Success')
+                ->orderBy('created_at', 'desc')
+                ->skip(3)
+                ->take(4)
+                ->get()
+                ->map(fn ($p) => $this->formatProduct($p)),
+            'pointsDeVente' => fn () => $this->getPointsDeVente(),
         ]);
     }
 
@@ -302,7 +317,33 @@ class HomeController extends Controller
         return back();
     }
 
-    private function formatPublication(Publication $pub, array $userCommentLikes, array $commentLikesCounts): array
+    /**
+     * Attache aux publications leurs commentaires récents seulement (racines
+     * + réponses), au lieu de la totalité : une publication très commentée
+     * n'alourdit plus chaque affichage de l'accueil.
+     */
+    private function attachRecentComments($publications, int $limit = 10): void
+    {
+        foreach ($publications as $pub) {
+            $topLevel = Comment::with('user')
+                ->where('id_publication', $pub->id)
+                ->whereNull('parent_id')
+                ->orderByDesc('created_at')
+                ->limit($limit)
+                ->get();
+
+            $replies = $topLevel->isEmpty()
+                ? collect()
+                : Comment::with('user')
+                    ->where('id_publication', $pub->id)
+                    ->whereIn('parent_id', $topLevel->pluck('id'))
+                    ->get();
+
+            $pub->setRelation('comments', $topLevel->concat($replies));
+        }
+    }
+
+    private function formatPublication(Publication $pub, array $userCommentLikes, array $commentLikesCounts, array $likedPublicationIds = []): array
     {
         $images = collect([
             $pub->img_1, $pub->img_2, $pub->img_3, $pub->img_4, $pub->img_5,
@@ -318,12 +359,10 @@ class HomeController extends Controller
             'created_at_human' => $pub->created_at->diffForHumans(),
             'user' => $this->formatUser($pub->user),
             'is_owner' => Auth::check() && Auth::id() === $pub->id_user,
-            'likes_count' => $pub->likes->count(),
-            'comments_count' => $pub->comments->where('status', 'Success')->count(),
-            'shares_count' => Share::where('id_publication', $pub->id)->count(),
-            'has_liked' => Auth::check()
-                ? $pub->likes->where('id_user', Auth::id())->isNotEmpty()
-                : false,
+            'likes_count' => $pub->likes_count ?? 0,
+            'comments_count' => $pub->comments_success_count ?? 0,
+            'shares_count' => $pub->shares_count ?? 0,
+            'has_liked' => in_array($pub->id, $likedPublicationIds, true),
             'comments' => $pub->comments
                 ->whereNull('parent_id')
                 ->sortByDesc('created_at')

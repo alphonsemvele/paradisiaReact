@@ -14,18 +14,22 @@ class WhatsAppNotifier
 {
     public static function send(string $message): void
     {
-        $driver = config('services.whatsapp.driver', 'greenapi');
+        // Différé après l'envoi de la réponse HTTP : l'appel réseau vers le
+        // fournisseur ne ralentit jamais la requête de l'utilisateur.
+        app()->terminating(function () use ($message) {
+            $driver = config('services.whatsapp.driver', 'greenapi');
 
-        try {
-            match ($driver) {
-                'greenapi'  => self::greenApi($message),
-                'telegram'  => self::telegram($message),
-                'callmebot' => self::callMeBot($message),
-                default     => null,
-            };
-        } catch (\Throwable $e) {
-            Log::warning('Alerte inscription échouée : ' . $e->getMessage());
-        }
+            try {
+                match ($driver) {
+                    'greenapi'  => self::greenApi($message),
+                    'telegram'  => self::telegram($message),
+                    'callmebot' => self::callMeBot($message),
+                    default     => null,
+                };
+            } catch (\Throwable $e) {
+                Log::warning('Alerte WhatsApp échouée : ' . $e->getMessage());
+            }
+        });
     }
 
     /**

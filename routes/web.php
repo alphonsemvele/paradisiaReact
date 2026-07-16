@@ -5,6 +5,7 @@ use App\Http\Controllers\UserController;
 use Inertia\Inertia;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ShopController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\InvestController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
@@ -188,7 +189,10 @@ Route::patch('/cart/update', [ShopController::class, 'updateCart'])->name('cart.
 Route::delete('/cart/remove', [ShopController::class, 'removeFromCart'])->name('cart.remove');
 Route::delete('/cart/clear', [ShopController::class, 'clearCart'])->name('cart.clear');
 
-  Route::post('/checkout', [ShopController::class, 'checkout'])->name('checkout');
+    // Commande
+    Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
+    Route::post('/checkout', [OrderController::class, 'store'])->name('checkout.store');
+    Route::get('/orders/{ref}', [OrderController::class, 'confirmation'])->name('orders.confirmation');
 
 
 Route::post('/invest/quick', [InvestController::class, 'quickInvest'])->name('invest.quick');

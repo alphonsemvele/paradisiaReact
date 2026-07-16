@@ -35,7 +35,7 @@ export default function CartDrawer({ cart, onClose }: Props) {
     };
 
     const checkout = () => {
-        router.post('/checkout', {});
+        router.visit('/checkout');
     };
 
     return (

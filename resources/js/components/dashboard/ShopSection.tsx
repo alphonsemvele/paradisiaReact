@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { ShoppingBag } from 'lucide-react';
 import type { Product } from '@/types';
 
@@ -6,6 +6,16 @@ interface Props {
     featured: Product[];
     others: Product[];
 }
+
+const formatPrice = (price: number) => new Intl.NumberFormat('fr-FR').format(price);
+
+const addToCart = (productId: number) => {
+    router.post(
+        '/cart/add',
+        { product_id: productId, quantity: 1 },
+        { preserveScroll: true }
+    );
+};
 
 export default function ShopSection({ featured, others }: Props) {
     return (
@@ -58,16 +68,15 @@ export default function ShopSection({ featured, others }: Props) {
 }
 
 function FeaturedProductCard({ product, isPopular }: { product: Product; isPopular: boolean }) {
-    const formatPrice = (price: number) =>
-        new Intl.NumberFormat('fr-FR').format(price);
-
     return (
-        <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2 cursor-pointer border border-gray-100">
-            <div className="relative">
+        <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2 border border-gray-100 flex flex-col">
+            <Link href={`/shop/products/${product.id}`} className="relative block">
                 {product.image ? (
                     <img
                         src={product.image}
                         alt={product.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-48 object-cover"
                     />
                 ) : (
@@ -87,15 +96,21 @@ function FeaturedProductCard({ product, isPopular }: { product: Product; isPopul
                         Populaire 🔥
                     </span>
                 )}
-            </div>
-            <div className="p-4">
-                <h4 className="font-bold text-gray-800 mb-2 line-clamp-1">{product.name}</h4>
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{product.description}</p>
-                <div className="flex items-center justify-between">
-                    <p className="text-xl font-bold text-emerald-600">
-                        {formatPrice(product.price)} FCFA
+            </Link>
+
+            <div className="p-4 flex flex-col flex-1">
+                <h4 className="font-bold text-gray-800 mb-1 line-clamp-1">{product.name}</h4>
+                <p className="text-sm text-gray-600 line-clamp-2 flex-1">{product.description}</p>
+
+                {/* Prix en bas de carte */}
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                    <p className="text-2xl font-bold text-emerald-600 mb-3">
+                        {formatPrice(product.price)} <span className="text-sm font-semibold">FCFA</span>
                     </p>
-                    <button className="bg-emerald-500 text-white px-3 py-2 rounded-lg font-semibold hover:bg-emerald-600 transition-all text-sm flex items-center gap-1">
+                    <button
+                        onClick={() => addToCart(product.id)}
+                        className="w-full bg-emerald-500 text-white px-3 py-2.5 rounded-lg font-semibold hover:bg-emerald-600 transition-all text-sm flex items-center justify-center gap-2"
+                    >
                         <ShoppingBag className="w-4 h-4" />
                         Acheter
                     </button>
@@ -106,16 +121,18 @@ function FeaturedProductCard({ product, isPopular }: { product: Product; isPopul
 }
 
 function SmallProductCard({ product }: { product: Product }) {
-    const formatPrice = (price: number) =>
-        new Intl.NumberFormat('fr-FR').format(price);
-
     return (
-        <div className="bg-white rounded-xl overflow-hidden shadow hover:shadow-lg transition-all cursor-pointer border border-gray-100 group">
+        <Link
+            href={`/shop/products/${product.id}`}
+            className="bg-white rounded-xl overflow-hidden shadow hover:shadow-lg transition-all cursor-pointer border border-gray-100 group flex flex-col"
+        >
             <div className="relative">
                 {product.image ? (
                     <img
                         src={product.image}
                         alt={product.name}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                 ) : (
@@ -124,15 +141,16 @@ function SmallProductCard({ product }: { product: Product }) {
                     </div>
                 )}
             </div>
-            <div className="p-3">
-                <h5 className="font-semibold text-gray-800 text-sm line-clamp-1">
+            <div className="p-3 flex flex-col flex-1">
+                <h5 className="font-semibold text-gray-800 text-sm line-clamp-1 flex-1">
                     {product.name}
                 </h5>
-                <p className="text-emerald-600 font-bold text-sm mt-1">
+                {/* Prix en bas de carte */}
+                <p className="text-emerald-600 font-bold text-sm mt-2 pt-2 border-t border-gray-100">
                     {formatPrice(product.price)} FCFA
                 </p>
             </div>
-        </div>
+        </Link>
     );
 }
 

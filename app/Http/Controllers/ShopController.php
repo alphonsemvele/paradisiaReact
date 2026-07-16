@@ -6,7 +6,6 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -169,21 +168,6 @@ class ShopController extends Controller
         session()->forget('cart');
 
         return back()->with('success', 'Panier vidé');
-    }
-
-    public function checkout(): RedirectResponse
-    {
-        if (! Auth::check()) {
-            return redirect()->route('login');
-        }
-
-        $cart = session()->get('cart', []);
-
-        if (empty($cart)) {
-            return back()->withErrors(['error' => 'Votre panier est vide']);
-        }
-
-        return redirect()->route('checkout');
     }
 
     private function formatProduct(Product $product): array

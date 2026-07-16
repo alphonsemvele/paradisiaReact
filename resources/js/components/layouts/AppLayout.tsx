@@ -400,7 +400,16 @@ export default function AppLayout({ children }: Props) {
                         <div>
                             <h4 className="font-semibold text-white mb-3 text-sm">Contact</h4>
                             <ul className="space-y-2 text-sm">
-                                <li>+237 6XX XXX XXX</li>
+                                <li>
+                                    <a
+                                        href="https://wa.me/237687984282"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="hover:text-emerald-400 transition-colors"
+                                    >
+                                        +237 687 98 42 82
+                                    </a>
+                                </li>
                                 <li>contact@paradisia-africa.com</li>
                                 <li>Douala / Yaoundé, Cameroun</li>
                             </ul>
