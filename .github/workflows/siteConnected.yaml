@@ -52,6 +52,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
           script: |
             set -e
             DEPLOY="${{ secrets.DEPLOY_PATH }}"
@@ -97,6 +98,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           port: ${{ secrets.SSH_PORT }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          command_timeout: 30m
           script: |
             set -e
             # PHP du sélecteur N0C (~/bin/php => /usr/bin/php 8.3, avec pdo/dom/etc.)
@@ -113,9 +115,11 @@ jobs:
             mkdir -p storage/app/public
             mkdir -p storage/app/private
 
-            # Permissions (tolérant : certains fichiers peuvent être verrouillés)
+            # Permissions : dossiers uniquement — un chmod -R sur les milliers
+            # de fichiers de sessions/logs prenait plusieurs minutes et faisait
+            # dépasser le timeout SSH.
             echo "==> permissions"
-            chmod -R 775 storage bootstrap/cache || echo "::warning::chmod partiel"
+            find storage bootstrap/cache -type d -exec chmod 775 {} + || echo "::warning::chmod partiel"
 
             # Publication unique des uploads historiques du projet vers le
             # docroot. Les nouveaux uploads vont directement dans
@@ -134,6 +138,29 @@ jobs:
             echo "==> storage:link"
             $PHP artisan storage:link || true
 
+            # Assets publics vers public_html EN PREMIER : même si une étape
+            # BD échoue ou que la session SSH tombe ensuite, le front est
+            # déjà publié. (préserve index.php modifié, .htaccess,
+            # .well-known, le symlink storage et env_node géré par N0C)
+            echo "==> publication des assets vers public_html"
+            rsync -a --delete \
+              --exclude='index.php' \
+              --exclude='.htaccess' \
+              --exclude='.well-known/' \
+              --exclude='storage' \
+              --exclude='env_node/' \
+              --exclude='uploads/' \
+              public/ ~/public_html/
+
+            # Recharger les caches (clear avant cache pour éviter les chemins figés)
+            echo "==> caches"
+            $PHP artisan config:clear
+            $PHP artisan config:cache
+            # route:cache peut échouer à cause d'une page Folio défectueuse
+            # (show.blade.php : parameter() on null) -> toléré avec avertissement
+            $PHP artisan route:cache || echo "::warning::route:cache a échoué (page Folio à corriger), déploiement poursuivi"
+            $PHP artisan view:cache
+
             # Migrations. La base de prod vient d'un import SQL : baseline
             # marque d'abord comme exécutées celles dont les tables existent
             # déjà, puis migrate ne joue que les vraies nouveautés.
@@ -145,22 +172,4 @@ jobs:
             echo "==> catalogue produits"
             $PHP artisan db:seed --class=ProductCatalogSeeder --force || echo "::warning::seed catalogue a échoué"
 
-            # Recharger les caches (clear avant cache pour éviter les chemins figés)
-            $PHP artisan config:clear
-            $PHP artisan config:cache
-            # route:cache peut échouer à cause d'une page Folio défectueuse
-            # (show.blade.php : parameter() on null) -> toléré avec avertissement
-            $PHP artisan route:cache || echo "::warning::route:cache a échoué (page Folio à corriger), déploiement poursuivi"
-            $PHP artisan view:cache
-
-            # Resync des assets publics vers public_html
-            # (préserve index.php modifié, .htaccess, .well-known, le symlink
-            # storage et env_node géré par N0C)
-            rsync -a --delete \
-              --exclude='index.php' \
-              --exclude='.htaccess' \
-              --exclude='.well-known/' \
-              --exclude='storage' \
-              --exclude='env_node/' \
-              --exclude='uploads/' \
-              public/ ~/public_html/
+            echo "==> post-deploy terminé"
