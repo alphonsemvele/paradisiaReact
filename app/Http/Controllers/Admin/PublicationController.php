@@ -91,7 +91,7 @@ class PublicationController extends Controller
                 ->map(fn ($u) => [
                     'id' => $u->id,
                     'name' => $u->name,
-                    'photo' => $u->photo ? asset($u->photo) : null,
+                    'photo' => $this->mediaUrl($u->photo),
                     'count' => $u->publications_count,
                 ]),
         ]);
@@ -116,7 +116,7 @@ class PublicationController extends Controller
                     'user' => $l->user ? [
                         'id' => $l->user->id,
                         'name' => $l->user->name,
-                        'photo' => $l->user->photo ? asset($l->user->photo) : null,
+                        'photo' => $this->mediaUrl($l->user->photo),
                     ] : null,
                 ]),
         ]);
@@ -184,7 +184,7 @@ class PublicationController extends Controller
             'id' => $pub->id,
             'text' => $pub->text ? mb_substr($pub->text, 0, 150) : null,
             'text_full_length' => mb_strlen($pub->text ?? ''),
-            'img_1' => $pub->img_1 ? asset($pub->img_1) : null,
+            'img_1' => $this->mediaUrl($pub->img_1),
             'has_video' => ! empty($pub->video),
             'has_image' => ! empty($pub->img_1),
             'status' => $pub->status ?? 'pending',
@@ -194,7 +194,7 @@ class PublicationController extends Controller
             'user' => $pub->user ? [
                 'id' => $pub->user->id,
                 'name' => $pub->user->name,
-                'photo' => $pub->user->photo ? asset($pub->user->photo) : null,
+                'photo' => $this->mediaUrl($pub->user->photo),
             ] : null,
         ];
     }
@@ -203,15 +203,15 @@ class PublicationController extends Controller
     {
         $images = collect([
             $pub->img_1, $pub->img_2, $pub->img_3, $pub->img_4, $pub->img_5,
-        ])->filter()->map(fn ($img) => asset($img))->values();
+        ])->filter()->map(fn ($img) => $this->mediaUrl($img))->filter()->values();
 
         return [
             'id' => $pub->id,
             'ref' => $pub->ref,
             'text' => $pub->text,
             'images' => $images,
-            'video' => $pub->video ? asset($pub->video) : null,
-            'audio' => $pub->audio ? asset($pub->audio) : null,
+            'video' => $this->mediaUrl($pub->video),
+            'audio' => $this->mediaUrl($pub->audio),
             'status' => $pub->status ?? 'pending',
             'type' => $pub->type,
             'created_at' => $pub->created_at->format('d/m/Y H:i'),
@@ -224,7 +224,7 @@ class PublicationController extends Controller
                 'id' => $pub->user->id,
                 'name' => $pub->user->name,
                 'email' => $pub->user->email,
-                'photo' => $pub->user->photo ? asset($pub->user->photo) : null,
+                'photo' => $this->mediaUrl($pub->user->photo),
             ] : null,
             'comments' => $pub->comments
                 ->whereNull('parent_id')
@@ -238,7 +238,7 @@ class PublicationController extends Controller
                         'user' => $c->user ? [
                             'id' => $c->user->id,
                             'name' => $c->user->name,
-                            'photo' => $c->user->photo ? asset($c->user->photo) : null,
+                            'photo' => $this->mediaUrl($c->user->photo),
                         ] : null,
                         'replies' => $pub->comments
                             ->where('parent_id', $c->id)
@@ -251,7 +251,7 @@ class PublicationController extends Controller
                                 'user' => $r->user ? [
                                     'id' => $r->user->id,
                                     'name' => $r->user->name,
-                                    'photo' => $r->user->photo ? asset($r->user->photo) : null,
+                                    'photo' => $this->mediaUrl($r->user->photo),
                                 ] : null,
                             ]),
                     ];

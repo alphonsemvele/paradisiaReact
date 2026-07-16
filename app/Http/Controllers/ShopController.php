@@ -90,10 +90,21 @@ class ShopController extends Controller
 
     public function show(int $id): Response
     {
-        $product = Product::with(['categories', 'user'])->findOrFail($id);
+        $product = Product::with(['categories', 'user', 'components.component'])->findOrFail($id);
 
-        return Inertia::render('shop/show', [
-            'product' => $this->formatProduct($product),
+        $formatted = $this->formatProduct($product);
+
+        // Nomenclature d'un produit composé : "12 × Ananas simple"...
+        $formatted['components'] = $product->components
+            ->filter(fn ($line) => $line->component)
+            ->map(fn ($line) => [
+                'name' => $line->component->name,
+                'quantity' => $line->quantity,
+            ])
+            ->values();
+
+        return Inertia::render('dashboard/shop/show', [
+            'product' => $formatted,
             'cart' => session()->get('cart', []),
         ]);
     }

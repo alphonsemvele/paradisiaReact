@@ -79,8 +79,8 @@ class FormationController extends Controller
             'session'     => $f->session,
             'mode'        => $f->mode,
             'mode_label'  => $f->mode === 'en_ligne' ? 'En ligne' : 'En présentiel',
-            'image'       => $f->image ? asset($f->image) : null,
-            'document'    => $full && $f->document ? asset($f->document) : null,
+            'image'       => $this->mediaUrl($f->image),
+            'document'    => $full ? $this->mediaUrl($f->document) : null,
         ];
     }
 }

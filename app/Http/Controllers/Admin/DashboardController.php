@@ -66,7 +66,7 @@ class DashboardController extends Controller
                         'id' => $user->id,
                         'name' => $user->name,
                         'email' => $user->email,
-                        'photo' => $user->photo ? asset($user->photo) : null,
+                        'photo' => $this->mediaUrl($user->photo),
                         'country' => $user->country,
                         'created_at_human' => $user->created_at->diffForHumans(),
                     ];

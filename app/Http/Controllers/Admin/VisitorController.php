@@ -247,7 +247,7 @@ class VisitorController extends Controller
                     'user' => $v->user ? [
                         'id' => $v->user->id,
                         'name' => $v->user->name,
-                        'photo' => $v->user->photo ? asset($v->user->photo) : null,
+                        'photo' => $this->mediaUrl($v->user->photo),
                     ] : null,
                     'created_at_human' => $v->created_at->diffForHumans(),
                 ];

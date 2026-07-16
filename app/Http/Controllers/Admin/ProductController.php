@@ -84,8 +84,8 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'type' => 'required|in:simple,compose',
             'id_category' => 'nullable|exists:categories,id',
-            'img_1' => 'nullable|image|max:5120',
-            'img_2' => 'nullable|image|max:5120',
+            'img_1' => 'nullable|image|max:10240',
+            'img_2' => 'nullable|image|max:10240',
             'components' => 'required_if:type,compose|array|min:1',
             'components.*.id_component_product' => 'required|integer|exists:products,id',
             'components.*.quantity' => 'required|integer|min:1',
@@ -102,11 +102,11 @@ class ProductController extends Controller
         ];
 
         if ($request->hasFile('img_1')) {
-            $data['img_1'] = $this->uploadFile($request->file('img_1'));
+            $data['img_1'] = $this->uploadPublicFile($request->file('img_1'), 'uploads/products', 'prod');
         }
 
         if ($request->hasFile('img_2')) {
-            $data['img_2'] = $this->uploadFile($request->file('img_2'));
+            $data['img_2'] = $this->uploadPublicFile($request->file('img_2'), 'uploads/products', 'prod');
         }
 
         $product = Product::create($data);
@@ -131,8 +131,8 @@ class ProductController extends Controller
                 'type' => $product->type,
                 'id_category' => $product->id_category,
                 'status' => $product->status,
-                'img_1' => $product->img_1 ? asset($product->img_1) : null,
-                'img_2' => $product->img_2 ? asset($product->img_2) : null,
+                'img_1' => $this->mediaUrl($product->img_1),
+                'img_2' => $this->mediaUrl($product->img_2),
                 'components' => $product->components->map(fn ($c) => [
                     'id_component_product' => $c->id_component_product,
                     'quantity' => $c->quantity,
@@ -154,8 +154,8 @@ class ProductController extends Controller
             'price' => 'required|numeric|min:0',
             'type' => 'required|in:simple,compose',
             'id_category' => 'nullable|exists:categories,id',
-            'img_1' => 'nullable|image|max:5120',
-            'img_2' => 'nullable|image|max:5120',
+            'img_1' => 'nullable|image|max:10240',
+            'img_2' => 'nullable|image|max:10240',
             'remove_img_1' => 'nullable|boolean',
             'remove_img_2' => 'nullable|boolean',
             'components' => 'required_if:type,compose|array|min:1',
@@ -173,28 +173,28 @@ class ProductController extends Controller
 
         // Image 1
         if ($request->boolean('remove_img_1') && $product->img_1) {
-            $this->deleteFile($product->img_1);
+            $this->deletePublicFile($product->img_1);
             $data['img_1'] = null;
         }
 
         if ($request->hasFile('img_1')) {
             if ($product->img_1) {
-                $this->deleteFile($product->img_1);
+                $this->deletePublicFile($product->img_1);
             }
-            $data['img_1'] = $this->uploadFile($request->file('img_1'));
+            $data['img_1'] = $this->uploadPublicFile($request->file('img_1'), 'uploads/products', 'prod');
         }
 
         // Image 2
         if ($request->boolean('remove_img_2') && $product->img_2) {
-            $this->deleteFile($product->img_2);
+            $this->deletePublicFile($product->img_2);
             $data['img_2'] = null;
         }
 
         if ($request->hasFile('img_2')) {
             if ($product->img_2) {
-                $this->deleteFile($product->img_2);
+                $this->deletePublicFile($product->img_2);
             }
-            $data['img_2'] = $this->uploadFile($request->file('img_2'));
+            $data['img_2'] = $this->uploadPublicFile($request->file('img_2'), 'uploads/products', 'prod');
         }
 
         $product->update($data);
@@ -236,8 +236,8 @@ class ProductController extends Controller
 
     public function destroy(Product $product): RedirectResponse
     {
-        $this->deleteFile($product->img_1);
-        $this->deleteFile($product->img_2);
+        $this->deletePublicFile($product->img_1);
+        $this->deletePublicFile($product->img_2);
 
         $product->delete();
 
@@ -258,8 +258,8 @@ class ProductController extends Controller
             'components_count' => $p->components_count ?? 0,
             'status' => $p->status,
             'is_active' => $p->status === 'Success',
-            'img_1' => $p->img_1 ? asset($p->img_1) : null,
-            'img_2' => $p->img_2 ? asset($p->img_2) : null,
+            'img_1' => $this->mediaUrl($p->img_1),
+            'img_2' => $this->mediaUrl($p->img_2),
             'category' => $p->categories ? [
                 'id' => $p->categories->id,
                 'name' => $p->categories->name,
@@ -269,35 +269,5 @@ class ProductController extends Controller
         ];
     }
 
-    private function uploadFile($file): string
-    {
-        $extension = $file->getClientOriginalExtension();
-        $filename = 'prod_' . uniqid() . '_' . time() . '.' . $extension;
-        $folder = 'uploads/products';
 
-        $destinationPath = public_path($folder);
-        if (! file_exists($destinationPath)) {
-            mkdir($destinationPath, 0755, true);
-        }
-
-        $file->move($destinationPath, $filename);
-
-        return $folder . '/' . $filename;
-    }
-
-    private function deleteFile(?string $path): void
-    {
-        if (! $path) return;
-
-        // Si c'est une URL complète (asset()), extraire le path relatif
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            $path = parse_url($path, PHP_URL_PATH);
-            $path = ltrim($path, '/');
-        }
-
-        $fullPath = public_path($path);
-        if (file_exists($fullPath)) {
-            @unlink($fullPath);
-        }
-    }
 }

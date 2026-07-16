@@ -62,10 +62,10 @@ class FormationController extends Controller
         ];
 
         if ($request->hasFile('image')) {
-            $data['image'] = $this->uploadFile($request->file('image'), 'img');
+            $data['image'] = $this->uploadPublicFile($request->file('image'), 'uploads/formations', 'img');
         }
         if ($request->hasFile('document')) {
-            $data['document'] = $this->uploadFile($request->file('document'), 'doc');
+            $data['document'] = $this->uploadPublicFile($request->file('document'), 'uploads/formations', 'doc');
         }
 
         Formation::create($data);
@@ -87,8 +87,8 @@ class FormationController extends Controller
                 'session'     => $formation->session,
                 'mode'        => $formation->mode,
                 'statut'      => $formation->statut,
-                'image'       => $formation->image ? asset($formation->image) : null,
-                'document'    => $formation->document ? asset($formation->document) : null,
+                'image'       => $this->mediaUrl($formation->image),
+                'document'    => $this->mediaUrl($formation->document),
                 'document_nom' => $formation->document ? basename($formation->document) : null,
             ],
         ]);
@@ -110,17 +110,17 @@ class FormationController extends Controller
         ];
 
         if ($request->hasFile('image')) {
-            $this->deleteFile($formation->image);
-            $data['image'] = $this->uploadFile($request->file('image'), 'img');
+            $this->deletePublicFile($formation->image);
+            $data['image'] = $this->uploadPublicFile($request->file('image'), 'uploads/formations', 'img');
         }
 
         if ($request->boolean('remove_document') && $formation->document) {
-            $this->deleteFile($formation->document);
+            $this->deletePublicFile($formation->document);
             $data['document'] = null;
         }
         if ($request->hasFile('document')) {
-            $this->deleteFile($formation->document);
-            $data['document'] = $this->uploadFile($request->file('document'), 'doc');
+            $this->deletePublicFile($formation->document);
+            $data['document'] = $this->uploadPublicFile($request->file('document'), 'uploads/formations', 'doc');
         }
 
         $formation->update($data);
@@ -141,8 +141,8 @@ class FormationController extends Controller
 
     public function destroy(Formation $formation): RedirectResponse
     {
-        $this->deleteFile($formation->image);
-        $this->deleteFile($formation->document);
+        $this->deletePublicFile($formation->image);
+        $this->deletePublicFile($formation->document);
 
         $formation->delete();
 
@@ -160,7 +160,7 @@ class FormationController extends Controller
             'duree'       => 'nullable|string|max:100',
             'session'     => 'nullable|string|max:120',
             'mode'        => 'required|in:presentiel,en_ligne',
-            'image'       => 'nullable|image|max:5120',
+            'image'       => 'nullable|image|max:10240',
             'document'    => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx|max:10240',
         ];
     }
@@ -177,8 +177,8 @@ class FormationController extends Controller
             'session'           => $f->session,
             'mode'              => $f->mode,
             'mode_label'        => $f->mode === 'en_ligne' ? 'En ligne' : 'En présentiel',
-            'image'             => $f->image ? asset($f->image) : null,
-            'document'          => $f->document ? asset($f->document) : null,
+            'image'             => $this->mediaUrl($f->image),
+            'document'          => $this->mediaUrl($f->document),
             'statut'            => $f->statut,
             'is_active'         => $f->statut === 'active',
             'inscriptions_count' => $f->inscriptions_count ?? 0,
@@ -186,34 +186,5 @@ class FormationController extends Controller
         ];
     }
 
-    private function uploadFile($file, string $prefix): string
-    {
-        $extension = $file->getClientOriginalExtension();
-        $filename = $prefix . '_' . uniqid() . '_' . time() . '.' . $extension;
-        $folder = 'uploads/formations';
 
-        $destinationPath = public_path($folder);
-        if (! file_exists($destinationPath)) {
-            mkdir($destinationPath, 0755, true);
-        }
-
-        $file->move($destinationPath, $filename);
-
-        return $folder . '/' . $filename;
-    }
-
-    private function deleteFile(?string $path): void
-    {
-        if (! $path) return;
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            $path = parse_url($path, PHP_URL_PATH);
-            $path = ltrim($path, '/');
-        }
-
-        $fullPath = public_path($path);
-        if (file_exists($fullPath)) {
-            @unlink($fullPath);
-        }
-    }
 }

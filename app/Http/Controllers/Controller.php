@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\ImageOptimizer;
 use Illuminate\Support\Facades\Storage;
 
 abstract class Controller
@@ -36,7 +37,8 @@ abstract class Controller
      */
     protected function uploadPublicFile($file, string $folder, string $prefix = 'pub'): string
     {
-        $filename = $prefix.'_'.uniqid().'_'.time().'.'.$file->getClientOriginalExtension();
+        $extension = strtolower($file->getClientOriginalExtension());
+        $filename = $prefix.'_'.uniqid().'_'.time().'.'.$extension;
         $destination = public_path($folder);
 
         if (! file_exists($destination)) {
@@ -44,6 +46,12 @@ abstract class Controller
         }
 
         $file->move($destination, $filename);
+
+        // Les images sont redimensionnées/compressées automatiquement :
+        // une photo de téléphone de 8 Mo devient quelques centaines de Ko.
+        if (in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            ImageOptimizer::optimize($destination.'/'.$filename);
+        }
 
         return $folder.'/'.$filename;
     }
@@ -56,6 +64,11 @@ abstract class Controller
     {
         if (! $path) {
             return;
+        }
+
+        // Certaines anciennes valeurs en base sont des URL complètes
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $path = ltrim((string) parse_url($path, PHP_URL_PATH), '/');
         }
 
         if (file_exists(public_path($path))) {

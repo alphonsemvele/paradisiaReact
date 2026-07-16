@@ -19,17 +19,45 @@ class WhatsAppNotifier
         app()->terminating(function () use ($message) {
             $driver = config('services.whatsapp.driver', 'greenapi');
 
+            if ($missing = self::missingConfig($driver)) {
+                Log::warning("Alerte WhatsApp NON envoyée : driver \"{$driver}\", config manquante dans .env : {$missing}. Message :\n{$message}");
+
+                return;
+            }
+
             try {
                 match ($driver) {
                     'greenapi'  => self::greenApi($message),
                     'telegram'  => self::telegram($message),
                     'callmebot' => self::callMeBot($message),
-                    default     => null,
+                    default     => Log::warning("Alerte WhatsApp : driver inconnu \"{$driver}\""),
                 };
+                Log::info("Alerte WhatsApp envoyée via {$driver}.");
             } catch (\Throwable $e) {
                 Log::warning('Alerte WhatsApp échouée : ' . $e->getMessage());
             }
         });
+    }
+
+    /**
+     * Renvoie la liste des variables .env absentes pour le driver choisi,
+     * ou null si tout est en place.
+     */
+    private static function missingConfig(string $driver): ?string
+    {
+        $required = match ($driver) {
+            'greenapi'  => ['WHATSAPP_ALERT_PHONE' => 'phone', 'GREENAPI_ID_INSTANCE' => 'green_instance', 'GREENAPI_API_TOKEN' => 'green_token'],
+            'telegram'  => ['TELEGRAM_BOT_TOKEN' => 'telegram_token', 'TELEGRAM_CHAT_ID' => 'telegram_chat'],
+            'callmebot' => ['WHATSAPP_ALERT_PHONE' => 'phone', 'CALLMEBOT_APIKEY' => 'callmebot_key'],
+            default     => [],
+        };
+
+        $missing = collect($required)
+            ->reject(fn ($key) => filled(config("services.whatsapp.{$key}")))
+            ->keys()
+            ->implode(', ');
+
+        return $missing ?: null;
     }
 
     /**

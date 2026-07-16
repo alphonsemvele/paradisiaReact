@@ -171,7 +171,7 @@ class SaleController extends Controller
                     'id' => $p->id,
                     'name' => $p->name,
                     'price' => (float) $p->price,
-                    'image' => $p->img_1 ? asset($p->img_1) : null,
+                    'image' => $this->mediaUrl($p->img_1),
                     'category' => $p->categories?->name,
                 ]),
             'pointsDeVente' => PointDeVente::where('status', 'Success')
@@ -284,7 +284,7 @@ class SaleController extends Controller
                     'quantity' => $i->quantity,
                     'unit_price' => $i->unit_price,
                     'subtotal' => $i->subtotal,
-                    'product_image' => $i->product?->img_1 ? asset($i->product->img_1) : null,
+                    'product_image' => $this->mediaUrl($i->product->img_1),
                 ]),
             ],
         ]);
@@ -349,7 +349,7 @@ class SaleController extends Controller
                 return [
                     'id' => $i->id_product,
                     'name' => $i->product_name,
-                    'image' => $product?->img_1 ? asset($product->img_1) : null,
+                    'image' => $this->mediaUrl($product->img_1),
                     'qty' => (int) $i->total_qty,
                     'ca' => (float) $i->total_ca,
                 ];

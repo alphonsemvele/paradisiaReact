@@ -5,19 +5,23 @@ import type { Product } from '@/types';
 interface Props {
     featured: Product[];
     others: Product[];
+    onAdded?: () => void;
 }
 
 const formatPrice = (price: number) => new Intl.NumberFormat('fr-FR').format(price);
 
-const addToCart = (productId: number) => {
-    router.post(
-        '/cart/add',
-        { product_id: productId, quantity: 1 },
-        { preserveScroll: true }
-    );
-};
-
-export default function ShopSection({ featured, others }: Props) {
+export default function ShopSection({ featured, others, onAdded }: Props) {
+    const addToCart = (productId: number) => {
+        router.post(
+            '/cart/add',
+            { product_id: productId, quantity: 1 },
+            {
+                preserveScroll: true,
+                // Ouvre le panier pour que l'utilisateur continue sa commande
+                onSuccess: () => onAdded?.(),
+            }
+        );
+    };
     return (
         <div className="rounded-2xl shadow-2xl overflow-hidden bg-white">
             <div className="p-6">

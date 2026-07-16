@@ -112,6 +112,7 @@ class HomeController extends Controller
                 ->get()
                 ->map(fn ($p) => $this->formatProduct($p)),
             'pointsDeVente' => fn () => $this->getPointsDeVente(),
+            'cart' => session()->get('cart', []),
         ]);
     }
 
@@ -230,7 +231,7 @@ class HomeController extends Controller
 
         $validated = $request->validate([
             'content' => 'required|string|max:5000',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|image|max:10240',
             'video' => 'nullable|mimes:mp4,mov,avi|max:51200',
             'visibility' => 'nullable|in:public,friends,private',
         ]);
@@ -439,7 +440,7 @@ class HomeController extends Controller
                 'hours' => $p->hours,
                 'lat' => (float) $p->latitude,
                 'lng' => (float) $p->longitude,
-                'image' => $p->image ? asset($p->image) : null,
+                'image' => $this->mediaUrl($p->image),
             ])
             ->toArray();
     }

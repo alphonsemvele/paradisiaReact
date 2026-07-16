@@ -31,7 +31,7 @@ class PublicStatsController extends Controller
                 'lat' => (float) $p->latitude,
                 'lng' => (float) $p->longitude,
                 'has_location' => $p->latitude && $p->longitude,
-                'image' => $p->image ? asset($p->image) : null,
+                'image' => $this->mediaUrl($p->image),
             ]);
 
         return Inertia::render('dashboard/points-de-vente/index', [
@@ -83,7 +83,7 @@ class PublicStatsController extends Controller
                 return [
                     'id' => $i->id_product,
                     'name' => $i->product_name,
-                    'image' => $product?->img_1 ? asset($product->img_1) : null,
+                    'image' => $this->mediaUrl($product?->img_1),
                     'qty' => (int) $i->total_qty,
                 ];
             });
@@ -111,7 +111,7 @@ class PublicStatsController extends Controller
                 'lat' => (float) $pointDeVente->latitude,
                 'lng' => (float) $pointDeVente->longitude,
                 'has_location' => $pointDeVente->latitude && $pointDeVente->longitude,
-                'image' => $pointDeVente->image ? asset($pointDeVente->image) : null,
+                'image' => $this->mediaUrl($pointDeVente->image),
             ],
             'stats' => [
                 'total_sales' => $totalSales,
@@ -165,7 +165,7 @@ class PublicStatsController extends Controller
                 return [
                     'id' => $s->id_point_de_vente,
                     'name' => $point?->name ?? 'Inconnu',
-                    'image' => $point?->image ? asset($point->image) : null,
+                    'image' => $this->mediaUrl($point?->image),
                     'sales' => (int) $s->sales_count,
                 ];
             });
@@ -255,8 +255,8 @@ class PublicStatsController extends Controller
                 'name' => $product->name,
                 'description' => $product->description,
                 'price' => (float) $product->price,
-                'image' => $product->img_1 ? asset($product->img_1) : null,
-                'image_2' => $product->img_2 ? asset($product->img_2) : null,
+                'image' => $this->mediaUrl($product->img_1),
+                'image_2' => $this->mediaUrl($product->img_2),
                 'status' => $product->status,
                 'is_active' => $product->status === 'Success',
                 'category' => $product->categories ? [

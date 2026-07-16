@@ -14,7 +14,9 @@ import PromoCard from '@/components/dashboard/PromoCard';
 import ShareModal from '@/components/dashboard/ShareModal';
 import CreatePostModal from '@/components/dashboard/CreatePostModal';
 import PublicationModal from '@/components/dashboard/PublicationModal';
-import type { Publication, Product, PointDeVente as PointDeVenteType, PageProps } from '@/types';
+import CartButton from '@/components/dashboard/CartButton';
+import CartDrawer from '@/components/dashboard/CartDrawer';
+import type { Publication, Product, PointDeVente as PointDeVenteType, Cart, PageProps } from '@/types';
 
 interface DashboardProps extends PageProps {
     publications: Publication[];
@@ -22,6 +24,7 @@ interface DashboardProps extends PageProps {
     featuredProducts: Product[];
     otherProducts: Product[];
     pointsDeVente: PointDeVenteType[];
+    cart: Cart;
 }
 
 export default function DashboardIndex() {
@@ -31,9 +34,12 @@ export default function DashboardIndex() {
         featuredProducts,
         otherProducts,
         pointsDeVente,
+        cart,
         auth,
     } = usePage<DashboardProps>().props;
 
+    const cartCount = Object.values(cart ?? {}).reduce((sum, item) => sum + item.quantity, 0);
+    const [showCart, setShowCart] = useState(false);
     const [shareModalPub, setShareModalPub] = useState<Publication | null>(null);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [highlightModalPub, setHighlightModalPub] = useState<Publication | null>(
@@ -88,7 +94,11 @@ export default function DashboardIndex() {
                             onOpen={() => setShowCreateModal(true)}
                         />
 
-                        <ShopSection featured={featuredProducts} others={otherProducts} />
+                        <ShopSection
+                            featured={featuredProducts}
+                            others={otherProducts}
+                            onAdded={() => setShowCart(true)}
+                        />
 
                         {publications.length > 0 ? (
                             publications.map((pub, index) => (
@@ -121,6 +131,10 @@ export default function DashboardIndex() {
                     </motion.aside>
                 </div>
             </div>
+
+            {/* Panier visible depuis l'accueil */}
+            <CartButton count={cartCount} onClick={() => setShowCart(true)} />
+            {showCart && <CartDrawer cart={cart ?? {}} onClose={() => setShowCart(false)} />}
 
             {/* 🆕 Modal de la publication mise en avant */}
             {highlightModalPub && (

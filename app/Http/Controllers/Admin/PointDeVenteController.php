@@ -72,7 +72,7 @@ class PointDeVenteController extends Controller
             'hours' => 'nullable|string|max:100',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|image|max:10240',
         ]);
 
         $data = collect($validated)->except('image')->toArray();
@@ -80,7 +80,7 @@ class PointDeVenteController extends Controller
         $data['status'] = 'Success';
 
         if ($request->hasFile('image')) {
-            $data['image'] = $this->uploadFile($request->file('image'));
+            $data['image'] = $this->uploadPublicFile($request->file('image'), 'uploads/points-de-vente', 'pdv');
         }
 
         PointDeVente::create($data);
@@ -102,7 +102,7 @@ class PointDeVenteController extends Controller
                 'latitude' => $point_de_vente->latitude,
                 'longitude' => $point_de_vente->longitude,
                 'status' => $point_de_vente->status,
-                'image' => $point_de_vente->image ? asset($point_de_vente->image) : null,
+                'image' => $this->mediaUrl($point_de_vente->image),
             ],
         ]);
     }
@@ -116,22 +116,22 @@ class PointDeVenteController extends Controller
             'hours' => 'nullable|string|max:100',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
-            'image' => 'nullable|image|max:5120',
+            'image' => 'nullable|image|max:10240',
             'remove_image' => 'nullable|boolean',
         ]);
 
         $data = collect($validated)->except(['image', 'remove_image'])->toArray();
 
         if ($request->boolean('remove_image') && $point_de_vente->image) {
-            $this->deleteFile($point_de_vente->image);
+            $this->deletePublicFile($point_de_vente->image);
             $data['image'] = null;
         }
 
         if ($request->hasFile('image')) {
             if ($point_de_vente->image) {
-                $this->deleteFile($point_de_vente->image);
+                $this->deletePublicFile($point_de_vente->image);
             }
-            $data['image'] = $this->uploadFile($request->file('image'));
+            $data['image'] = $this->uploadPublicFile($request->file('image'), 'uploads/points-de-vente', 'pdv');
         }
 
         $point_de_vente->update($data);
@@ -151,7 +151,7 @@ class PointDeVenteController extends Controller
     public function destroy(PointDeVente $point_de_vente): RedirectResponse
     {
         if ($point_de_vente->image) {
-            $this->deleteFile($point_de_vente->image);
+            $this->deletePublicFile($point_de_vente->image);
         }
 
         $point_de_vente->delete();
@@ -174,40 +174,11 @@ class PointDeVenteController extends Controller
             'has_location' => $p->latitude && $p->longitude,
             'status' => $p->status,
             'is_active' => $p->status === 'Success',
-            'image' => $p->image ? asset($p->image) : null,
+            'image' => $this->mediaUrl($p->image),
             'created_at_human' => $p->created_at->diffForHumans(),
             'created_at_date' => $p->created_at->format('d/m/Y'),
         ];
     }
 
-    private function uploadFile($file): string
-    {
-        $extension = $file->getClientOriginalExtension();
-        $filename = 'pdv_' . uniqid() . '_' . time() . '.' . $extension;
-        $folder = 'uploads/points-de-vente';
 
-        $destinationPath = public_path($folder);
-        if (! file_exists($destinationPath)) {
-            mkdir($destinationPath, 0755, true);
-        }
-
-        $file->move($destinationPath, $filename);
-
-        return $folder . '/' . $filename;
-    }
-
-    private function deleteFile(?string $path): void
-    {
-        if (! $path) return;
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            $path = parse_url($path, PHP_URL_PATH);
-            $path = ltrim($path, '/');
-        }
-
-        $fullPath = public_path($path);
-        if (file_exists($fullPath)) {
-            @unlink($fullPath);
-        }
-    }
 }
