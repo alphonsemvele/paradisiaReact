@@ -116,6 +116,18 @@ jobs:
             # Permissions
             chmod -R 775 storage bootstrap/cache
 
+            # Publication unique des uploads historiques du projet vers le
+            # docroot. Les nouveaux uploads vont directement dans
+            # ~/public_html/uploads : public_path() y pointe désormais
+            # (voir bootstrap/app.php). Le marqueur évite de re-copier (et de
+            # ressusciter des fichiers supprimés) aux déploiements suivants.
+            MARK=storage/app/private/.uploads_publies
+            if [ -d public/uploads ] && [ ! -f "$MARK" ]; then
+              mkdir -p ~/public_html/uploads
+              rsync -a public/uploads/ ~/public_html/uploads/
+              touch "$MARK"
+            fi
+
             # Lien symbolique storage (idempotent)
             $PHP artisan storage:link || true
 
