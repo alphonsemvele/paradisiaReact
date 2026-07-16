@@ -341,7 +341,9 @@ class HomeController extends Controller
 
     /**
      * URL d'un média. Priorité aux fichiers servis depuis public/ ; repli sur le
-     * disque "public" (storage/) pour les anciennes publications.
+     * disque "public" (storage/) pour les anciennes publications. Si le fichier
+     * n'existe nulle part (données héritées orphelines), on renvoie null plutôt
+     * qu'un lien cassé.
      */
     private function mediaUrl(?string $path): ?string
     {
@@ -353,7 +355,11 @@ class HomeController extends Controller
             return asset($path);
         }
 
-        return Storage::url($path);
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::url($path);
+        }
+
+        return null;
     }
 
     private function formatPublication(Publication $pub, array $userCommentLikes, array $commentLikesCounts): array
