@@ -139,4 +139,4 @@ jobs:
               --exclude='storage' \
               --exclude='env_node/' \
               --exclude='uploads/' \
-              "$DEPLOY/public/" ~/public_html/
+              public/ ~/public_html/
