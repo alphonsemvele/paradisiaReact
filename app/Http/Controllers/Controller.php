@@ -2,7 +2,66 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\Storage;
+
 abstract class Controller
 {
-    //
+    /**
+     * URL d'un média. Priorité aux fichiers servis depuis public/ (docroot en
+     * production, voir bootstrap/app.php) ; repli sur le disque "public"
+     * (storage/) pour les anciens fichiers. Si le fichier n'existe nulle part
+     * (données héritées orphelines), on renvoie null plutôt qu'un lien cassé.
+     */
+    protected function mediaUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (file_exists(public_path($path))) {
+            return asset($path);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            return Storage::url($path);
+        }
+
+        return null;
+    }
+
+    /**
+     * Enregistre un fichier directement dans public/ (docroot en production),
+     * afin qu'il soit servi sans dépendre du lien symbolique storage:link.
+     * Retourne le chemin relatif à stocker en base.
+     */
+    protected function uploadPublicFile($file, string $folder, string $prefix = 'pub'): string
+    {
+        $filename = $prefix.'_'.uniqid().'_'.time().'.'.$file->getClientOriginalExtension();
+        $destination = public_path($folder);
+
+        if (! file_exists($destination)) {
+            mkdir($destination, 0755, true);
+        }
+
+        $file->move($destination, $filename);
+
+        return $folder.'/'.$filename;
+    }
+
+    /**
+     * Supprime un média, qu'il vive dans public/ (nouveau système) ou sur le
+     * disque "public" storage/ (anciens fichiers).
+     */
+    protected function deletePublicFile(?string $path): void
+    {
+        if (! $path) {
+            return;
+        }
+
+        if (file_exists(public_path($path))) {
+            @unlink(public_path($path));
+        } elseif (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+    }
 }

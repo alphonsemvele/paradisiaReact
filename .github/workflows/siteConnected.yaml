@@ -113,26 +113,37 @@ jobs:
             mkdir -p storage/app/public
             mkdir -p storage/app/private
 
-            # Permissions
-            chmod -R 775 storage bootstrap/cache
+            # Permissions (tolérant : certains fichiers peuvent être verrouillés)
+            echo "==> permissions"
+            chmod -R 775 storage bootstrap/cache || echo "::warning::chmod partiel"
 
             # Publication unique des uploads historiques du projet vers le
             # docroot. Les nouveaux uploads vont directement dans
             # ~/public_html/uploads : public_path() y pointe désormais
             # (voir bootstrap/app.php). Le marqueur évite de re-copier (et de
             # ressusciter des fichiers supprimés) aux déploiements suivants.
+            echo "==> publication des uploads historiques"
             MARK=storage/app/private/.uploads_publies
             if [ -d public/uploads ] && [ ! -f "$MARK" ]; then
-              mkdir -p ~/public_html/uploads
-              rsync -a public/uploads/ ~/public_html/uploads/
-              touch "$MARK"
+              { mkdir -p ~/public_html/uploads \
+                && rsync -a public/uploads/ ~/public_html/uploads/ \
+                && touch "$MARK"; } || echo "::warning::publication des uploads échouée"
             fi
 
             # Lien symbolique storage (idempotent)
+            echo "==> storage:link"
             $PHP artisan storage:link || true
 
-            # Migrations
-            $PHP artisan migrate --force
+            # Migrations. La base de prod vient d'un import SQL : baseline
+            # marque d'abord comme exécutées celles dont les tables existent
+            # déjà, puis migrate ne joue que les vraies nouveautés.
+            echo "==> migrations"
+            $PHP artisan migrate:baseline || echo "::warning::baseline a échoué"
+            $PHP artisan migrate --force || echo "::warning::migrate a échoué"
+
+            # Catalogue produits (idempotent)
+            echo "==> catalogue produits"
+            $PHP artisan db:seed --class=ProductCatalogSeeder --force || echo "::warning::seed catalogue a échoué"
 
             # Recharger les caches (clear avant cache pour éviter les chemins figés)
             $PHP artisan config:clear

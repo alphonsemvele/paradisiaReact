@@ -12,7 +12,6 @@ use App\Models\Share;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -301,65 +300,6 @@ class HomeController extends Controller
         ]);
 
         return back();
-    }
-
-    /**
-     * Enregistre un fichier directement dans public/ (comme les produits), afin
-     * qu'il soit servi sans dépendre du lien symbolique storage:link — souvent
-     * absent ou bloqué en hébergement mutualisé. Retourne le chemin relatif.
-     */
-    private function uploadPublicFile($file, string $folder): string
-    {
-        $filename = 'pub_'.uniqid().'_'.time().'.'.$file->getClientOriginalExtension();
-        $destination = public_path($folder);
-
-        if (! file_exists($destination)) {
-            mkdir($destination, 0755, true);
-        }
-
-        $file->move($destination, $filename);
-
-        return $folder.'/'.$filename;
-    }
-
-    /**
-     * Supprime un média, qu'il vive dans public/ (nouveau système) ou sur le
-     * disque "public" storage/ (anciennes publications).
-     */
-    private function deletePublicFile(?string $path): void
-    {
-        if (! $path) {
-            return;
-        }
-
-        if (file_exists(public_path($path))) {
-            @unlink(public_path($path));
-        } elseif (Storage::disk('public')->exists($path)) {
-            Storage::disk('public')->delete($path);
-        }
-    }
-
-    /**
-     * URL d'un média. Priorité aux fichiers servis depuis public/ ; repli sur le
-     * disque "public" (storage/) pour les anciennes publications. Si le fichier
-     * n'existe nulle part (données héritées orphelines), on renvoie null plutôt
-     * qu'un lien cassé.
-     */
-    private function mediaUrl(?string $path): ?string
-    {
-        if (! $path) {
-            return null;
-        }
-
-        if (file_exists(public_path($path))) {
-            return asset($path);
-        }
-
-        if (Storage::disk('public')->exists($path)) {
-            return Storage::url($path);
-        }
-
-        return null;
     }
 
     private function formatPublication(Publication $pub, array $userCommentLikes, array $commentLikesCounts): array

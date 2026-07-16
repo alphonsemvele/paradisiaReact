@@ -7,7 +7,6 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -118,7 +117,7 @@ class ShopController extends Controller
                 'id' => $product->id,
                 'name' => $product->name,
                 'price' => $product->price,
-                'image' => $product->img_1 ? Storage::url($product->img_1) : null,
+                'image' => $this->mediaUrl($product->img_1),
                 'quantity' => $validated['quantity'],
             ];
         }
@@ -194,10 +193,10 @@ class ShopController extends Controller
             'name' => $product->name,
             'description' => $product->description,
             'price' => $product->price,
-            'image' => $product->img_1 ? Storage::url($product->img_1) : null,
+            'image' => $this->mediaUrl($product->img_1),
             'images' => collect([
                 $product->img_1, $product->img_2 ?? null, $product->img_3 ?? null,
-            ])->filter()->map(fn ($img) => Storage::url($img))->values(),
+            ])->filter()->map(fn ($img) => $this->mediaUrl($img))->filter()->values(),
             'category' => $product->categories ? [
                 'id' => $product->categories->id,
                 'name' => $product->categories->name,
