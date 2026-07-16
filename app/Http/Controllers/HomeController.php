@@ -230,11 +230,11 @@ class HomeController extends Controller
         ];
 
         if ($request->hasFile('image')) {
-            $data['img_1'] = $request->file('image')->store('publications/images', 'public');
+            $data['img_1'] = $this->uploadPublicFile($request->file('image'), 'uploads/publications/images');
         }
 
         if ($request->hasFile('video')) {
-            $data['video'] = $request->file('video')->store('publications/videos', 'public');
+            $data['video'] = $this->uploadPublicFile($request->file('video'), 'uploads/publications/videos');
         }
 
         Publication::create($data);
@@ -275,12 +275,8 @@ class HomeController extends Controller
             return back()->withErrors(['error' => 'Action non autorisée']);
         }
 
-        if ($publication->img_1) {
-            Storage::disk('public')->delete($publication->img_1);
-        }
-        if ($publication->video) {
-            Storage::disk('public')->delete($publication->video);
-        }
+        $this->deletePublicFile($publication->img_1);
+        $this->deletePublicFile($publication->video);
 
         Comment::where('id_publication', $publicationId)->delete();
         Like::where('id_publication', $publicationId)->delete();
@@ -307,18 +303,71 @@ class HomeController extends Controller
         return back();
     }
 
+    /**
+     * Enregistre un fichier directement dans public/ (comme les produits), afin
+     * qu'il soit servi sans dépendre du lien symbolique storage:link — souvent
+     * absent ou bloqué en hébergement mutualisé. Retourne le chemin relatif.
+     */
+    private function uploadPublicFile($file, string $folder): string
+    {
+        $filename = 'pub_'.uniqid().'_'.time().'.'.$file->getClientOriginalExtension();
+        $destination = public_path($folder);
+
+        if (! file_exists($destination)) {
+            mkdir($destination, 0755, true);
+        }
+
+        $file->move($destination, $filename);
+
+        return $folder.'/'.$filename;
+    }
+
+    /**
+     * Supprime un média, qu'il vive dans public/ (nouveau système) ou sur le
+     * disque "public" storage/ (anciennes publications).
+     */
+    private function deletePublicFile(?string $path): void
+    {
+        if (! $path) {
+            return;
+        }
+
+        if (file_exists(public_path($path))) {
+            @unlink(public_path($path));
+        } elseif (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+    }
+
+    /**
+     * URL d'un média. Priorité aux fichiers servis depuis public/ ; repli sur le
+     * disque "public" (storage/) pour les anciennes publications.
+     */
+    private function mediaUrl(?string $path): ?string
+    {
+        if (! $path) {
+            return null;
+        }
+
+        if (file_exists(public_path($path))) {
+            return asset($path);
+        }
+
+        return Storage::url($path);
+    }
+
     private function formatPublication(Publication $pub, array $userCommentLikes, array $commentLikesCounts): array
     {
         $images = collect([
             $pub->img_1, $pub->img_2, $pub->img_3, $pub->img_4, $pub->img_5,
-        ])->filter()->map(fn ($img) => Storage::url($img))->values();
+        ])->filter()->map(fn ($img) => $this->mediaUrl($img))->values();
 
         return [
             'id' => $pub->id,
             'text' => $pub->text,
             'images' => $images,
-            'video' => $pub->video ? Storage::url($pub->video) : null,
-            'audio' => $pub->audio ? Storage::url($pub->audio) : null,
+            'video' => $this->mediaUrl($pub->video),
+            'audio' => $this->mediaUrl($pub->audio),
             'created_at' => $pub->created_at,
             'created_at_human' => $pub->created_at->diffForHumans(),
             'user' => $this->formatUser($pub->user),
@@ -369,7 +418,7 @@ class HomeController extends Controller
         return [
             'id' => $user->id,
             'name' => $user->name,
-            'photo' => $user->photo ? Storage::url($user->photo) : null,
+            'photo' => $this->mediaUrl($user->photo),
         ];
     }
 
@@ -380,7 +429,7 @@ class HomeController extends Controller
             'name' => $product->name,
             'description' => $product->description,
             'price' => $product->price,
-            'image' => $product->img_1 ? Storage::url($product->img_1) : null,
+            'image' => $this->mediaUrl($product->img_1),
             'category' => $product->categories ? [
                 'id' => $product->categories->id,
                 'name' => $product->categories->name,
