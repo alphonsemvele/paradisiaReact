@@ -1,4 +1,4 @@
-import { FormEvent } from 'react';
+import { FormEvent, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +16,8 @@ import {
     ArrowLeft,
     MapPin,
     Monitor,
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import AppLayout from '@/components/layouts/AppLayout';
 
@@ -25,11 +27,14 @@ interface Formation {
     description: string | null;
     prix: number;
     prix_formatte: string;
+    prix_inscription: number;
+    prix_inscription_formatte: string;
     duree: string | null;
     session: string | null;
     mode: string;
     mode_label: string;
     image: string | null;
+    images: string[];
     document: string | null;
 }
 
@@ -42,6 +47,9 @@ interface InscriptionData {
 }
 
 export default function FormationShow({ formation }: { formation: Formation }) {
+    const images = formation.images?.length ? formation.images : formation.image ? [formation.image] : [];
+    const [current, setCurrent] = useState(0);
+
     const { data, setData, post, processing, errors, recentlySuccessful, reset } =
         useForm<InscriptionData>({
             nom: '',
@@ -74,15 +82,53 @@ export default function FormationShow({ formation }: { formation: Formation }) {
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                     {/* ===== Détail formation ===== */}
                     <div className="lg:col-span-3">
-                        <div className="aspect-video bg-zinc-100 rounded-2xl overflow-hidden">
-                            {formation.image ? (
-                                <img src={formation.image} alt={formation.titre} className="w-full h-full object-cover" />
+                        {/* Galerie */}
+                        <div className="relative aspect-video bg-zinc-100 rounded-2xl overflow-hidden">
+                            {images.length > 0 ? (
+                                <img src={images[current]} alt={formation.titre} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-100 to-orange-100">
                                     <GraduationCap className="w-14 h-14 text-emerald-500" />
                                 </div>
                             )}
+                            {images.length > 1 && (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrent((c) => (c - 1 + images.length) % images.length)}
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors"
+                                    >
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setCurrent((c) => (c + 1) % images.length)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-colors"
+                                    >
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                    <span className="absolute bottom-3 right-3 px-2.5 py-1 bg-black/50 text-white text-xs font-medium rounded-full">
+                                        {current + 1} / {images.length}
+                                    </span>
+                                </>
+                            )}
                         </div>
+                        {images.length > 1 && (
+                            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                                {images.map((url, i) => (
+                                    <button
+                                        key={i}
+                                        type="button"
+                                        onClick={() => setCurrent(i)}
+                                        className={`flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                                            current === i ? 'border-emerald-500' : 'border-transparent opacity-60 hover:opacity-100'
+                                        }`}
+                                    >
+                                        <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         <h1 className="mt-6 text-2xl lg:text-3xl font-bold text-zinc-900">{formation.titre}</h1>
 
@@ -106,8 +152,13 @@ export default function FormationShow({ formation }: { formation: Formation }) {
                                 </span>
                             )}
                             <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-50 text-orange-700 rounded-lg text-sm font-semibold">
-                                <Tag className="w-4 h-4" /> {formation.prix_formatte}
+                                <Tag className="w-4 h-4" /> Formation : {formation.prix_formatte}
                             </span>
+                            {formation.prix_inscription > 0 && (
+                                <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-sm font-semibold">
+                                    <Tag className="w-4 h-4" /> Inscription : {formation.prix_inscription_formatte}
+                                </span>
+                            )}
                         </div>
 
                         {formation.description && (
@@ -259,6 +310,13 @@ export default function FormationShow({ formation }: { formation: Formation }) {
                                     </div>
                                     {errors.type && <p className="mt-1 text-xs text-red-600">{errors.type}</p>}
                                 </div>
+
+                                {formation.prix_inscription > 0 && (
+                                    <div className="flex items-center justify-between rounded-lg bg-violet-50 border border-violet-100 px-4 py-2.5 text-sm">
+                                        <span className="text-violet-700">Frais d'inscription</span>
+                                        <span className="font-bold text-violet-800">{formation.prix_inscription_formatte}</span>
+                                    </div>
+                                )}
 
                                 <button
                                     type="submit"

@@ -11,6 +11,7 @@ interface Formation {
     titre: string;
     description: string | null;
     prix: number | string;
+    prix_inscription: number | string;
     duree: string | null;
     session: string | null;
     mode: string;
@@ -18,6 +19,7 @@ interface Formation {
     image: string | null;
     document: string | null;
     document_nom: string | null;
+    images: { id: number; url: string }[];
 }
 
 export default function FormationEdit({ formation }: { formation: Formation }) {
@@ -28,13 +30,40 @@ export default function FormationEdit({ formation }: { formation: Formation }) {
         titre: formation.titre || '',
         description: formation.description || '',
         prix: String(formation.prix ?? ''),
+        prix_inscription: String(formation.prix_inscription ?? ''),
         duree: formation.duree || '',
         session: formation.session || '',
         mode: formation.mode || 'presentiel',
         image: null as File | null,
+        images: [] as File[],
+        remove_images: [] as number[],
         document: null as File | null,
         remove_document: false as boolean,
     });
+
+    const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+
+    const handleGalleryAdd = async (files: FileList | null) => {
+        if (!files?.length) return;
+        const optimized = await Promise.all(Array.from(files).map((f) => resizeImageFile(f)));
+        const next = [...data.images, ...optimized].slice(0, 8);
+        setData('images', next);
+        setGalleryPreviews(next.map((f) => URL.createObjectURL(f)));
+    };
+
+    const handleGalleryRemove = (index: number) => {
+        const next = data.images.filter((_: File, i: number) => i !== index);
+        setData('images', next);
+        setGalleryPreviews(next.map((f: File) => URL.createObjectURL(f)));
+    };
+
+    const handleRemoveExisting = (id: number) => {
+        setData('remove_images', [...data.remove_images, id]);
+    };
+
+    const visibleExistingImages = formation.images.filter(
+        (img) => !data.remove_images.includes(img.id)
+    );
 
     const handleImage = async (file: File | null) => {
         const optimized = file ? await resizeImageFile(file) : null;
@@ -84,7 +113,12 @@ export default function FormationEdit({ formation }: { formation: Formation }) {
                         errors={errors}
                         preview={preview}
                         onImage={handleImage}
+                        galleryPreviews={galleryPreviews}
+                        onGalleryAdd={handleGalleryAdd}
+                        onGalleryRemove={handleGalleryRemove}
                         existingImage={formation.image}
+                        existingImages={visibleExistingImages}
+                        onRemoveExisting={handleRemoveExisting}
                         existingDocName={showExistingDoc ? formation.document_nom : null}
                     />
 

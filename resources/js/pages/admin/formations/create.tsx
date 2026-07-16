@@ -12,12 +12,30 @@ export default function FormationCreate() {
         titre: '',
         description: '',
         prix: '',
+        prix_inscription: '',
         duree: '',
         session: '',
         mode: 'presentiel',
         image: null as File | null,
+        images: [] as File[],
         document: null as File | null,
     });
+
+    const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+
+    const handleGalleryAdd = async (files: FileList | null) => {
+        if (!files?.length) return;
+        const optimized = await Promise.all(Array.from(files).map((f) => resizeImageFile(f)));
+        const next = [...data.images, ...optimized].slice(0, 8);
+        setData('images', next);
+        setGalleryPreviews(next.map((f) => URL.createObjectURL(f)));
+    };
+
+    const handleGalleryRemove = (index: number) => {
+        const next = data.images.filter((_: File, i: number) => i !== index);
+        setData('images', next);
+        setGalleryPreviews(next.map((f: File) => URL.createObjectURL(f)));
+    };
 
     const handleImage = async (file: File | null) => {
         const optimized = file ? await resizeImageFile(file) : null;
@@ -59,7 +77,16 @@ export default function FormationCreate() {
                         </div>
                     </div>
 
-                    <FormFields data={data} setData={setData} errors={errors} preview={preview} onImage={handleImage} />
+                    <FormFields
+                        data={data}
+                        setData={setData}
+                        errors={errors}
+                        preview={preview}
+                        onImage={handleImage}
+                        galleryPreviews={galleryPreviews}
+                        onGalleryAdd={handleGalleryAdd}
+                        onGalleryRemove={handleGalleryRemove}
+                    />
 
                     <div className="flex gap-3 pt-4 border-t border-zinc-100">
                         <Link href="/admin/formations" className="flex-1 text-center py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium rounded-lg">
@@ -87,7 +114,12 @@ export function FormFields({
     errors,
     preview,
     onImage,
+    galleryPreviews,
+    onGalleryAdd,
+    onGalleryRemove,
     existingImage,
+    existingImages,
+    onRemoveExisting,
     existingDocName,
 }: {
     data: any;
@@ -95,7 +127,12 @@ export function FormFields({
     errors: Record<string, string>;
     preview: string | null;
     onImage: (file: File | null) => void;
+    galleryPreviews: string[];
+    onGalleryAdd: (files: FileList | null) => void;
+    onGalleryRemove: (index: number) => void;
     existingImage?: string | null;
+    existingImages?: { id: number; url: string }[];
+    onRemoveExisting?: (id: number) => void;
     existingDocName?: string | null;
 }) {
     return (
@@ -114,10 +151,10 @@ export function FormFields({
                 {errors.titre && <p className="text-xs text-red-600 mt-1">{errors.titre}</p>}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                {/* Prix */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Prix de la formation */}
                 <div>
-                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Prix (FCFA) *</label>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Prix de la formation (FCFA) *</label>
                     <input
                         type="number"
                         step="1"
@@ -129,6 +166,21 @@ export function FormFields({
                         className={`w-full px-3 py-2.5 bg-zinc-50 border ${errors.prix ? 'border-red-300' : 'border-zinc-200'} rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500`}
                     />
                     {errors.prix && <p className="text-xs text-red-600 mt-1">{errors.prix}</p>}
+                </div>
+
+                {/* Frais d'inscription (dissociés du prix de la formation) */}
+                <div>
+                    <label className="block text-sm font-medium text-zinc-700 mb-1.5">Frais d'inscription (FCFA)</label>
+                    <input
+                        type="number"
+                        step="1"
+                        min="0"
+                        value={data.prix_inscription}
+                        onChange={(e) => setData('prix_inscription', e.target.value)}
+                        placeholder="5000"
+                        className={`w-full px-3 py-2.5 bg-zinc-50 border ${errors.prix_inscription ? 'border-red-300' : 'border-zinc-200'} rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500`}
+                    />
+                    {errors.prix_inscription && <p className="text-xs text-red-600 mt-1">{errors.prix_inscription}</p>}
                 </div>
 
                 {/* Durée */}
@@ -246,6 +298,54 @@ export function FormFields({
                     <p className="text-xs text-zinc-500 mt-1">Max 10 MB</p>
                     {errors.document && <p className="text-xs text-red-600 mt-1">{errors.document}</p>}
                 </div>
+            </div>
+
+            {/* Galerie d'images (en plus de la couverture) */}
+            <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+                    Galerie d'images <span className="text-zinc-400 font-normal">(jusqu'à 8, en plus de la couverture)</span>
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {existingImages?.map((img) => (
+                        <div key={`ex-${img.id}`} className="relative aspect-square bg-zinc-100 rounded-lg overflow-hidden group">
+                            <img src={img.url} alt="" className="w-full h-full object-cover" />
+                            <button
+                                type="button"
+                                onClick={() => onRemoveExisting?.(img.id)}
+                                className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                    {galleryPreviews.map((url, i) => (
+                        <div key={`new-${i}`} className="relative aspect-square bg-zinc-100 rounded-lg overflow-hidden group">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                            <button
+                                type="button"
+                                onClick={() => onGalleryRemove(i)}
+                                className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                    <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 rounded-lg cursor-pointer transition-colors">
+                        <ImageIcon className="w-6 h-6 text-zinc-400 mb-1" />
+                        <span className="text-[11px] text-zinc-500">Ajouter</span>
+                        <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={(e) => {
+                                onGalleryAdd(e.target.files);
+                                e.target.value = '';
+                            }}
+                            className="hidden"
+                        />
+                    </label>
+                </div>
+                {errors.images && <p className="text-xs text-red-600 mt-1">{errors.images}</p>}
             </div>
         </>
     );

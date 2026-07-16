@@ -11,6 +11,7 @@ class Formation extends Model
         'titre',
         'description',
         'prix',
+        'prix_inscription',
         'duree',
         'session',
         'mode',
@@ -22,5 +23,11 @@ class Formation extends Model
     public function inscriptions(): HasMany
     {
         return $this->hasMany(Inscription::class);
+    }
+
+    /** Galerie d'images (l'attribut image reste la couverture). */
+    public function images(): HasMany
+    {
+        return $this->hasMany(FormationImage::class)->orderBy('position');
     }
 }

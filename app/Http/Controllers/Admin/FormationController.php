@@ -55,6 +55,7 @@ class FormationController extends Controller
             'titre'       => $validated['titre'],
             'description' => $validated['description'] ?? null,
             'prix'        => $validated['prix'],
+            'prix_inscription' => $validated['prix_inscription'] ?? 0,
             'duree'       => $validated['duree'] ?? null,
             'session'     => $validated['session'] ?? null,
             'mode'        => $validated['mode'],
@@ -68,7 +69,9 @@ class FormationController extends Controller
             $data['document'] = $this->uploadPublicFile($request->file('document'), 'uploads/formations', 'doc');
         }
 
-        Formation::create($data);
+        $formation = Formation::create($data);
+
+        $this->storeGalleryImages($request, $formation);
 
         return redirect()
             ->route('admin.formations.index')
@@ -83,6 +86,7 @@ class FormationController extends Controller
                 'titre'       => $formation->titre,
                 'description' => $formation->description,
                 'prix'        => $formation->prix,
+                'prix_inscription' => $formation->prix_inscription,
                 'duree'       => $formation->duree,
                 'session'     => $formation->session,
                 'mode'        => $formation->mode,
@@ -90,6 +94,10 @@ class FormationController extends Controller
                 'image'       => $this->mediaUrl($formation->image),
                 'document'    => $this->mediaUrl($formation->document),
                 'document_nom' => $formation->document ? basename($formation->document) : null,
+                'images'      => $formation->images
+                    ->map(fn ($img) => ['id' => $img->id, 'url' => $this->mediaUrl($img->path)])
+                    ->filter(fn ($img) => $img['url'])
+                    ->values(),
             ],
         ]);
     }
@@ -98,16 +106,28 @@ class FormationController extends Controller
     {
         $validated = $request->validate($this->rules() + [
             'remove_document' => 'nullable|boolean',
+            'remove_images'   => 'nullable|array',
+            'remove_images.*' => 'integer',
         ]);
 
         $data = [
             'titre'       => $validated['titre'],
             'description' => $validated['description'] ?? null,
             'prix'        => $validated['prix'],
+            'prix_inscription' => $validated['prix_inscription'] ?? 0,
             'duree'       => $validated['duree'] ?? null,
             'session'     => $validated['session'] ?? null,
             'mode'        => $validated['mode'],
         ];
+
+        // Retrait d'images de la galerie
+        foreach ($formation->images()->whereIn('id', $validated['remove_images'] ?? [])->get() as $img) {
+            $this->deletePublicFile($img->path);
+            $img->delete();
+        }
+
+        // Nouvelles images de galerie
+        $this->storeGalleryImages($request, $formation);
 
         if ($request->hasFile('image')) {
             $this->deletePublicFile($formation->image);
@@ -144,6 +164,10 @@ class FormationController extends Controller
         $this->deletePublicFile($formation->image);
         $this->deletePublicFile($formation->document);
 
+        foreach ($formation->images as $img) {
+            $this->deletePublicFile($img->path);
+        }
+
         $formation->delete();
 
         return back()->with('success', 'Formation supprimée.');
@@ -157,12 +181,32 @@ class FormationController extends Controller
             'titre'       => 'required|string|max:180',
             'description' => 'nullable|string|max:5000',
             'prix'        => 'required|numeric|min:0',
+            'prix_inscription' => 'nullable|numeric|min:0',
             'duree'       => 'nullable|string|max:100',
             'session'     => 'nullable|string|max:120',
             'mode'        => 'required|in:presentiel,en_ligne',
             'image'       => 'nullable|image|max:10240',
+            'images'      => 'nullable|array|max:8',
+            'images.*'    => 'image|max:10240',
             'document'    => 'nullable|file|mimes:pdf,doc,docx,ppt,pptx|max:10240',
         ];
+    }
+
+    /** Enregistre les images de galerie envoyées (champ images[]). */
+    private function storeGalleryImages(Request $request, Formation $formation): void
+    {
+        if (! $request->hasFile('images')) {
+            return;
+        }
+
+        $position = (int) $formation->images()->max('position');
+
+        foreach ($request->file('images') as $file) {
+            $formation->images()->create([
+                'path' => $this->uploadPublicFile($file, 'uploads/formations', 'img'),
+                'position' => ++$position,
+            ]);
+        }
     }
 
     private function format(Formation $f): array
@@ -173,6 +217,8 @@ class FormationController extends Controller
             'description'       => $f->description,
             'prix'              => (float) $f->prix,
             'prix_formatte'     => number_format((float) $f->prix, 0, ',', ' ') . ' FCFA',
+            'prix_inscription'  => (float) $f->prix_inscription,
+            'prix_inscription_formatte' => number_format((float) $f->prix_inscription, 0, ',', ' ') . ' FCFA',
             'duree'             => $f->duree,
             'session'           => $f->session,
             'mode'              => $f->mode,

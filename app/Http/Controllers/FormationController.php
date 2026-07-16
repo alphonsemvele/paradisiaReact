@@ -17,7 +17,8 @@ class FormationController extends Controller
      */
     public function index(): Response
     {
-        $formations = Formation::where('statut', 'active')
+        $formations = Formation::with('images')
+            ->where('statut', 'active')
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(fn ($f) => $this->format($f));
@@ -33,6 +34,8 @@ class FormationController extends Controller
     public function show(Formation $formation): Response
     {
         abort_if($formation->statut !== 'active', 404);
+
+        $formation->load('images');
 
         return Inertia::render('formations/show', [
             'formation' => $this->format($formation, full: true),
@@ -69,17 +72,28 @@ class FormationController extends Controller
 
     private function format(Formation $f, bool $full = false): array
     {
+        // Galerie : couverture en premier, puis les images additionnelles
+        $gallery = collect([$this->mediaUrl($f->image)])
+            ->concat($f->images->map(fn ($img) => $this->mediaUrl($img->path)))
+            ->filter()
+            ->unique()
+            ->values();
+
         return [
             'id'          => $f->id,
             'titre'       => $f->titre,
             'description' => $full ? $f->description : \Illuminate\Support\Str::limit($f->description, 140),
             'prix'        => (float) $f->prix,
             'prix_formatte' => number_format((float) $f->prix, 0, ',', ' ') . ' FCFA',
+            'prix_inscription' => (float) $f->prix_inscription,
+            'prix_inscription_formatte' => number_format((float) $f->prix_inscription, 0, ',', ' ') . ' FCFA',
             'duree'       => $f->duree,
             'session'     => $f->session,
             'mode'        => $f->mode,
             'mode_label'  => $f->mode === 'en_ligne' ? 'En ligne' : 'En présentiel',
-            'image'       => $this->mediaUrl($f->image),
+            'image'       => $gallery->first(),
+            'images'      => $full ? $gallery : $gallery->take(1),
+            'images_count' => $gallery->count(),
             'document'    => $full ? $this->mediaUrl($f->document) : null,
         ];
     }
