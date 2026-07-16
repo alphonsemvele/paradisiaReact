@@ -23,7 +23,7 @@ interface Props {
 const navLinks = [
     { label: 'Accueil', href: '/', icon: Home },
     { label: 'Points de vente', href: '/points-de-vente', icon: Store },
-    { label: 'Statistiques', href: '/statistiques', icon: BarChart3 },
+    { label: 'Statistique', href: '/statistiques', icon: BarChart3 },
     { label: 'Formations', href: '/formations', icon: GraduationCap },
 ];
 
