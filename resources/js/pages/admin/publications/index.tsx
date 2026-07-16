@@ -10,10 +10,8 @@ import {
     MessageSquare,
     Eye,
     Trash2,
-    Image as ImageIcon,
     Video,
     FileType,
-    Calendar,
     TrendingUp,
     Clock,
     XCircle,
@@ -547,7 +545,7 @@ function StatCard({
     label,
     value,
     sublabel,
-    color,
+    color: _color,
 }: {
     icon: any;
     label: string;

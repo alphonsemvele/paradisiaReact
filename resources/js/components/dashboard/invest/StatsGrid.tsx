@@ -67,7 +67,6 @@ function StatCard({
     accent,
 }: StatCardProps) {
     const isPositive = trend !== undefined && trend > 0;
-    const isNegative = trend !== undefined && trend < 0;
 
     const accentColors = {
         emerald: 'bg-emerald-50 text-emerald-600',

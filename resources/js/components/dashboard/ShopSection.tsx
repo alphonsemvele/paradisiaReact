@@ -46,6 +46,7 @@ export default function ShopSection({ featured, others, onAdded }: Props) {
                                 key={product.id}
                                 product={product}
                                 isPopular={index === 0}
+                                onAdd={() => addToCart(product.id)}
                             />
                         ))
                     ) : (
@@ -75,7 +76,15 @@ export default function ShopSection({ featured, others, onAdded }: Props) {
     );
 }
 
-function FeaturedProductCard({ product, isPopular }: { product: Product; isPopular: boolean }) {
+function FeaturedProductCard({
+    product,
+    isPopular,
+    onAdd,
+}: {
+    product: Product;
+    isPopular: boolean;
+    onAdd: () => void;
+}) {
     return (
         <div className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all transform hover:-translate-y-2 border border-gray-100 flex flex-col">
             <Link href={`/shop/products/${product.id}`} className="relative block">
@@ -116,7 +125,7 @@ function FeaturedProductCard({ product, isPopular }: { product: Product; isPopul
                         {formatPrice(product.price)} <span className="text-sm font-semibold">FCFA</span>
                     </p>
                     <button
-                        onClick={() => addToCart(product.id)}
+                        onClick={onAdd}
                         className="w-full bg-emerald-500 text-white px-3 py-2.5 rounded-lg font-semibold hover:bg-emerald-600 transition-all text-sm flex items-center justify-center gap-2"
                     >
                         <ShoppingBag className="w-4 h-4" />

@@ -11,7 +11,6 @@ import {
     GraduationCap,
     TrendingUp,
     DollarSign,
-    ShoppingCart,
     ShoppingBag,
     Receipt,
     Settings,

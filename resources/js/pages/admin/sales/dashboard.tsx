@@ -4,7 +4,6 @@ import {
     DollarSign,
     TrendingUp,
     TrendingDown,
-    ShoppingBag,
     ShoppingCart,
     Receipt,
     Banknote,
@@ -12,7 +11,6 @@ import {
     CreditCard,
     Package,
     Store,
-    ArrowUpRight,
     Plus,
 } from 'lucide-react';
 import {

@@ -5,7 +5,6 @@ import {
     FileText,
     Package,
     Heart,
-    MessageSquare,
     TrendingUp,
     TrendingDown,
     ArrowUpRight,

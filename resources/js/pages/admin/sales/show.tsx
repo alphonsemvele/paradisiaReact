@@ -6,7 +6,6 @@ import {
     Printer,
     Trash2,
     User,
-    Phone,
     Store,
     Calendar,
     Receipt,

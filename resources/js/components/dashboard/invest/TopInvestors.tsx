@@ -6,9 +6,6 @@ interface Props {
 }
 
 export default function TopInvestors({ investors }: Props) {
-    const formatCurrency = (value: number) =>
-        new Intl.NumberFormat('fr-FR').format(value);
-
     return (
         <div className="bg-white border border-zinc-200 rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-5">

@@ -9,7 +9,6 @@ import {
     Monitor,
     Smartphone,
     Tablet,
-    Globe,
 } from 'lucide-react';
 import {
     AreaChart,
@@ -21,7 +20,6 @@ import {
     Tooltip,
     ResponsiveContainer,
     CartesianGrid,
-    Legend,
 } from 'recharts';
 import AdminLayout from '@/components/layouts/AdminLayout';
 

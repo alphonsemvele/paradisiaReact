@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { Eye, ShoppingBag, Plus } from 'lucide-react';
+import { Eye, Plus } from 'lucide-react';
 import type { ShopProduct } from '@/types';
 
 interface Props {
