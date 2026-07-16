@@ -61,7 +61,11 @@ export default function ShopSection({ featured, others, onAdded }: Props) {
                         </h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             {others.map((product) => (
-                                <SmallProductCard key={product.id} product={product} />
+                                <SmallProductCard
+                                    key={product.id}
+                                    product={product}
+                                    onAdd={() => addToCart(product.id)}
+                                />
                             ))}
                         </div>
                     </div>
@@ -116,7 +120,7 @@ function FeaturedProductCard({ product, isPopular }: { product: Product; isPopul
                         className="w-full bg-emerald-500 text-white px-3 py-2.5 rounded-lg font-semibold hover:bg-emerald-600 transition-all text-sm flex items-center justify-center gap-2"
                     >
                         <ShoppingBag className="w-4 h-4" />
-                        Acheter
+                        Ajouter au panier
                     </button>
                 </div>
             </div>
@@ -124,13 +128,10 @@ function FeaturedProductCard({ product, isPopular }: { product: Product; isPopul
     );
 }
 
-function SmallProductCard({ product }: { product: Product }) {
+function SmallProductCard({ product, onAdd }: { product: Product; onAdd: () => void }) {
     return (
-        <Link
-            href={`/shop/products/${product.id}`}
-            className="bg-white rounded-xl overflow-hidden shadow hover:shadow-lg transition-all cursor-pointer border border-gray-100 group flex flex-col"
-        >
-            <div className="relative">
+        <div className="bg-white rounded-xl overflow-hidden shadow hover:shadow-lg transition-all border border-gray-100 group flex flex-col">
+            <Link href={`/shop/products/${product.id}`} className="relative block">
                 {product.image ? (
                     <img
                         src={product.image}
@@ -144,17 +145,26 @@ function SmallProductCard({ product }: { product: Product }) {
                         <span className="text-4xl">🍹</span>
                     </div>
                 )}
-            </div>
+            </Link>
             <div className="p-3 flex flex-col flex-1">
-                <h5 className="font-semibold text-gray-800 text-sm line-clamp-1 flex-1">
-                    {product.name}
-                </h5>
+                <Link href={`/shop/products/${product.id}`} className="flex-1">
+                    <h5 className="font-semibold text-gray-800 text-sm line-clamp-1">
+                        {product.name}
+                    </h5>
+                </Link>
                 {/* Prix en bas de carte */}
                 <p className="text-emerald-600 font-bold text-sm mt-2 pt-2 border-t border-gray-100">
                     {formatPrice(product.price)} FCFA
                 </p>
+                <button
+                    onClick={onAdd}
+                    className="mt-2 w-full bg-emerald-500 text-white px-2 py-1.5 rounded-lg font-semibold hover:bg-emerald-600 transition-all text-xs flex items-center justify-center gap-1"
+                >
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    Ajouter au panier
+                </button>
             </div>
-        </Link>
+        </div>
     );
 }
 

@@ -158,6 +158,15 @@ Route::get('/formations/{formation}', [FormationController::class, 'show'])->nam
 Route::post('/formations/{formation}/inscription', [FormationController::class, 'register'])->name('formations.register');
 Route::get('/products/{product}/stats', [PublicStatsController::class, 'productStats'])->name('products.public.stats');
 
+// Boutique et panier : accessibles aux visiteurs (panier en session) ;
+// la connexion n'est exigée qu'au moment de passer commande (/checkout).
+Route::get('/shop', [ShopController::class, 'index'])->name('shop');
+Route::get('/shop/products/{id}', [ShopController::class, 'show'])->name('shop.product');
+Route::post('/cart/add', [ShopController::class, 'addToCart'])->name('cart.add');
+Route::patch('/cart/update', [ShopController::class, 'updateCart'])->name('cart.update');
+Route::delete('/cart/remove', [ShopController::class, 'removeFromCart'])->name('cart.remove');
+Route::delete('/cart/clear', [ShopController::class, 'clearCart'])->name('cart.clear');
+
 
 
 Route::middleware('auth')->group(function () {
@@ -179,17 +188,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/invest', [InvestController::class, 'index'])->name('invest');
 
 
-    // Boutique
-Route::get('/shop', [ShopController::class, 'index'])->name('shop');
-Route::get('/shop/products/{id}', [ShopController::class, 'show'])->name('shop.product');
-
-// Panier
-Route::post('/cart/add', [ShopController::class, 'addToCart'])->name('cart.add');
-Route::patch('/cart/update', [ShopController::class, 'updateCart'])->name('cart.update');
-Route::delete('/cart/remove', [ShopController::class, 'removeFromCart'])->name('cart.remove');
-Route::delete('/cart/clear', [ShopController::class, 'clearCart'])->name('cart.clear');
-
-    // Commande
+    // Commande (nécessite un compte : la connexion renvoie ensuite au checkout)
     Route::get('/checkout', [OrderController::class, 'checkout'])->name('checkout');
     Route::post('/checkout', [OrderController::class, 'store'])->name('checkout.store');
     Route::get('/orders/{ref}', [OrderController::class, 'confirmation'])->name('orders.confirmation');
