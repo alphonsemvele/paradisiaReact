@@ -97,6 +97,16 @@ class MalaPay
         ]);
     }
 
+    /**
+     * État d'un paiement en attente de validation par son titulaire.
+     *
+     * @return array{ok:bool, data?:array, code?:string, message?:string}
+     */
+    public function statutDebit(string $reference): array
+    {
+        return $this->appeler('get', '/v1/portefeuilles/debits/'.urlencode($reference), []);
+    }
+
     /** Représentants habilités à créditer un portefeuille. */
     public function representants(?string $pays = null): array
     {

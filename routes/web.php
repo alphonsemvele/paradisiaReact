@@ -200,6 +200,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/invest/paiement/pays', [InvestPaymentController::class, 'pays'])->name('invest.pays');
     Route::post('/invest/paiement/verifier', [InvestPaymentController::class, 'verifier'])->name('invest.verifier');
     Route::post('/invest/paiement', [InvestPaymentController::class, 'payer'])->name('invest.payer');
+    // Suivi pendant que le titulaire valide depuis sa boîte e-mail
+    Route::get('/invest/paiement/statut/{reference}', [InvestPaymentController::class, 'statut'])->name('invest.statut');
 
 
     // Commande (nécessite un compte : la connexion renvoie ensuite au checkout)

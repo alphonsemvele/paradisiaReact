@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     X, Wallet, Globe, Loader2, AlertCircle, CheckCircle2,
-    ArrowRight, Phone, MessageCircle, ShieldCheck, PlusCircle, LifeBuoy,
+    ArrowRight, Phone, MessageCircle, ShieldCheck, PlusCircle, LifeBuoy, MailCheck,
 } from 'lucide-react';
 
 interface Pays {
@@ -27,7 +27,7 @@ interface Props {
     onClose: () => void;
 }
 
-type Etape = 'pays' | 'portefeuille' | 'confirmation' | 'succes';
+type Etape = 'pays' | 'portefeuille' | 'confirmation' | 'attente_validation' | 'succes';
 
 const nf = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
 
@@ -72,6 +72,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
     const [representants, setRepresentants] = useState<Representant[]>([]);
     const [portefeuille, setPortefeuille] = useState<any>(null);
     const [succes, setSucces] = useState<any>(null);
+    const [attente, setAttente] = useState<any>(null);
 
     // Chargement des pays à l'ouverture
     useEffect(() => {
@@ -154,9 +155,55 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
             return;
         }
 
+        // Malapay exige la validation du titulaire par e-mail : rien n'est
+        // débité tant qu'il n'a pas ouvert le lien.
+        if (corps.en_attente) {
+            setAttente(corps);
+            setEtape('attente_validation');
+            return;
+        }
+
         setSucces(corps);
         setEtape('succes');
     };
+
+    // Interroge le serveur pendant que le titulaire valide depuis sa boîte mail
+    useEffect(() => {
+        if (etape !== 'attente_validation' || !attente?.reference) return;
+
+        let annule = false;
+
+        const sonder = async () => {
+            const res = await fetch(`/invest/paiement/statut/${attente.reference}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            }).catch(() => null);
+
+            if (annule || !res) return;
+
+            const d = await res.json().catch(() => ({}));
+
+            if (!d.termine) return;
+
+            if (d.reussi) {
+                setSucces({
+                    reference: attente.reference,
+                    montant_formate: attente.montant_formate,
+                    solde_restant: d.solde_restant,
+                    message: d.message ?? 'Investissement confirmé.',
+                });
+                setEtape('succes');
+            } else {
+                setErreur(d.message ?? 'Le paiement n\'a pas abouti.');
+                setEtape('portefeuille');
+            }
+        };
+
+        const minuteur = setInterval(sonder, 4000);
+        sonder();
+
+        return () => { annule = true; clearInterval(minuteur); };
+    }, [etape, attente]);
 
     return (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
@@ -357,14 +404,48 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                                     {enCours ? (
                                         <><Loader2 className="w-4 h-4 animate-spin" /> Paiement en cours…</>
                                     ) : (
-                                        <>Confirmer et payer <ShieldCheck className="w-4 h-4" /></>
+                                        <>Envoyer la demande <ShieldCheck className="w-4 h-4" /></>
                                     )}
                                 </button>
                             </div>
                         </>
                     )}
 
-                    {/* ── Étape 4 : succès ────────────────────────────── */}
+                    {/* ── Étape 4 : validation par e-mail ─────────────── */}
+                    {etape === 'attente_validation' && attente && (
+                        <div className="text-center py-2">
+                            <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                                <MailCheck className="w-7 h-7 text-amber-600" />
+                            </div>
+                            <h4 className="text-lg font-bold text-zinc-900 mb-1">
+                                Validez depuis votre e-mail
+                            </h4>
+                            <p className="text-sm text-zinc-600 mb-4">
+                                Un lien de confirmation vient d'être envoyé
+                                {attente.email_masque ? ` à ${attente.email_masque}` : ' au titulaire du portefeuille'}.
+                                <strong> Aucun montant n'a encore été débité.</strong>
+                            </p>
+
+                            <div className="rounded-xl border border-zinc-200 p-4 text-left mb-4">
+                                <Ligne label="Montant" valeur={attente.montant_formate} />
+                                <Ligne label="Référence" valeur={attente.reference} />
+                            </div>
+
+                            <div className="flex items-center justify-center gap-2 rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3">
+                                <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+                                <span className="text-sm text-zinc-600">
+                                    En attente de votre validation…
+                                </span>
+                            </div>
+
+                            <p className="text-xs text-zinc-500 mt-3">
+                                Cette page se mettra à jour automatiquement dès que vous aurez
+                                cliqué sur le lien. Le lien expire dans 30 minutes.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* ── Étape 5 : succès ────────────────────────────── */}
                     {etape === 'succes' && succes && (
                         <div className="text-center py-4">
                             <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">

@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\InvestissementConfirmeMail;
 use App\Models\Payment;
 use App\Models\Round;
 use App\Services\MalaPay;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -177,14 +179,35 @@ class InvestPaymentController extends Controller
             ], 422);
         }
 
+        // Malapay n'exécute plus le débit immédiatement : le titulaire du
+        // portefeuille doit d'abord valider par le lien reçu par e-mail.
+        // Le paiement reste donc « pending » jusqu'à confirmation.
+        $donnees = $resultat['data'] ?? [];
+
+        if (($donnees['validation_requise'] ?? false) || ($donnees['statut'] ?? null) === 'en_attente') {
+            return response()->json([
+                'ok' => true,
+                'en_attente' => true,
+                'reference' => $reference,
+                'parts' => $validated['parts'],
+                'montant_formate' => number_format($montant, 0, ',', ' ').' '.$devise,
+                'email_masque' => $donnees['email_masque'] ?? null,
+                'expire_at' => $donnees['expire_at'] ?? null,
+                'message' => 'Un e-mail de validation vient d\'être envoyé au titulaire du portefeuille. '
+                    .'Le paiement sera confirmé dès que le lien aura été ouvert.',
+            ], 202);
+        }
+
         $payment->update(['status' => 'Success']);
+        $this->notifierInvestisseur($payment);
 
         return response()->json([
             'ok' => true,
+            'en_attente' => false,
             'reference' => $reference,
             'parts' => $validated['parts'],
             'montant_formate' => number_format($montant, 0, ',', ' ').' '.$devise,
-            'solde_restant' => $resultat['data']['solde_restant_formate'] ?? null,
+            'solde_restant' => $donnees['solde_restant_formate'] ?? null,
             'message' => sprintf(
                 'Investissement confirmé : %d part%s pour %s.',
                 $validated['parts'],
@@ -192,6 +215,91 @@ class InvestPaymentController extends Controller
                 number_format($montant, 0, ',', ' ').' '.$devise
             ),
         ]);
+    }
+
+    /**
+     * Suivi d'un paiement en attente : le navigateur interroge cette route
+     * pendant que le titulaire valide depuis sa boîte e-mail.
+     */
+    public function statut(string $reference): JsonResponse
+    {
+        if (! Auth::check()) {
+            return response()->json(['ok' => false, 'message' => 'Connectez-vous pour investir.'], 401);
+        }
+
+        // On ne consulte que ses propres paiements.
+        $payment = Payment::where('ref', $reference)
+            ->where('id_user', Auth::id())
+            ->first();
+
+        if (! $payment) {
+            return response()->json(['ok' => false, 'message' => 'Paiement introuvable.'], 404);
+        }
+
+        if ($payment->status !== 'pending') {
+            return response()->json([
+                'ok' => true,
+                'statut' => $payment->status,
+                'termine' => true,
+                'reussi' => $payment->status === 'Success',
+            ]);
+        }
+
+        $resultat = $this->malapay->statutDebit($reference);
+
+        if (! $resultat['ok']) {
+            return response()->json(['ok' => true, 'statut' => 'pending', 'termine' => false]);
+        }
+
+        $statutMalapay = $resultat['data']['statut'] ?? 'en_attente';
+
+        // On aligne le paiement Paradisia sur l'état constaté chez Malapay.
+        if ($statutMalapay === 'complete') {
+            $payment->update(['status' => 'Success']);
+            $this->notifierInvestisseur($payment);
+
+            return response()->json([
+                'ok' => true,
+                'statut' => 'Success',
+                'termine' => true,
+                'reussi' => true,
+                'solde_restant' => $resultat['data']['solde_restant_formate'] ?? null,
+                'message' => 'Paiement validé : votre investissement est enregistré.',
+            ]);
+        }
+
+        if (in_array($statutMalapay, ['expire', 'annule'], true)) {
+            $payment->update(['status' => 'Failed', 'error_code' => strtoupper($statutMalapay)]);
+
+            return response()->json([
+                'ok' => true,
+                'statut' => 'Failed',
+                'termine' => true,
+                'reussi' => false,
+                'message' => $statutMalapay === 'expire'
+                    ? 'Le lien de validation a expiré. Relancez le paiement pour en recevoir un nouveau.'
+                    : 'Le paiement a été annulé.',
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'statut' => 'pending', 'termine' => false]);
+    }
+
+    /**
+     * Confirme l'investissement à l'investisseur, côté Paradisia. Un échec
+     * d'envoi ne remet jamais en cause le paiement déjà encaissé.
+     */
+    private function notifierInvestisseur(Payment $payment): void
+    {
+        if (! $payment->customer_email) {
+            return;
+        }
+
+        try {
+            Mail::to($payment->customer_email)->send(new InvestissementConfirmeMail($payment));
+        } catch (\Throwable $e) {
+            Log::error("Confirmation d'investissement {$payment->ref} non envoyée : ".$e->getMessage());
+        }
     }
 
     /* ═══════════════════════ Interne ═══════════════════════ */
