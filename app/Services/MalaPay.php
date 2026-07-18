@@ -17,6 +17,12 @@ use Illuminate\Support\Facades\Log;
  */
 class MalaPay
 {
+    /**
+     * Clé versionnée : incrémenter le suffixe invalide immédiatement les
+     * anciennes entrées, sans avoir à vider le cache sur le serveur.
+     */
+    private const CLE_CACHE_PAYS = 'malapay.pays.v2';
+
     public function __construct(
         private readonly ?string $baseUrl = null,
         private readonly ?string $cle = null,
@@ -35,11 +41,27 @@ class MalaPay
      */
     public function pays(): array
     {
-        return Cache::remember('malapay.pays', now()->addDay(), function () {
-            $reponse = $this->requete()->get($this->url().'/v1/pays');
+        if (! $this->estConfigure()) {
+            return [];
+        }
 
-            return $reponse->successful() ? ($reponse->json('data') ?? []) : [];
-        });
+        $enCache = Cache::get(self::CLE_CACHE_PAYS);
+
+        if (is_array($enCache) && $enCache !== []) {
+            return $enCache;
+        }
+
+        $resultat = $this->appeler('get', '/v1/pays', []);
+        $pays = $resultat['ok'] ? ($resultat['data'] ?? []) : [];
+
+        // Un résultat vide n'est jamais mis en cache : une panne passagère ou
+        // une configuration incomplète gèlerait sinon une liste vide 24 h,
+        // et le paiement resterait inutilisable même une fois le problème réglé.
+        if ($pays !== []) {
+            Cache::put(self::CLE_CACHE_PAYS, $pays, now()->addDay());
+        }
+
+        return $pays;
     }
 
     /**
