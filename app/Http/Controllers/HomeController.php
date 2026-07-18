@@ -232,6 +232,8 @@ class HomeController extends Controller
         $validated = $request->validate([
             'content' => 'required|string|max:5000',
             'image' => 'nullable|image|max:10240',
+            'images' => 'nullable|array|max:5',
+            'images.*' => 'image|max:10240',
             'video' => 'nullable|mimes:mp4,mov,avi|max:51200',
             'visibility' => 'nullable|in:public,friends,private',
         ]);
@@ -244,8 +246,16 @@ class HomeController extends Controller
             'type' => 'publication',
         ];
 
-        if ($request->hasFile('image')) {
-            $data['img_1'] = $this->uploadPublicFile($request->file('image'), 'uploads/publications/images');
+        // Jusqu'à 5 images, stockées dans img_1..img_5 (schéma existant).
+        // 'image' (singulier) reste accepté pour compatibilité.
+        $files = collect($request->file('images') ?? [])
+            ->prepend($request->file('image'))
+            ->filter()
+            ->take(5)
+            ->values();
+
+        foreach ($files as $i => $file) {
+            $data['img_'.($i + 1)] = $this->uploadPublicFile($file, 'uploads/publications/images');
         }
 
         if ($request->hasFile('video')) {
@@ -290,8 +300,9 @@ class HomeController extends Controller
             return back()->withErrors(['error' => 'Action non autorisée']);
         }
 
-        $this->deletePublicFile($publication->img_1);
-        $this->deletePublicFile($publication->video);
+        foreach (['img_1', 'img_2', 'img_3', 'img_4', 'img_5', 'video'] as $media) {
+            $this->deletePublicFile($publication->{$media});
+        }
 
         Comment::where('id_publication', $publicationId)->delete();
         Like::where('id_publication', $publicationId)->delete();

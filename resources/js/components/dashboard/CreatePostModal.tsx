@@ -11,33 +11,42 @@ interface Props {
 
 interface FormData {
     content: string;
-    image: File | null;
+    images: File[];
     video: File | null;
     visibility: 'public' | 'friends' | 'private';
     [key: string]: any;
 }
 
+const MAX_IMAGES = 5;
+
 export default function CreatePostModal({ user, onClose }: Props) {
     const { data, setData, post, processing, errors, reset } = useForm<FormData>({
         content: '',
-        image: null,
+        images: [],
         video: null,
         visibility: 'public',
     });
 
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const [videoPreview, setVideoPreview] = useState<string | null>(null);
 
     const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            const optimized = await resizeImageFile(file);
-            setData('image', optimized);
-            setImagePreview(URL.createObjectURL(optimized));
-            // Reset video si une image est ajoutée
-            setData('video', null);
-            setVideoPreview(null);
-        }
+        const files = e.target.files;
+        if (!files?.length) return;
+
+        const optimized = await Promise.all(
+            Array.from(files).map((file) => resizeImageFile(file))
+        );
+        const next = [...data.images, ...optimized].slice(0, MAX_IMAGES);
+
+        setData('images', next);
+        setImagePreviews(next.map((file) => URL.createObjectURL(file)));
+
+        // Une publication porte soit des photos, soit une vidéo
+        setData('video', null);
+        setVideoPreview(null);
+
+        e.target.value = '';
     };
 
     const handleVideoChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -45,15 +54,16 @@ export default function CreatePostModal({ user, onClose }: Props) {
         if (file) {
             setData('video', file);
             setVideoPreview(URL.createObjectURL(file));
-            // Reset image si une vidéo est ajoutée
-            setData('image', null);
-            setImagePreview(null);
+            // Reset images si une vidéo est ajoutée
+            setData('images', []);
+            setImagePreviews([]);
         }
     };
 
-    const removeImage = () => {
-        setData('image', null);
-        setImagePreview(null);
+    const removeImage = (index: number) => {
+        const next = data.images.filter((_, i) => i !== index);
+        setData('images', next);
+        setImagePreviews(next.map((file) => URL.createObjectURL(file)));
     };
 
     const removeVideo = () => {
@@ -68,7 +78,7 @@ export default function CreatePostModal({ user, onClose }: Props) {
             preserveScroll: true,
             onSuccess: () => {
                 reset();
-                setImagePreview(null);
+                setImagePreviews([]);
                 setVideoPreview(null);
                 onClose();
             },
@@ -147,21 +157,36 @@ export default function CreatePostModal({ user, onClose }: Props) {
                             <p className="text-red-500 text-xs mt-1">{errors.content}</p>
                         )}
 
-                        {/* Image preview */}
-                        {imagePreview && (
-                            <div className="relative mt-3 rounded-xl overflow-hidden border border-gray-200">
-                                <img
-                                    src={imagePreview}
-                                    alt="Preview"
-                                    className="w-full max-h-80 object-cover"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={removeImage}
-                                    className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-black/80 rounded-full transition-all"
-                                >
-                                    <X className="w-4 h-4 text-white" />
-                                </button>
+                        {/* Aperçu des photos : mosaïque, comme à l'affichage */}
+                        {imagePreviews.length > 0 && (
+                            <div
+                                className={`mt-3 grid gap-1 rounded-xl overflow-hidden border border-gray-200 ${
+                                    imagePreviews.length === 1 ? 'grid-cols-1' : 'grid-cols-2'
+                                }`}
+                            >
+                                {imagePreviews.map((url, i) => (
+                                    <div
+                                        key={i}
+                                        className={`relative group ${
+                                            imagePreviews.length === 3 && i === 0 ? 'row-span-2' : ''
+                                        }`}
+                                    >
+                                        <img
+                                            src={url}
+                                            alt={`Photo ${i + 1}`}
+                                            className={`w-full object-cover ${
+                                                imagePreviews.length === 1 ? 'max-h-80' : 'h-40'
+                                            }`}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeImage(i)}
+                                            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 rounded-full transition-all"
+                                        >
+                                            <X className="w-3.5 h-3.5 text-white" />
+                                        </button>
+                                    </div>
+                                ))}
                             </div>
                         )}
 
@@ -189,12 +214,23 @@ export default function CreatePostModal({ user, onClose }: Props) {
                                 Ajouter à votre publication
                             </p>
                             <div className="flex gap-2 flex-wrap">
-                                <label className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-emerald-50 text-emerald-600 cursor-pointer transition-all border border-emerald-200">
+                                <label
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
+                                        data.images.length >= MAX_IMAGES
+                                            ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                                            : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 cursor-pointer'
+                                    }`}
+                                >
                                     <ImageIcon className="w-4 h-4" />
-                                    <span className="text-sm font-semibold">Photo</span>
+                                    <span className="text-sm font-semibold">
+                                        Photos
+                                        {data.images.length > 0 && ` (${data.images.length}/${MAX_IMAGES})`}
+                                    </span>
                                     <input
                                         type="file"
                                         accept="image/*"
+                                        multiple
+                                        disabled={data.images.length >= MAX_IMAGES}
                                         onChange={handleImageChange}
                                         className="hidden"
                                     />
@@ -210,8 +246,10 @@ export default function CreatePostModal({ user, onClose }: Props) {
                                     />
                                 </label>
                             </div>
-                            {errors.image && (
-                                <p className="text-red-500 text-xs mt-2">{errors.image}</p>
+                            {(errors.images || errors['images.0']) && (
+                                <p className="text-red-500 text-xs mt-2">
+                                    {errors.images || errors['images.0']}
+                                </p>
                             )}
                             {errors.video && (
                                 <p className="text-red-500 text-xs mt-2">{errors.video}</p>
