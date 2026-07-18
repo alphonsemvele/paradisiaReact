@@ -23,5 +23,9 @@ createInertiaApp({
     },
     progress: {
         color: '#10b981',
+        // Rien ne clignote sur une action instantanée ; au-delà de 250 ms la
+        // barre et le spinner signalent clairement qu'une tâche est en cours.
+        delay: 250,
+        showSpinner: true,
     },
 });

@@ -160,6 +160,10 @@ Route::get('/formations/{formation}', [FormationController::class, 'show'])->nam
 Route::post('/formations/{formation}/inscription', [FormationController::class, 'register'])->name('formations.register');
 Route::get('/products/{product}/stats', [PublicStatsController::class, 'productStats'])->name('products.public.stats');
 
+// Lien court de partage d'une publication : URL propre, aperçu Open Graph
+// (image + texte) rendu côté serveur pour WhatsApp, Facebook, Telegram…
+Route::get('/p/{publication}', [HomeController::class, 'index'])->name('publication.share');
+
 // Boutique et panier : accessibles aux visiteurs (panier en session) ;
 // la connexion n'est exigée qu'au moment de passer commande (/checkout).
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
@@ -179,6 +183,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/publications/{id}/like', [HomeController::class, 'toggleLike'])->name('publication.like');
     Route::post('/publications/{id}/comment', [HomeController::class, 'addComment'])->name('publication.comment');
     Route::post('/publications/{id}/share', [HomeController::class, 'recordShare'])->name('publication.share');
+    // Statistiques d'une publication (réservées à son auteur)
+    Route::get('/publications/{id}/stats', [HomeController::class, 'publicationStats'])->name('publication.stats');
     
     // Comments
     Route::patch('/comments/{id}', [HomeController::class, 'updateComment'])->name('comment.update');

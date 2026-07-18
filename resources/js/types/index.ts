@@ -26,6 +26,7 @@ export interface Publication {
     created_at_human: string;
     user: User | null;
     is_owner: boolean;          // 🆕
+    views_count: number;
     likes_count: number;
     comments_count: number;
     shares_count: number;

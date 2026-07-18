@@ -9,19 +9,24 @@ use App\Models\PointDeVente;
 use App\Models\Product;
 use App\Models\Publication;
 use App\Models\Share;
+use App\Models\View;
 use App\Support\PageMeta;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class HomeController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, ?int $publication = null): Response
     {
-        $highlightId = $request->query('highlight');
+        // /p/{id} (lien de partage) ou /?highlight={id} (ancien format)
+        $highlightId = $publication ?? $request->query('highlight');
 
         $publications = Publication::with('user')
             ->withCount([
@@ -54,8 +59,12 @@ class HomeController extends Controller
         );
 
         // Likes de l'utilisateur sur les publications affichées : une seule requête
+        // unique() : la publication mise en avant figure aussi dans le fil,
+        // sans quoi elle serait comptée deux fois en vues.
         $publicationIds = $publications->pluck('id')
-            ->when($highlightedPublication, fn ($ids) => $ids->push($highlightedPublication->id));
+            ->when($highlightedPublication, fn ($ids) => $ids->push($highlightedPublication->id))
+            ->unique()
+            ->values();
 
         $likedPublicationIds = Auth::check()
             ? Like::where('id_user', Auth::id())
@@ -94,6 +103,8 @@ class HomeController extends Controller
             ? $this->formatPublication($highlightedPublication, $userCommentLikes, $commentLikesCounts, $likedPublicationIds)
             : null;
 
+        $this->recordViews($request, $publicationIds->all());
+
         // Closures : évaluées uniquement quand la prop est demandée
         // (les rechargements partiels Inertia sautent le travail inutile).
         return Inertia::render('dashboard/home/index', [
@@ -122,6 +133,115 @@ class HomeController extends Controller
                 : PageMeta::make(
                     title: PageMeta::SITE_NAME.' — Jus naturels d\'ananas du Cameroun',
                 ),
+        ]);
+    }
+
+    /**
+     * Compte une vue par publication et par session : revoir le fil ne
+     * regonfle pas les compteurs. Les écritures partent après l'envoi de la
+     * réponse (terminating) — l'affichage du fil n'attend jamais dessus.
+     */
+    private function recordViews(Request $request, array $publicationIds): void
+    {
+        if ($publicationIds === []) {
+            return;
+        }
+
+        $seen = $request->session()->get('viewed_publications', []);
+        $fresh = array_values(array_diff($publicationIds, $seen));
+
+        if ($fresh === []) {
+            return;
+        }
+
+        // Marqué tout de suite : la session est écrite avec la réponse.
+        $request->session()->put(
+            'viewed_publications',
+            array_slice(array_merge($seen, $fresh), -200)
+        );
+
+        $userId = Auth::id();
+        $ip = $request->ip();
+        $now = now();
+
+        app()->terminating(function () use ($fresh, $userId, $ip, $now) {
+            try {
+                View::insert(array_map(fn ($id) => [
+                    'id_publication' => $id,
+                    'id_user' => $userId,
+                    'ip_address' => $ip,
+                    'status' => 'Success',
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], $fresh));
+
+                // Compteur dénormalisé : l'affichage n'a jamais à compter.
+                Publication::whereIn('id', $fresh)->increment('nbr_vews');
+            } catch (\Throwable $e) {
+                Log::warning('Enregistrement des vues échoué : '.$e->getMessage());
+            }
+        });
+    }
+
+    /**
+     * Statistiques détaillées d'une publication, réservées à son auteur.
+     */
+    public function publicationStats(int $publicationId): JsonResponse
+    {
+        $publication = Publication::find($publicationId);
+
+        if (! $publication) {
+            abort(404);
+        }
+
+        if (! Auth::check() || $publication->id_user !== Auth::id()) {
+            abort(403, 'Statistiques réservées à l\'auteur de la publication.');
+        }
+
+        // Une requête par métrique, toutes sur des colonnes indexées.
+        $viewsTotal = View::where('id_publication', $publicationId)->count();
+        $viewsUnique = View::where('id_publication', $publicationId)
+            ->distinct()
+            ->count(DB::raw('COALESCE(id_user, ip_address)'));
+
+        $since = now()->subDays(6)->startOfDay();
+
+        $perDay = View::where('id_publication', $publicationId)
+            ->where('created_at', '>=', $since)
+            ->selectRaw('DATE(created_at) as jour, COUNT(*) as total')
+            ->groupBy('jour')
+            ->pluck('total', 'jour');
+
+        // Série continue sur 7 jours, y compris les jours sans vue
+        $serie = collect(range(6, 0))->map(function ($offset) use ($perDay) {
+            $date = now()->subDays($offset);
+
+            return [
+                'date' => $date->format('Y-m-d'),
+                'label' => $date->isoFormat('ddd'),
+                'total' => (int) ($perDay[$date->format('Y-m-d')] ?? 0),
+            ];
+        })->values();
+
+        $likes = Like::where('id_publication', $publicationId)->count();
+        $comments = Comment::where('id_publication', $publicationId)->where('status', 'Success')->count();
+        $shares = Share::where('id_publication', $publicationId)->count();
+        $interactions = $likes + $comments + $shares;
+
+        return response()->json([
+            'views_total' => $viewsTotal,
+            'views_unique' => $viewsUnique,
+            'likes' => $likes,
+            'comments' => $comments,
+            'shares' => $shares,
+            'interactions' => $interactions,
+            // Part des vues ayant donné lieu à une interaction
+            'engagement_rate' => $viewsTotal > 0
+                ? round($interactions / $viewsTotal * 100, 1)
+                : 0.0,
+            'serie' => $serie,
+            'published_at' => $publication->created_at->isoFormat('D MMMM YYYY [à] HH:mm'),
+            'published_human' => $publication->created_at->diffForHumans(),
         ]);
     }
 
@@ -380,6 +500,8 @@ class HomeController extends Controller
             'created_at_human' => $pub->created_at->diffForHumans(),
             'user' => $this->formatUser($pub->user),
             'is_owner' => Auth::check() && Auth::id() === $pub->id_user,
+            // Compteur dénormalisé : aucun COUNT à l'affichage du fil
+            'views_count' => (int) ($pub->nbr_vews ?? 0),
             'likes_count' => $pub->likes_count ?? 0,
             'comments_count' => $pub->comments_success_count ?? 0,
             'shares_count' => $pub->shares_count ?? 0,

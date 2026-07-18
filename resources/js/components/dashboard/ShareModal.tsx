@@ -13,7 +13,8 @@ export default function ShareModal({ publication, onClose }: Props) {
     const [copied, setCopied] = useState(false);
 
     const baseUrl = window.location.origin;
-    const shareUrl = `${baseUrl}/?highlight=${publication.id}`;
+    // Lien court : aperçu (image + texte) généré côté serveur pour WhatsApp & co
+    const shareUrl = `${baseUrl}/p/${publication.id}`;
     const shareText = publication.text || 'Découvrez cette publication sur PARADISIA!';
 
     const recordShare = () => {

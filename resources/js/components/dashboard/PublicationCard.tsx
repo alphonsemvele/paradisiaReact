@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { router, useForm } from '@inertiajs/react';
-import { MoreHorizontal, ThumbsUp, MessageCircle, Share2, Edit2, Trash2, X } from 'lucide-react';
+import { MoreHorizontal, ThumbsUp, MessageCircle, Share2, Edit2, Trash2, X, Eye, TrendingUp } from 'lucide-react';
 import PublicationMedia from './PublicationMedia';
+import StatsModal from './StatsModal';
 import CommentsSection from './CommentsSection';
 import type { Publication, User } from '@/types';
 
@@ -15,6 +16,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
     const [showComments, setShowComments] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [showStats, setShowStats] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     const userName = publication.user?.name ?? 'Utilisateur supprimé';
@@ -63,8 +65,18 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                             <h4 className="font-bold text-gray-900 text-sm hover:underline cursor-pointer">
                                 {userName}
                             </h4>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-gray-500 flex items-center gap-1.5">
                                 {publication.created_at_human} · 🌍
+                                {/* Le nombre de vues n'est visible que par l'auteur */}
+                                {publication.is_owner && (
+                                    <>
+                                        <span className="text-gray-300">·</span>
+                                        <span className="inline-flex items-center gap-1 text-gray-500">
+                                            <Eye className="w-3.5 h-3.5" />
+                                            {new Intl.NumberFormat('fr-FR').format(publication.views_count)}
+                                        </span>
+                                    </>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -81,6 +93,16 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
 
                             {showMenu && (
                                 <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden z-20 min-w-[180px]">
+                                    <button
+                                        onClick={() => {
+                                            setShowStats(true);
+                                            setShowMenu(false);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-sm text-gray-700 transition-colors"
+                                    >
+                                        <TrendingUp className="w-4 h-4" />
+                                        Voir les statistiques
+                                    </button>
                                     <button
                                         onClick={() => {
                                             setIsEditing(true);
@@ -171,6 +193,17 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                             {publication.comments_count > 1 ? 's' : ''}
                         </span>
                     )}
+                    {/* Raccourci vers les statistiques, réservé à l'auteur */}
+                    {publication.is_owner && (
+                        <button
+                            onClick={() => setShowStats(true)}
+                            className="inline-flex items-center gap-1 font-medium text-emerald-600 hover:underline"
+                        >
+                            <Eye className="w-3.5 h-3.5" />
+                            {new Intl.NumberFormat('fr-FR').format(publication.views_count)} vue
+                            {publication.views_count > 1 ? 's' : ''}
+                        </button>
+                    )}
                     {publication.shares_count > 0 && (
                         <span className="hover:underline cursor-pointer">
                             {publication.shares_count} partage
@@ -224,6 +257,14 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             {/* Comments */}
             {showComments && (
                 <CommentsSection publication={publication} currentUser={currentUser} />
+            )}
+
+            {/* Statistiques (auteur uniquement) */}
+            {showStats && (
+                <StatsModal
+                    publicationId={publication.id}
+                    onClose={() => setShowStats(false)}
+                />
             )}
         </div>
     );
