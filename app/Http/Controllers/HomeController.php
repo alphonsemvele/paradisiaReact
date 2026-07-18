@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\Publication;
 use App\Models\Share;
 use App\Models\View;
+use App\Services\PublicationStats;
 use App\Support\PageMeta;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -198,51 +199,7 @@ class HomeController extends Controller
             abort(403, 'Statistiques réservées à l\'auteur de la publication.');
         }
 
-        // Une requête par métrique, toutes sur des colonnes indexées.
-        $viewsTotal = View::where('id_publication', $publicationId)->count();
-        $viewsUnique = View::where('id_publication', $publicationId)
-            ->distinct()
-            ->count(DB::raw('COALESCE(id_user, ip_address)'));
-
-        $since = now()->subDays(6)->startOfDay();
-
-        $perDay = View::where('id_publication', $publicationId)
-            ->where('created_at', '>=', $since)
-            ->selectRaw('DATE(created_at) as jour, COUNT(*) as total')
-            ->groupBy('jour')
-            ->pluck('total', 'jour');
-
-        // Série continue sur 7 jours, y compris les jours sans vue
-        $serie = collect(range(6, 0))->map(function ($offset) use ($perDay) {
-            $date = now()->subDays($offset);
-
-            return [
-                'date' => $date->format('Y-m-d'),
-                'label' => $date->isoFormat('ddd'),
-                'total' => (int) ($perDay[$date->format('Y-m-d')] ?? 0),
-            ];
-        })->values();
-
-        $likes = Like::where('id_publication', $publicationId)->count();
-        $comments = Comment::where('id_publication', $publicationId)->where('status', 'Success')->count();
-        $shares = Share::where('id_publication', $publicationId)->count();
-        $interactions = $likes + $comments + $shares;
-
-        return response()->json([
-            'views_total' => $viewsTotal,
-            'views_unique' => $viewsUnique,
-            'likes' => $likes,
-            'comments' => $comments,
-            'shares' => $shares,
-            'interactions' => $interactions,
-            // Part des vues ayant donné lieu à une interaction
-            'engagement_rate' => $viewsTotal > 0
-                ? round($interactions / $viewsTotal * 100, 1)
-                : 0.0,
-            'serie' => $serie,
-            'published_at' => $publication->created_at->isoFormat('D MMMM YYYY [à] HH:mm'),
-            'published_human' => $publication->created_at->diffForHumans(),
-        ]);
+        return response()->json(PublicationStats::for($publication));
     }
 
     public function toggleLike(Request $request, int $publicationId): RedirectResponse

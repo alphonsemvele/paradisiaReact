@@ -7,6 +7,8 @@ use App\Models\Comment;
 use App\Models\Like;
 use App\Models\Publication;
 use App\Models\Share;
+use App\Models\View;
+use App\Services\PublicationStats;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -72,6 +74,7 @@ class PublicationController extends Controller
             'failed' => Publication::where('status', 'failed')->count(),
             'deleted' => Publication::where('status', 'deleted')->count(),
             'with_media' => Publication::where(fn ($q) => $q->whereNotNull('img_1')->orWhereNotNull('video'))->count(),
+            'views' => (int) Publication::sum('nbr_vews'),
         ];
 
         return Inertia::render('admin/publications/index', [
@@ -106,6 +109,15 @@ class PublicationController extends Controller
 
         return Inertia::render('admin/publications/show', [
             'publication' => $this->formatPublicationFull($publication, $likesCount, $sharesCount),
+            // Statistiques complètes : l'administrateur les voit sur toutes
+            // les publications, pas seulement les siennes.
+            'stats' => PublicationStats::for($publication),
+            'viewers' => collect(PublicationStats::viewers($publication))
+                ->map(fn ($v) => [
+                    ...$v,
+                    'photo' => $v['photo'] ? $this->mediaUrl($v['photo']) : null,
+                ])
+                ->all(),
             'likers' => Like::where('id_publication', $publication->id)
                 ->with('user:id,name,photo')
                 ->limit(20)
@@ -160,6 +172,7 @@ class PublicationController extends Controller
         Comment::where('id_publication', $publication->id)->delete();
         Like::where('id_publication', $publication->id)->delete();
         Share::where('id_publication', $publication->id)->delete();
+        View::where('id_publication', $publication->id)->delete();
 
         $publication->delete();
 
@@ -188,6 +201,7 @@ class PublicationController extends Controller
             'has_video' => ! empty($pub->video),
             'has_image' => ! empty($pub->img_1),
             'status' => $pub->status ?? 'pending',
+            'views_count' => (int) ($pub->nbr_vews ?? 0),
             'likes_count' => $pub->likes_count,
             'comments_count' => $pub->comments_count,
             'created_at_human' => $pub->created_at->diffForHumans(),

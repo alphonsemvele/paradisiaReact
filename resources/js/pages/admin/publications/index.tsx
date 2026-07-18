@@ -68,13 +68,20 @@ export default function PublicationsIndex({ publications, stats, filters, topAut
 
             <div className="space-y-6">
                 {/* ============ KPIs par statut ============ */}
-                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-7 gap-4">
                     <StatCard
                         icon={FileText}
                         label="Total"
                         value={stats.total}
                         sublabel={`+${stats.today} aujourd'hui`}
                         color="zinc"
+                    />
+                    <StatCard
+                        icon={Eye}
+                        label="Vues"
+                        value={stats.views ?? 0}
+                        sublabel="toutes publications"
+                        color="emerald"
                     />
                     <StatusStatCard
                         status="Success"
@@ -480,6 +487,10 @@ function PublicationCard({
                     <span className="flex items-center gap-1">
                         <MessageSquare className="w-3.5 h-3.5" />
                         {pub.comments_count}
+                    </span>
+                    <span className="flex items-center gap-1 text-emerald-600 font-medium" title="Vues">
+                        <Eye className="w-3.5 h-3.5" />
+                        {new Intl.NumberFormat('fr-FR').format(pub.views_count ?? 0)}
                     </span>
                 </div>
 

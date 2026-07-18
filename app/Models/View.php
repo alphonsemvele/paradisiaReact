@@ -40,9 +40,19 @@ class View extends Model
         ];
     }
 
+    /**
+     * La clé étrangère doit être explicite : sans elle, Laravel déduit
+     * « id_user_id » du nom de la méthode et la relation renvoie toujours null.
+     */
     public function idUser(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class, 'id_user');
+    }
+
+    /** Alias lisible de idUser(). */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'id_user');
     }
 
     public function Publication(): BelongsTo

@@ -19,6 +19,7 @@ import {
     ChevronDown,
 } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
+import PublicationInsights from '@/components/admin/PublicationInsights';
 
 const STATUS_CONFIG: any = {
     Success: {
@@ -53,7 +54,7 @@ const STATUS_CONFIG: any = {
     },
 };
 
-export default function PublicationShow({ publication, likers }: any) {
+export default function PublicationShow({ publication, likers, stats, viewers }: any) {
     const [editMode, setEditMode] = useState(false);
     const [statusMenuOpen, setStatusMenuOpen] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -397,6 +398,11 @@ export default function PublicationShow({ publication, likers }: any) {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Statistiques et audience */}
+                        {stats && (
+                            <PublicationInsights stats={stats} viewers={viewers ?? []} />
+                        )}
 
                         {/* Likers */}
                         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200">
