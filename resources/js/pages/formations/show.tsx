@@ -20,6 +20,7 @@ import {
     ChevronRight,
 } from 'lucide-react';
 import AppLayout from '@/components/layouts/AppLayout';
+import ShareButtons from '@/components/ShareButtons';
 
 interface Formation {
     id: number;
@@ -180,6 +181,15 @@ export default function FormationShow({ formation }: { formation: Formation }) {
                                 Télécharger le programme
                             </a>
                         )}
+
+                        {/* Partage : l'aperçu riche (image + détails) est
+                            produit côté serveur par les balises Open Graph */}
+                        <div className="mt-6">
+                            <ShareButtons
+                                path={`/formations/${formation.id}`}
+                                text={`${formation.titre} — Formation ${formation.mode_label} chez Paradisia`}
+                            />
+                        </div>
                     </div>
 
                     {/* ===== Formulaire d'inscription ===== */}

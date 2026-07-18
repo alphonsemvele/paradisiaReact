@@ -102,6 +102,33 @@ class PageMeta
         );
     }
 
+    /**
+     * Métadonnées d'une formation partagée — même présentation qu'une
+     * publication : grande image, « Paradisia » en gras, puis l'essentiel de
+     * l'offre (titre, prix, durée, session) suivi de la description.
+     */
+    public static function forFormation(array $formation, string $url): array
+    {
+        $entete = collect([
+            $formation['titre'] ?? null,
+            ($formation['prix'] ?? 0) > 0 ? $formation['prix_formatte'] ?? null : null,
+            $formation['duree'] ?? null,
+            $formation['session'] ?? null,
+            $formation['mode_label'] ?? null,
+        ])->filter()->implode(' · ');
+
+        $description = trim((string) ($formation['description'] ?? ''));
+
+        return self::make(
+            title: ($formation['titre'] ?? 'Formation').' — Formation '.self::DISPLAY_NAME,
+            description: $description !== '' ? $entete.' — '.$description : $entete,
+            image: $formation['image'] ?? null,
+            url: $url,
+            type: 'article',
+            ogTitle: self::DISPLAY_NAME,
+        );
+    }
+
     public static function defaultDescription(): string
     {
         return 'PARADISIA — jus naturels d\'ananas produits au Cameroun, formations et points de vente.';

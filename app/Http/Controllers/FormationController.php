@@ -43,12 +43,7 @@ class FormationController extends Controller
         return Inertia::render('formations/show', [
             'formation' => $formatted,
         ])->withViewData([
-            'meta' => PageMeta::make(
-                title: $formatted['titre'].' — Formation '.PageMeta::SITE_NAME,
-                description: $formatted['description'],
-                image: $formatted['image'],
-                type: 'article',
-            ),
+            'meta' => PageMeta::forFormation($formatted, url()->current()),
         ]);
     }
 
