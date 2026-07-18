@@ -103,14 +103,16 @@ class PageMeta
     }
 
     /**
-     * Métadonnées d'une formation partagée — même présentation qu'une
-     * publication : grande image, « Paradisia » en gras, puis l'essentiel de
-     * l'offre (titre, prix, durée, session) suivi de la description.
+     * Métadonnées d'une formation partagée : grande image, titre de la
+     * formation en gras, puis les conditions (prix, durée, session, mode)
+     * suivies de la description. Le titre n'est pas repris dans la
+     * description pour éviter le doublon dans l'aperçu.
      */
     public static function forFormation(array $formation, string $url): array
     {
-        $entete = collect([
-            $formation['titre'] ?? null,
+        $titre = $formation['titre'] ?? 'Formation';
+
+        $conditions = collect([
             ($formation['prix'] ?? 0) > 0 ? $formation['prix_formatte'] ?? null : null,
             $formation['duree'] ?? null,
             $formation['session'] ?? null,
@@ -120,12 +122,12 @@ class PageMeta
         $description = trim((string) ($formation['description'] ?? ''));
 
         return self::make(
-            title: ($formation['titre'] ?? 'Formation').' — Formation '.self::DISPLAY_NAME,
-            description: $description !== '' ? $entete.' — '.$description : $entete,
+            title: $titre.' — Formation '.self::DISPLAY_NAME,
+            description: collect([$conditions, $description])->filter()->implode(' — '),
             image: $formation['image'] ?? null,
             url: $url,
             type: 'article',
-            ogTitle: self::DISPLAY_NAME,
+            ogTitle: $titre,
         );
     }
 
