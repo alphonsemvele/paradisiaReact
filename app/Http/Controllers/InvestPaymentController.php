@@ -35,6 +35,8 @@ class InvestPaymentController extends Controller
         return response()->json([
             'disponible' => $this->malapay->estConfigure(),
             'pays' => $this->malapay->pays(),
+            // Où créer un portefeuille quand l'investisseur n'en a pas
+            'url_portefeuilles' => rtrim((string) config('services.malapay.site'), '/').'/portefeuilles',
         ]);
     }
 

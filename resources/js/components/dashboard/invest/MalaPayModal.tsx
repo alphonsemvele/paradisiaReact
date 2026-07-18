@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
     X, Wallet, Globe, Loader2, AlertCircle, CheckCircle2,
-    ArrowRight, Phone, MessageCircle, ShieldCheck,
+    ArrowRight, Phone, MessageCircle, ShieldCheck, PlusCircle, LifeBuoy,
 } from 'lucide-react';
 
 interface Pays {
@@ -61,6 +61,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
     const [paysDisponibles, setPaysDisponibles] = useState<Pays[]>([]);
     const [chargementPays, setChargementPays] = useState(true);
     const [malapayIndisponible, setMalapayIndisponible] = useState(false);
+    const [urlPortefeuilles, setUrlPortefeuilles] = useState('https://mala-pay.com/portefeuilles');
 
     const [recherche, setRecherche] = useState('');
     const [paysChoisi, setPaysChoisi] = useState<Pays | null>(null);
@@ -82,6 +83,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                 if (annule) return;
                 setPaysDisponibles(d.pays ?? []);
                 setMalapayIndisponible(!d.disponible);
+                if (d.url_portefeuilles) setUrlPortefeuilles(d.url_portefeuilles);
             })
             .catch(() => !annule && setMalapayIndisponible(true))
             .finally(() => !annule && setChargementPays(false));
@@ -263,6 +265,30 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                                 Retrouvez ce code dans Malapay, rubrique « Portefeuilles ». Le portefeuille
                                 doit être en {paysChoisi.devise}.
                             </p>
+
+                            {/* L'investisseur n'a pas encore de portefeuille */}
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                                <a
+                                    href={urlPortefeuilles}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+                                >
+                                    <PlusCircle className="w-4 h-4" />
+                                    Je n'ai pas de portefeuille — en créer un
+                                </a>
+                                <a
+                                    href={`https://wa.me/237687984282?text=${encodeURIComponent(
+                                        "Bonjour PARADISIA, j'ai besoin d'aide pour payer mon investissement."
+                                    )}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors"
+                                >
+                                    <LifeBuoy className="w-4 h-4 text-emerald-600" />
+                                    Assistance
+                                </a>
+                            </div>
 
                             {erreur && <Alerte titre="Paiement impossible" message={erreur} />}
                             {representants.length > 0 && <Representants liste={representants} />}

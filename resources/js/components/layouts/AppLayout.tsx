@@ -15,6 +15,7 @@ import {
     Shield,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
+import SupportButton from '@/components/SupportButton';
 
 interface Props {
     children: ReactNode;
@@ -442,6 +443,9 @@ export default function AppLayout({ children }: Props) {
                     </div>
                 </div>
             </footer>
+
+            {/* Assistance : présente sur toutes les pages du site */}
+            <SupportButton />
         </div>
     );
 }

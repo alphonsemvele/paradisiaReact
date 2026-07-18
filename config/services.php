@@ -64,6 +64,9 @@ return [
         'url'     => env('MALAPAY_URL', 'https://mala-pay.com/api'),
         'key'     => env('MALAPAY_KEY'),
         'timeout' => env('MALAPAY_TIMEOUT', 15),
+        // Site Malapay, distinct de l'API : sert à envoyer un investisseur
+        // créer son portefeuille s'il n'en a pas encore.
+        'site'    => env('MALAPAY_SITE_URL', 'https://mala-pay.com'),
     ],
 
 ];
