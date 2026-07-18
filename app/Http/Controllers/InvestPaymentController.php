@@ -163,6 +163,7 @@ class InvestPaymentController extends Controller
                 $validated['parts'] > 1 ? 's' : '',
                 $round->name
             ),
+            service: 'investissement',
         );
 
         if (! $resultat['ok']) {

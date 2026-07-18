@@ -86,14 +86,22 @@ class MalaPay
      *
      * @return array{ok:bool, data?:array, code?:string, message?:string, representants?:array}
      */
-    public function debiter(string $code, float $montant, string $devise, string $reference, ?string $description = null): array
-    {
+    public function debiter(
+        string $code,
+        float $montant,
+        string $devise,
+        string $reference,
+        ?string $description = null,
+        ?string $service = null,
+    ): array {
         return $this->appeler('post', '/v1/portefeuilles/debiter', [
             'code' => $code,
             'montant' => $montant,
             'devise' => $devise,
             'reference' => $reference,
             'description' => $description,
+            // Détermine le barème de frais appliqué par Malapay
+            'service' => $service,
         ]);
     }
 
