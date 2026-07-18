@@ -17,7 +17,7 @@
 
     <meta property="og:site_name" content="{{ $meta['site_name'] }}">
     <meta property="og:type" content="{{ $meta['type'] }}">
-    <meta property="og:title" content="{{ $meta['title'] }}">
+    <meta property="og:title" content="{{ $meta['og_title'] }}">
     <meta property="og:description" content="{{ $meta['description'] }}">
     <meta property="og:url" content="{{ $meta['url'] }}">
     <meta property="og:locale" content="fr_FR">
@@ -28,11 +28,11 @@
             <meta property="og:image:width" content="{{ $meta['image_size']['width'] }}">
             <meta property="og:image:height" content="{{ $meta['image_size']['height'] }}">
         @endif
-        <meta property="og:image:alt" content="{{ $meta['title'] }}">
+        <meta property="og:image:alt" content="{{ $meta['og_title'] }}">
     @endif
 
     <meta name="twitter:card" content="{{ $meta['image'] ? 'summary_large_image' : 'summary' }}">
-    <meta name="twitter:title" content="{{ $meta['title'] }}">
+    <meta name="twitter:title" content="{{ $meta['og_title'] }}">
     <meta name="twitter:description" content="{{ $meta['description'] }}">
     @if ($meta['image'])
         <meta name="twitter:image" content="{{ $meta['image'] }}">

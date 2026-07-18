@@ -16,6 +16,9 @@ class PageMeta
 {
     public const SITE_NAME = 'PARADISIA';
 
+    /** Nom tel qu'il s'affiche en titre d'aperçu de partage. */
+    public const DISPLAY_NAME = 'Paradisia';
+
     /**
      * Construit le jeu de métadonnées d'une page.
      *
@@ -27,11 +30,15 @@ class PageMeta
         ?string $image = null,
         ?string $url = null,
         string $type = 'website',
+        ?string $ogTitle = null,
     ): array {
         $image = $image ?: self::defaultImage();
 
         return [
             'title' => $title,
+            // Titre de l'aperçu partagé, distinct du titre d'onglet : sur
+            // WhatsApp/Facebook c'est la ligne en gras au-dessus du texte.
+            'og_title' => $ogTitle ?: $title,
             'description' => Str::limit(
                 trim(preg_replace('/\s+/', ' ', (string) $description)) ?: self::defaultDescription(),
                 200
@@ -68,20 +75,30 @@ class PageMeta
         return $size ? ['width' => $size[0], 'height' => $size[1]] : null;
     }
 
-    /** Métadonnées d'une publication partagée. */
+    /**
+     * Métadonnées d'une publication partagée.
+     *
+     * Rendu voulu, identique à un lien Facebook dans WhatsApp : grande image,
+     * « Paradisia » en gras, puis le texte de la publication. D'où og:title =
+     * nom du site et og:description = texte du post — le titre de l'onglet,
+     * lui, garde le texte pour rester utile en navigation et en référencement.
+     */
     public static function forPublication(array $publication, string $url): array
     {
-        $author = $publication['user']['name'] ?? self::SITE_NAME;
+        $author = $publication['user']['name'] ?? self::DISPLAY_NAME;
         $text = trim((string) ($publication['text'] ?? ''));
 
         return self::make(
             title: $text !== ''
                 ? Str::limit($text, 70)
                 : "Publication de {$author}",
-            description: $text !== '' ? $text : "Découvrez cette publication de {$author} sur ".self::SITE_NAME.'.',
+            description: $text !== ''
+                ? $text
+                : "Découvrez cette publication de {$author} sur ".self::DISPLAY_NAME.'.',
             image: $publication['images'][0] ?? null,
             url: $url,
             type: 'article',
+            ogTitle: self::DISPLAY_NAME,
         );
     }
 
