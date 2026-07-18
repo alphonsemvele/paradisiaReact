@@ -42,6 +42,10 @@ Route::prefix('admin')
         Route::get('/', [DashboardController::class, 'index'])
             ->name('dashboard');
 
+        // Diagnostic d'envoi d'e-mail (réservé aux administrateurs)
+        Route::match(['get', 'post'], '/diagnostic/mail', [\App\Http\Controllers\Admin\MailDiagnosticController::class, 'index'])
+            ->name('diagnostic.mail');
+
         // À venir : visitors, users, products, etc.
            // 🆕 Visiteurs
         Route::get('/visitors', [VisitorController::class, 'index'])

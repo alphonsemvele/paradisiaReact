@@ -79,10 +79,17 @@ return [
             'transport' => 'array',
         ],
 
+        /*
+         * Chaîne de secours : si le SMTP externe tombe, l'envoi bascule sur
+         * le mail du serveur (sendmail), illimité et toujours disponible.
+         * « log » ne sert que de dernier filet pour ne jamais faire échouer
+         * une commande ou un investissement à cause d'un e-mail.
+         */
         'failover' => [
             'transport' => 'failover',
             'mailers' => [
                 'smtp',
+                'sendmail',
                 'log',
             ],
             'retry_after' => 60,
