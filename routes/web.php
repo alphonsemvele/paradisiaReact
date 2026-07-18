@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\InvestController;
+use App\Http\Controllers\InvestPaymentController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -194,6 +195,11 @@ Route::middleware('auth')->group(function () {
     //investir
 
     Route::get('/invest', [InvestController::class, 'index'])->name('invest');
+
+    // Paiement d'un investissement par portefeuille Malapay
+    Route::get('/invest/paiement/pays', [InvestPaymentController::class, 'pays'])->name('invest.pays');
+    Route::post('/invest/paiement/verifier', [InvestPaymentController::class, 'verifier'])->name('invest.verifier');
+    Route::post('/invest/paiement', [InvestPaymentController::class, 'payer'])->name('invest.payer');
 
 
     // Commande (nécessite un compte : la connexion renvoie ensuite au checkout)

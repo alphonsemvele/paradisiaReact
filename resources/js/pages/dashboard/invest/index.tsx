@@ -11,7 +11,7 @@ import QuickInvestCard from '@/components/dashboard/invest/QuickInvestCard';
 import TopInvestors from '@/components/dashboard/invest/TopInvestors';
 import RecentActivity from '@/components/dashboard/invest/RecentActivity';
 import WhyInvest from '@/components/dashboard/invest/WhyInvest';
-import InvestMessageModal from '@/components/dashboard/invest/InvestMessageModal';
+import MalaPayModal from '@/components/dashboard/invest/MalaPayModal';
 import type {
     InvestStats,
     CurrentRound,
@@ -42,7 +42,8 @@ export default function InvestIndex() {
         auth,
     } = usePage<InvestProps>().props;
 
-    const [showMessageModal, setShowMessageModal] = useState(false);
+    // Parts à payer : null tant que le modal de paiement est fermé
+    const [partsAPayer, setPartsAPayer] = useState<number | null>(null);
 
     return (
         <AppLayout>
@@ -88,7 +89,7 @@ export default function InvestIndex() {
                         <QuickInvestCard
                             currentRound={currentRound}
                             isAuthenticated={!!auth.user}
-                            onInvest={() => setShowMessageModal(true)}
+                            onInvest={(parts) => setPartsAPayer(parts)}
                         />
                         <TopInvestors investors={topInvestors} />
                         <RecentActivity history={paymentHistory.slice(0, 4)} />
@@ -97,8 +98,12 @@ export default function InvestIndex() {
                 </div>
             </div>
 
-            {showMessageModal && (
-                <InvestMessageModal onClose={() => setShowMessageModal(false)} />
+            {partsAPayer !== null && currentRound && (
+                <MalaPayModal
+                    parts={partsAPayer}
+                    prixPart={currentRound.amount}
+                    onClose={() => setPartsAPayer(null)}
+                />
             )}
         </AppLayout>
     );

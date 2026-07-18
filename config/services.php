@@ -52,4 +52,18 @@ return [
         'callmebot_key'  => env('CALLMEBOT_APIKEY'),
     ],
 
+    /*
+    |---------------------------------------------------------------------------
+    | Malapay — agrégateur de paiement
+    |---------------------------------------------------------------------------
+    | Les paiements passent par les portefeuilles Malapay tant que les
+    | opérateurs mobile money des différents pays ne sont pas intégrés.
+    | La clé est de la forme mpk_test_xxx (bac à sable) ou mpk_live_xxx.
+    */
+    'malapay' => [
+        'url'     => env('MALAPAY_URL', 'https://mala-pay.com/api'),
+        'key'     => env('MALAPAY_KEY'),
+        'timeout' => env('MALAPAY_TIMEOUT', 15),
+    ],
+
 ];

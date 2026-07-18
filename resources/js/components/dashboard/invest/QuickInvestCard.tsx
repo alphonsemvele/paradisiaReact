@@ -6,7 +6,7 @@ import type { CurrentRound } from '@/types';
 interface Props {
     currentRound: CurrentRound | null;
     isAuthenticated: boolean;
-    onInvest: () => void;
+    onInvest: (parts: number) => void;
 }
 
 export default function QuickInvestCard({ currentRound, isAuthenticated, onInvest }: Props) {
@@ -22,7 +22,7 @@ export default function QuickInvestCard({ currentRound, isAuthenticated, onInves
             router.visit('/login');
             return;
         }
-        onInvest();
+        onInvest(shares);
     };
 
     if (!currentRound) {
