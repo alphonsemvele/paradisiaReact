@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
+use App\Support\PageMeta;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -106,6 +107,13 @@ class ShopController extends Controller
         return Inertia::render('dashboard/shop/show', [
             'product' => $formatted,
             'cart' => session()->get('cart', []),
+        ])->withViewData([
+            'meta' => PageMeta::make(
+                title: $formatted['name'].' — '.number_format((float) $formatted['price'], 0, ',', ' ').' FCFA',
+                description: $formatted['description'],
+                image: $formatted['image'],
+                type: 'product',
+            ),
         ]);
     }
 

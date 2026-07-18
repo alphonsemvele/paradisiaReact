@@ -9,6 +9,7 @@ use App\Models\PointDeVente;
 use App\Models\Product;
 use App\Models\Publication;
 use App\Models\Share;
+use App\Support\PageMeta;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
@@ -113,6 +114,14 @@ class HomeController extends Controller
                 ->map(fn ($p) => $this->formatProduct($p)),
             'pointsDeVente' => fn () => $this->getPointsDeVente(),
             'cart' => session()->get('cart', []),
+        ])->withViewData([
+            // Aperçu de partage : la publication mise en avant si le lien en
+            // désigne une (…/?highlight=12), sinon la page d'accueil.
+            'meta' => $formattedHighlight
+                ? PageMeta::forPublication($formattedHighlight, url()->full())
+                : PageMeta::make(
+                    title: PageMeta::SITE_NAME.' — Jus naturels d\'ananas du Cameroun',
+                ),
         ]);
     }
 

@@ -7,6 +7,7 @@ use App\Models\Inscription;
 use App\Services\WhatsAppNotifier;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use App\Support\PageMeta;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -37,8 +38,17 @@ class FormationController extends Controller
 
         $formation->load('images');
 
+        $formatted = $this->format($formation, full: true);
+
         return Inertia::render('formations/show', [
-            'formation' => $this->format($formation, full: true),
+            'formation' => $formatted,
+        ])->withViewData([
+            'meta' => PageMeta::make(
+                title: $formatted['titre'].' — Formation '.PageMeta::SITE_NAME,
+                description: $formatted['description'],
+                image: $formatted['image'],
+                type: 'article',
+            ),
         ]);
     }
 
