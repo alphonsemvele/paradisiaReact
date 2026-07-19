@@ -58,6 +58,70 @@ class MailDiagnosticController extends Controller
             'config' => $config,
             'resultat' => $resultat,
             'emailParDefaut' => Auth::user()?->email,
+            'journal' => $this->journalMail(),
         ]);
+    }
+
+    /**
+     * Dernières traces d'e-mail du journal Laravel.
+     *
+     * Avec MAIL_MAILER=log, le message entier y est écrit au lieu d'être
+     * envoyé : c'est le seul endroit où retrouver ce qui aurait dû partir.
+     * En cas d'échec d'envoi, l'erreur exacte s'y trouve aussi.
+     *
+     * @return array<int, array{date:string, niveau:string, texte:string}>
+     */
+    private function journalMail(): array
+    {
+        $fichier = storage_path('logs/laravel.log');
+
+        if (! is_readable($fichier)) {
+            return [];
+        }
+
+        // On ne lit que la fin du fichier : un journal de plusieurs centaines
+        // de Mo ne doit jamais être chargé en mémoire.
+        $taille = filesize($fichier);
+        $fenetre = 400 * 1024;
+
+        $handle = fopen($fichier, 'rb');
+        fseek($handle, max(0, $taille - $fenetre));
+        $contenu = (string) fread($handle, $fenetre);
+        fclose($handle);
+
+        // Découpage sur les en-têtes « [date] canal.NIVEAU: »
+        $blocs = preg_split(
+            '/^\[(\d{4}-\d{2}-\d{2}[^\]]*)\]\s+\S+\.(\w+):/m',
+            $contenu,
+            -1,
+            PREG_SPLIT_DELIM_CAPTURE
+        );
+
+        $entrees = [];
+
+        for ($i = 1; $i + 2 <= count($blocs); $i += 3) {
+            $date = $blocs[$i];
+            $niveau = $blocs[$i + 1];
+            $texte = trim($blocs[$i + 2]);
+
+            // On ne garde que ce qui concerne l'e-mail
+            $pertinent = preg_match(
+                '/mail|smtp|sendmail|message-id|subject:|swift|Symfony\\\\Component\\\\Mailer/i',
+                $texte
+            );
+
+            if (! $pertinent) {
+                continue;
+            }
+
+            $entrees[] = [
+                'date' => $date,
+                'niveau' => strtoupper($niveau),
+                'texte' => mb_substr($texte, 0, 1500),
+            ];
+        }
+
+        // Les plus récentes d'abord
+        return array_slice(array_reverse($entrees), 0, 15);
     }
 }

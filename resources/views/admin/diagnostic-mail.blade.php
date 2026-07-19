@@ -56,6 +56,27 @@
       chemin sur l'hébergement. Demandez le bon chemin au support, ou utilisez le SMTP
       du serveur (mail.votre-domaine.com, port 465).
     </div>
+
+    {{-- Journal : avec MAIL_MAILER=log, le message entier y est écrit --}}
+    <h2 style="font-size:15px;font-weight:800;margin:28px 0 4px">Journal des e-mails</h2>
+    <p style="font-size:12px;color:#7d9488;margin-bottom:12px">
+      15 dernières traces liées à l'e-mail. Avec le transport « log », le message
+      complet y figure au lieu d'être envoyé.
+    </p>
+
+    @forelse ($journal as $ligne)
+      <div style="border:1px solid {{ $ligne['niveau'] === 'ERROR' ? '#fecaca' : '#e2ece6' }};background:{{ $ligne['niveau'] === 'ERROR' ? '#fef2f2' : '#fafcfb' }};border-radius:9px;padding:10px 12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-bottom:5px">
+          <span style="font-size:11px;font-weight:800;color:{{ $ligne['niveau'] === 'ERROR' ? '#b91c1c' : '#059669' }}">{{ $ligne['niveau'] }}</span>
+          <span style="font-size:11px;color:#9fb5a8">{{ $ligne['date'] }}</span>
+        </div>
+        <pre style="font-size:11px;color:#4b5b51;white-space:pre-wrap;word-break:break-word;margin:0;font-family:ui-monospace,Menlo,monospace">{{ $ligne['texte'] }}</pre>
+      </div>
+    @empty
+      <p style="font-size:13px;color:#9fb5a8;padding:16px;text-align:center;background:#f7faf8;border-radius:9px">
+        Aucune trace d'e-mail dans le journal récent.
+      </p>
+    @endforelse
   </div>
 </div>
 </body>
