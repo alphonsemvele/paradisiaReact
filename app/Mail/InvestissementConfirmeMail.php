@@ -25,6 +25,11 @@ class InvestissementConfirmeMail extends Mailable
 
     public function content(): Content
     {
-        return new Content(view: 'emails.investissement-confirme');
+        // Une version texte accompagne le HTML : un message HTML seul est un
+        // signal de spam classique chez Gmail et Outlook.
+        return new Content(
+            view: 'emails.investissement-confirme',
+            text: 'emails.texte.investissement-confirme',
+        );
     }
 }
