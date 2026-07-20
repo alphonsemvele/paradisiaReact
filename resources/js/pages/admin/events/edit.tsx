@@ -28,9 +28,28 @@ export default function EventEdit({ event }: { event: any }) {
         inscriptions_ouvertes: !!event.inscriptions_ouvertes,
         places_max: event.places_max ?? '',
         image: null as File | null,
+        images: [] as File[],
+        remove_images: [] as number[],
         document: null as File | null,
         remove_document: false,
     });
+
+    const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+
+    const handleGalleryAdd = async (files: FileList | null) => {
+        if (!files?.length) return;
+        const opt = await Promise.all(Array.from(files).map((f) => resizeImageFile(f)));
+        const next = [...data.images, ...opt].slice(0, 10);
+        setData('images', next);
+        setGalleryPreviews(next.map((f) => URL.createObjectURL(f)));
+    };
+    const handleGalleryRemove = (i: number) => {
+        const next = data.images.filter((_: File, k: number) => k !== i);
+        setData('images', next);
+        setGalleryPreviews(next.map((f: File) => URL.createObjectURL(f)));
+    };
+    const handleRemoveExisting = (id: number) => setData('remove_images', [...data.remove_images, id]);
+    const visibleImages = (event.images || []).filter((img: any) => !data.remove_images.includes(img.id));
 
     const handleImage = async (file: File | null) => {
         const opt = file ? await resizeImageFile(file) : null;
@@ -72,6 +91,8 @@ export default function EventEdit({ event }: { event: any }) {
 
                     <EventFields data={data} setData={setData} errors={errors} preview={preview}
                         onImage={handleImage} existingImage={event.image}
+                        galleryPreviews={galleryPreviews} onGalleryAdd={handleGalleryAdd} onGalleryRemove={handleGalleryRemove}
+                        existingImages={visibleImages} onRemoveExisting={handleRemoveExisting}
                         existingDocName={docVisible ? event.document_nom : null} />
 
                     {docVisible && (

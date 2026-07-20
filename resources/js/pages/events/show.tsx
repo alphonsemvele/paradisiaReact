@@ -1,9 +1,9 @@
-import { FormEvent } from 'react';
+import { FormEvent, useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { motion } from 'framer-motion';
 import {
     Calendar, Clock, MapPin, Monitor, Radio, ArrowLeft, FileDown,
-    Mail, User, Phone, Globe, CheckCircle2, TrendingUp, Users,
+    Mail, User, Phone, Globe, CheckCircle2, TrendingUp, Users, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import AppLayout from '@/components/layouts/AppLayout';
 import ShareButtons from '@/components/ShareButtons';
@@ -21,6 +21,7 @@ interface EventData {
     date_fin_label: string | null;
     passe: boolean;
     image: string | null;
+    images_galerie: string[];
     document: string | null;
     document_nom: string | null;
     collecte_pays: boolean;
@@ -39,6 +40,8 @@ interface ShowProps extends PageProps {
 
 export default function EventShow() {
     const { event, pays, flash } = usePage<ShowProps>().props;
+    const galerie = event.images_galerie?.length ? event.images_galerie : event.image ? [event.image] : [];
+    const [imgActive, setImgActive] = useState(0);
 
     const { data, setData, post, processing, errors, recentlySuccessful, reset } = useForm<any>({
         email: '',
@@ -70,15 +73,40 @@ export default function EventShow() {
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
                     {/* Détail */}
                     <div className="lg:col-span-3">
-                        <div className="aspect-video bg-zinc-100 rounded-2xl overflow-hidden">
-                            {event.image ? (
-                                <img src={event.image} alt={event.titre} className="w-full h-full object-cover" />
+                        <div className="relative aspect-video bg-zinc-100 rounded-2xl overflow-hidden">
+                            {galerie.length > 0 ? (
+                                <img src={galerie[imgActive]} alt={event.titre} className="w-full h-full object-cover" />
                             ) : (
                                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-100 to-teal-100">
                                     <Calendar className="w-14 h-14 text-emerald-500" />
                                 </div>
                             )}
+                            {galerie.length > 1 && (
+                                <>
+                                    <button type="button" onClick={() => setImgActive((c) => (c - 1 + galerie.length) % galerie.length)}
+                                        className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full">
+                                        <ChevronLeft className="w-5 h-5" />
+                                    </button>
+                                    <button type="button" onClick={() => setImgActive((c) => (c + 1) % galerie.length)}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full">
+                                        <ChevronRight className="w-5 h-5" />
+                                    </button>
+                                    <span className="absolute bottom-3 right-3 px-2.5 py-1 bg-black/50 text-white text-xs font-medium rounded-full">
+                                        {imgActive + 1} / {galerie.length}
+                                    </span>
+                                </>
+                            )}
                         </div>
+                        {galerie.length > 1 && (
+                            <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                                {galerie.map((url, i) => (
+                                    <button key={i} type="button" onClick={() => setImgActive(i)}
+                                        className={`flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all ${imgActive === i ? 'border-emerald-500' : 'border-transparent opacity-60 hover:opacity-100'}`}>
+                                        <img src={url} alt="" loading="lazy" className="w-full h-full object-cover" />
+                                    </button>
+                                ))}
+                            </div>
+                        )}
 
                         <span className="inline-block mt-5 bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wide px-3 py-1 rounded-full">
                             {event.type}

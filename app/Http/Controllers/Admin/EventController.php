@@ -63,7 +63,9 @@ class EventController extends Controller
             $data['document'] = $this->uploadPublicFile($request->file('document'), 'uploads/events', 'doc');
         }
 
-        Event::create($data);
+        $event = Event::create($data);
+
+        $this->storeGalleryImages($request, $event);
 
         return redirect()->route('admin.events.index')->with('success', 'Événement créé.');
     }
@@ -92,6 +94,10 @@ class EventController extends Controller
                 'image' => $this->mediaUrl($event->image),
                 'document' => $this->mediaUrl($event->document),
                 'document_nom' => $event->document ? basename($event->document) : null,
+                'images' => $event->images
+                    ->map(fn ($img) => ['id' => $img->id, 'url' => $this->mediaUrl($img->path)])
+                    ->filter(fn ($img) => $img['url'])
+                    ->values(),
             ],
         ]);
     }
@@ -119,6 +125,14 @@ class EventController extends Controller
         unset($data['remove_document']);
         $event->update($data);
 
+        // Retrait des images de galerie cochées
+        foreach ($event->images()->whereIn('id', $request->input('remove_images', []))->get() as $img) {
+            $this->deletePublicFile($img->path);
+            $img->delete();
+        }
+
+        $this->storeGalleryImages($request, $event);
+
         return redirect()->route('admin.events.index')->with('success', 'Événement mis à jour.');
     }
 
@@ -126,6 +140,9 @@ class EventController extends Controller
     {
         $this->deletePublicFile($event->image);
         $this->deletePublicFile($event->document);
+        foreach ($event->images as $img) {
+            $this->deletePublicFile($img->path);
+        }
         $event->delete();
 
         return back()->with('success', 'Événement supprimé.');
@@ -221,12 +238,33 @@ class EventController extends Controller
             'inscriptions_ouvertes' => ['boolean'],
             'places_max' => ['nullable', 'integer', 'min:1'],
             'image' => ['nullable', 'image', 'max:10240'],
+            'images' => ['nullable', 'array', 'max:10'],
+            'images.*' => ['image', 'max:10240'],
+            'remove_images' => ['nullable', 'array'],
+            'remove_images.*' => ['integer'],
             'document' => ['nullable', 'file', 'mimes:pdf,doc,docx,ppt,pptx', 'max:10240'],
         ]);
 
         // Champs de fichiers gérés à part
-        unset($validated['image'], $validated['document']);
+        unset($validated['image'], $validated['images'], $validated['remove_images'], $validated['document']);
 
         return $validated;
+    }
+
+    /** Enregistre les images de galerie envoyées (champ images[]). */
+    private function storeGalleryImages(Request $request, Event $event): void
+    {
+        if (! $request->hasFile('images')) {
+            return;
+        }
+
+        $position = (int) $event->images()->max('position');
+
+        foreach ($request->file('images') as $file) {
+            $event->images()->create([
+                'path' => $this->uploadPublicFile($file, 'uploads/events', 'evt'),
+                'position' => ++$position,
+            ]);
+        }
     }
 }

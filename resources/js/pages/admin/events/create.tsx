@@ -25,8 +25,24 @@ export default function EventCreate() {
         inscriptions_ouvertes: true,
         places_max: '',
         image: null as File | null,
+        images: [] as File[],
         document: null as File | null,
     });
+
+    const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+
+    const handleGalleryAdd = async (files: FileList | null) => {
+        if (!files?.length) return;
+        const opt = await Promise.all(Array.from(files).map((f) => resizeImageFile(f)));
+        const next = [...data.images, ...opt].slice(0, 10);
+        setData('images', next);
+        setGalleryPreviews(next.map((f) => URL.createObjectURL(f)));
+    };
+    const handleGalleryRemove = (i: number) => {
+        const next = data.images.filter((_: File, k: number) => k !== i);
+        setData('images', next);
+        setGalleryPreviews(next.map((f: File) => URL.createObjectURL(f)));
+    };
 
     const handleImage = async (file: File | null) => {
         const opt = file ? await resizeImageFile(file) : null;
@@ -58,7 +74,8 @@ export default function EventCreate() {
                         <h2 className="font-semibold text-zinc-900">Créer un événement</h2>
                     </div>
 
-                    <EventFields data={data} setData={setData} errors={errors} preview={preview} onImage={handleImage} />
+                    <EventFields data={data} setData={setData} errors={errors} preview={preview} onImage={handleImage}
+                        galleryPreviews={galleryPreviews} onGalleryAdd={handleGalleryAdd} onGalleryRemove={handleGalleryRemove} />
 
                     <div className="flex gap-3 pt-4 border-t border-zinc-100">
                         <Link href="/admin/events" className="flex-1 text-center py-2.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-medium rounded-lg">
@@ -76,13 +93,18 @@ export default function EventCreate() {
 }
 
 /* ═════════ Champs partagés création / édition ═════════ */
-export function EventFields({ data, setData, errors, preview, onImage, existingImage, existingDocName }: {
+export function EventFields({ data, setData, errors, preview, onImage, galleryPreviews, onGalleryAdd, onGalleryRemove, existingImage, existingImages, onRemoveExisting, existingDocName }: {
     data: any;
     setData: (k: any, v: any) => void;
     errors: Record<string, string>;
     preview: string | null;
     onImage: (f: File | null) => void;
+    galleryPreviews: string[];
+    onGalleryAdd: (files: FileList | null) => void;
+    onGalleryRemove: (i: number) => void;
     existingImage?: string | null;
+    existingImages?: { id: number; url: string }[];
+    onRemoveExisting?: (id: number) => void;
     existingDocName?: string | null;
 }) {
     const champ = 'w-full px-3 py-2.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500';
@@ -228,6 +250,40 @@ export function EventFields({ data, setData, errors, preview, onImage, existingI
                     </label>
                     {errors.document && <p className="text-xs text-red-600 mt-1">{errors.document}</p>}
                 </div>
+            </div>
+
+            {/* Galerie d'images (en plus de la couverture) */}
+            <div>
+                <label className={label}>
+                    Galerie d'images <span className="text-zinc-400 font-normal">(jusqu'à 10, en plus de la couverture)</span>
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                    {existingImages?.map((img) => (
+                        <div key={`ex-${img.id}`} className="relative aspect-square bg-zinc-100 rounded-lg overflow-hidden group">
+                            <img src={img.url} alt="" className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => onRemoveExisting?.(img.id)}
+                                className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                    {galleryPreviews.map((url, i) => (
+                        <div key={`new-${i}`} className="relative aspect-square bg-zinc-100 rounded-lg overflow-hidden group">
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                            <button type="button" onClick={() => onGalleryRemove(i)}
+                                className="absolute top-1.5 right-1.5 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    ))}
+                    <label className="flex flex-col items-center justify-center aspect-square border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 rounded-lg cursor-pointer">
+                        <ImageIcon className="w-6 h-6 text-zinc-400 mb-1" />
+                        <span className="text-[11px] text-zinc-500">Ajouter</span>
+                        <input type="file" accept="image/*" multiple className="hidden"
+                            onChange={(e) => { onGalleryAdd(e.target.files); e.target.value = ''; }} />
+                    </label>
+                </div>
+                {errors.images && <p className="text-xs text-red-600 mt-1">{errors.images}</p>}
             </div>
         </>
     );

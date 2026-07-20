@@ -34,6 +34,7 @@ class EventController extends Controller
     {
         abort_if($event->statut !== 'publie', 404);
 
+        $event->load('images');
         $formatted = $this->detail($event);
 
         return Inertia::render('events/show', [
@@ -128,8 +129,17 @@ class EventController extends Controller
     /** Détail complet + configuration du formulaire. */
     private function detail(Event $e): array
     {
+        // Galerie : couverture d'abord, puis les images additionnelles
+        $galerie = collect([$this->mediaUrl($e->image)])
+            ->concat($e->images->map(fn ($img) => $this->mediaUrl($img->path)))
+            ->filter()
+            ->unique()
+            ->values();
+
         return $this->carte($e) + [
             'description' => $e->description,
+            'images_galerie' => $galerie,
+            'image' => $galerie->first(),
             'date_fin_label' => $e->date_fin?->isoFormat('D MMMM YYYY [à] HH:mm'),
             'document' => $this->mediaUrl($e->document),
             'document_nom' => $e->document ? basename($e->document) : null,

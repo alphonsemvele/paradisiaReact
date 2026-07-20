@@ -47,6 +47,12 @@ class Event extends Model
         return $this->hasMany(EventRegistration::class);
     }
 
+    /** Galerie d'images (l'attribut image reste la couverture). */
+    public function images(): HasMany
+    {
+        return $this->hasMany(EventImage::class)->orderBy('position');
+    }
+
     public function estPasse(): bool
     {
         return $this->date_debut->isPast();
