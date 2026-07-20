@@ -1,9 +1,9 @@
 import { FormEvent, useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Calendar, Clock, MapPin, Monitor, Radio, ArrowLeft, FileDown,
-    Mail, User, Phone, Globe, CheckCircle2, TrendingUp, Users, ChevronLeft, ChevronRight,
+    Mail, User, Phone, Globe, CheckCircle2, TrendingUp, Users, ChevronLeft, ChevronRight, MessageCircle,
 } from 'lucide-react';
 import AppLayout from '@/components/layouts/AppLayout';
 import ShareButtons from '@/components/ShareButtons';
@@ -39,11 +39,15 @@ interface ShowProps extends PageProps {
 }
 
 export default function EventShow() {
-    const { event, pays, flash } = usePage<ShowProps>().props;
+    const { event, pays } = usePage<ShowProps>().props;
     const galerie = event.images_galerie?.length ? event.images_galerie : event.image ? [event.image] : [];
     const [imgActive, setImgActive] = useState(0);
 
-    const { data, setData, post, processing, errors, recentlySuccessful, reset } = useForm<any>({
+    const [modalOuvert, setModalOuvert] = useState(false);
+    // Message affiché dans le modal : « déjà inscrit » (info) ou « confirmé » (success)
+    const [modalDejaInscrit, setModalDejaInscrit] = useState(false);
+
+    const { data, setData, post, processing, errors, reset } = useForm<any>({
         email: '',
         nom: '',
         pays: '',
@@ -55,7 +59,12 @@ export default function EventShow() {
         e.preventDefault();
         post(`/events/${event.id}/inscription`, {
             preserveScroll: true,
-            onSuccess: () => reset(),
+            onSuccess: (page) => {
+                const f = (page.props as any).flash ?? {};
+                setModalDejaInscrit(!!f.info && !f.success);
+                setModalOuvert(true);
+                reset();
+            },
         });
     };
 
@@ -181,18 +190,6 @@ export default function EventShow() {
                                         </div>
                                     </div>
 
-                                    {recentlySuccessful && flash.success && (
-                                        <div className="mb-4 flex items-start gap-3 rounded-lg bg-emerald-50 border border-emerald-200 p-4">
-                                            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                                            <p className="text-sm text-emerald-800">{flash.success}</p>
-                                        </div>
-                                    )}
-                                    {flash.info && (
-                                        <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
-                                            {flash.info}
-                                        </div>
-                                    )}
-
                                     <form onSubmit={submit} className="space-y-4">
                                         <Champ icon={Mail} label="Adresse e-mail" error={errors.email}>
                                             <input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)}
@@ -255,6 +252,73 @@ export default function EventShow() {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de confirmation d'inscription */}
+            <AnimatePresence>
+                {modalOuvert && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        onClick={() => setModalOuvert(false)}
+                        className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+                        >
+                            <div className={`px-6 pt-8 pb-6 text-center ${modalDejaInscrit ? 'bg-gradient-to-b from-blue-50 to-white' : 'bg-gradient-to-b from-emerald-50 to-white'}`}>
+                                <motion.div
+                                    initial={{ scale: 0 }} animate={{ scale: 1 }}
+                                    transition={{ delay: 0.1, type: 'spring', stiffness: 260, damping: 18 }}
+                                    className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${modalDejaInscrit ? 'bg-blue-100' : 'bg-emerald-100'}`}
+                                >
+                                    <CheckCircle2 className={`w-11 h-11 ${modalDejaInscrit ? 'text-blue-600' : 'text-emerald-600'}`} />
+                                </motion.div>
+
+                                <h3 className="text-xl font-bold text-zinc-900">
+                                    {modalDejaInscrit ? 'Vous êtes déjà inscrit' : 'Inscription confirmée !'}
+                                </h3>
+                                <p className="mt-2 text-sm text-zinc-600 leading-relaxed">
+                                    {modalDejaInscrit
+                                        ? 'Cette adresse e-mail est déjà inscrite à cet événement. Un e-mail de confirmation vous a été envoyé.'
+                                        : (<>Merci pour votre inscription à <strong>{event.titre}</strong>. Un e-mail de confirmation vient de vous être envoyé.</>)}
+                                </p>
+                            </div>
+
+                            <div className="px-6 pb-6">
+                                {!modalDejaInscrit && (
+                                    <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 flex items-start gap-3 mb-4">
+                                        <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                        <p className="text-sm text-blue-800">
+                                            Le <strong>lien de la réunion</strong> vous sera envoyé par e-mail le moment venu.
+                                            Pensez à vérifier vos indésirables.
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="flex flex-col gap-2">
+                                    <a
+                                        href={`https://wa.me/237687984282?text=${encodeURIComponent(`Bonjour PARADISIA, je viens de m'inscrire à « ${event.titre} ».`)}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-semibold transition-colors"
+                                    >
+                                        <MessageCircle className="w-4 h-4" /> Nous contacter sur WhatsApp
+                                    </a>
+                                    <button
+                                        onClick={() => setModalOuvert(false)}
+                                        className="py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-sm font-semibold transition-colors"
+                                    >
+                                        Fermer
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <style>{`.input{width:100%;padding:.6rem .75rem .6rem 2.4rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.6rem;font-size:.9rem}
             .input:focus{outline:none;box-shadow:0 0 0 2px #10b981}`}</style>
