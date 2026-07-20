@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\CommentLike;
+use App\Models\Event;
 use App\Models\Like;
 use App\Models\PointDeVente;
 use App\Models\Product;
@@ -125,6 +126,8 @@ class HomeController extends Controller
                 ->get()
                 ->map(fn ($p) => $this->formatProduct($p)),
             'pointsDeVente' => fn () => $this->getPointsDeVente(),
+            // Prochain événement publié, pour la carte d'accueil
+            'prochainEvent' => fn () => $this->prochainEvent(),
             'cart' => session()->get('cart', []),
         ])->withViewData([
             // Aperçu de partage : la publication mise en avant si le lien en
@@ -525,6 +528,31 @@ class HomeController extends Controller
     /**
      * 🆕 Récupère les 5 premiers points de vente actifs depuis la BDD
      */
+    /** Événement publié à venir le plus proche, pour la carte d'accueil. */
+    private function prochainEvent(): ?array
+    {
+        $e = Event::where('statut', 'publie')
+            ->where('date_debut', '>=', now()->startOfDay())
+            ->orderBy('date_debut')
+            ->first();
+
+        if (! $e) {
+            return null;
+        }
+
+        return [
+            'id' => $e->id,
+            'titre' => $e->titre,
+            'type' => $e->type,
+            'mode_label' => $e->modeLabel(),
+            'date_label' => $e->date_debut->isoFormat('dddd D MMMM YYYY [à] HH:mm'),
+            'date_courte' => $e->date_debut->isoFormat('D MMM'),
+            'image' => $this->mediaUrl($e->image),
+            'extrait' => $e->description ? \Illuminate\Support\Str::limit($e->description, 130) : null,
+            'inscriptions_ouvertes' => $e->accepteInscriptions(),
+        ];
+    }
+
     private function getPointsDeVente(): array
     {
         return PointDeVente::where('status', 'Success')

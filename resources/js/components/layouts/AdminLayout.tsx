@@ -9,6 +9,7 @@ import {
     FolderTree,
     FileText,
     GraduationCap,
+    CalendarDays,
     TrendingUp,
     DollarSign,
     ShoppingBag,
@@ -68,6 +69,7 @@ const menuSections: MenuSection[] = [
         title: 'Formations',
         items: [
             { label: 'Formations', href: '/admin/formations', icon: GraduationCap },
+            { label: 'Événements', href: '/admin/events', icon: CalendarDays },
             { label: 'Inscriptions', href: '/admin/inscriptions', icon: Users },
         ],
     },

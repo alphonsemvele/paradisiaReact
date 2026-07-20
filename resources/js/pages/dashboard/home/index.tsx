@@ -18,12 +18,25 @@ import CartButton from '@/components/dashboard/CartButton';
 import CartDrawer from '@/components/dashboard/CartDrawer';
 import type { Publication, Product, PointDeVente as PointDeVenteType, Cart, PageProps } from '@/types';
 
+interface ProchainEvent {
+    id: number;
+    titre: string;
+    type: string;
+    mode_label: string;
+    date_label: string;
+    date_courte: string;
+    image: string | null;
+    extrait: string | null;
+    inscriptions_ouvertes: boolean;
+}
+
 interface DashboardProps extends PageProps {
     publications: Publication[];
     highlightedPublication: Publication | null;
     featuredProducts: Product[];
     otherProducts: Product[];
     pointsDeVente: PointDeVenteType[];
+    prochainEvent: ProchainEvent | null;
     cart: Cart;
 }
 
@@ -34,6 +47,7 @@ export default function DashboardIndex() {
         featuredProducts,
         otherProducts,
         pointsDeVente,
+        prochainEvent,
         cart,
         auth,
     } = usePage<DashboardProps>().props;
@@ -93,6 +107,8 @@ export default function DashboardIndex() {
                             user={auth.user}
                             onOpen={() => setShowCreateModal(true)}
                         />
+
+                        {prochainEvent && <EventCard event={prochainEvent} />}
 
                         <ShopSection
                             featured={featuredProducts}
@@ -179,6 +195,34 @@ function EmptyPublications({ onCreate }: { onCreate: () => void }) {
             >
                 Créer une publication
             </button>
+        </div>
+    );
+}
+
+function EventCard({ event }: { event: ProchainEvent }) {
+    return (
+        <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden shadow-sm">
+            <div className="bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 flex items-center justify-between">
+                <span className="text-white text-xs font-bold uppercase tracking-wide">📅 Prochain événement</span>
+                <span className="text-white/90 text-xs font-semibold bg-white/20 px-2 py-0.5 rounded-full">{event.date_courte}</span>
+            </div>
+            <div className="sm:flex">
+                <div className="sm:w-2/5 h-44 sm:h-auto bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center">
+                    {event.image
+                        ? <img src={event.image} alt={event.titre} className="w-full h-full object-cover" />
+                        : <span className="text-5xl">📣</span>}
+                </div>
+                <div className="p-5 sm:w-3/5 flex flex-col">
+                    <span className="text-xs font-bold uppercase tracking-wide text-emerald-600">{event.type} · {event.mode_label}</span>
+                    <h3 className="mt-1 font-bold text-lg text-zinc-900">{event.titre}</h3>
+                    <p className="mt-1 text-sm text-zinc-500">{event.date_label}</p>
+                    {event.extrait && <p className="mt-2 text-sm text-zinc-600 line-clamp-2">{event.extrait}</p>}
+                    <a href={`/events/${event.id}`}
+                        className="mt-auto pt-4 inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-xl transition-colors">
+                        {event.inscriptions_ouvertes ? "S'inscrire" : 'Voir le détail'}
+                    </a>
+                </div>
+            </div>
         </div>
     );
 }

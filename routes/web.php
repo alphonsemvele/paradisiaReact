@@ -110,6 +110,16 @@ Route::post('/formations', [AdminFormationController::class, 'store'])->name('fo
 Route::get('/formations/{formation}/edit', [AdminFormationController::class, 'edit'])->name('formations.edit');
 Route::post('/formations/{formation}', [AdminFormationController::class, 'update'])->name('formations.update');
 Route::patch('/formations/{formation}/toggle-status', [AdminFormationController::class, 'toggleStatus'])->name('formations.toggle-status');
+
+        // ── Événements ────────────────────────────────────────────────────
+        Route::get('/events', [\App\Http\Controllers\Admin\EventController::class, 'index'])->name('events.index');
+        Route::get('/events/create', [\App\Http\Controllers\Admin\EventController::class, 'create'])->name('events.create');
+        Route::post('/events', [\App\Http\Controllers\Admin\EventController::class, 'store'])->name('events.store');
+        Route::get('/events/{event}/edit', [\App\Http\Controllers\Admin\EventController::class, 'edit'])->name('events.edit');
+        Route::match(['post', 'patch'], '/events/{event}', [\App\Http\Controllers\Admin\EventController::class, 'update'])->name('events.update');
+        Route::delete('/events/{event}', [\App\Http\Controllers\Admin\EventController::class, 'destroy'])->name('events.destroy');
+        Route::get('/events/{event}/inscrits', [\App\Http\Controllers\Admin\EventController::class, 'registrations'])->name('events.registrations');
+        Route::post('/events/{event}/envoyer-lien', [\App\Http\Controllers\Admin\EventController::class, 'envoyerLien'])->name('events.envoyer-lien');
 Route::delete('/formations/{formation}', [AdminFormationController::class, 'destroy'])->name('formations.destroy');
 
 // 🆕 Inscriptions aux formations
@@ -162,6 +172,11 @@ Route::get('/statistiques', [PublicStatsController::class, 'statistiques'])->nam
 // Formations en présentiel (liste publique + inscription)
 Route::get('/formations', [FormationController::class, 'index'])->name('formations.index');
 Route::get('/formations/{formation}', [FormationController::class, 'show'])->name('formations.show');
+
+// ── Événements (public) ───────────────────────────────────────────────────────
+Route::get('/events', [\App\Http\Controllers\EventController::class, 'index'])->name('events.index');
+Route::get('/events/{event}', [\App\Http\Controllers\EventController::class, 'show'])->name('events.show');
+Route::post('/events/{event}/inscription', [\App\Http\Controllers\EventController::class, 'register'])->name('events.register');
 Route::post('/formations/{formation}/inscription', [FormationController::class, 'register'])->name('formations.register');
 Route::get('/products/{product}/stats', [PublicStatsController::class, 'productStats'])->name('products.public.stats');
 
