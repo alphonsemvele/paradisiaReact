@@ -77,4 +77,82 @@ class ImageOptimizer
             // L'original reste en place.
         }
     }
+
+    /**
+     * Produit une vignette de partage 1200×630 (ratio 1.91:1, exactement ce
+     * qu'attendent WhatsApp et Facebook), recadrée au centre et compressée
+     * sous ~200 Ko. Générée une fois puis mise en cache sur disque.
+     *
+     * @param  string  $sourceAbsolu  chemin absolu de l'image source
+     * @param  string  $destinationRelative  chemin relatif sous public/ où écrire
+     * @return bool  succès de la génération
+     */
+    public static function vignettePartage(string $sourceAbsolu, string $destinationAbsolue): bool
+    {
+        try {
+            $info = @getimagesize($sourceAbsolu);
+
+            if (! $info) {
+                return false;
+            }
+
+            [$width, $height, $type] = $info;
+
+            $create = match ($type) {
+                IMAGETYPE_JPEG => 'imagecreatefromjpeg',
+                IMAGETYPE_PNG => 'imagecreatefrompng',
+                IMAGETYPE_WEBP => 'imagecreatefromwebp',
+                default => null,
+            };
+
+            if (! $create) {
+                return false;
+            }
+
+            $src = @$create($sourceAbsolu);
+
+            if (! $src) {
+                return false;
+            }
+
+            $cibleW = 1200;
+            $cibleH = 630;
+
+            // Recadrage « cover » : on remplit tout le cadre sans déformer,
+            // en rognant le débordement, centré.
+            $ratioSrc = $width / $height;
+            $ratioCible = $cibleW / $cibleH;
+
+            if ($ratioSrc > $ratioCible) {
+                $copieH = $height;
+                $copieW = (int) round($height * $ratioCible);
+                $srcX = (int) round(($width - $copieW) / 2);
+                $srcY = 0;
+            } else {
+                $copieW = $width;
+                $copieH = (int) round($width / $ratioCible);
+                $srcX = 0;
+                $srcY = (int) round(($height - $copieH) / 2);
+            }
+
+            $dst = imagecreatetruecolor($cibleW, $cibleH);
+            imagecopyresampled($dst, $src, 0, 0, $srcX, $srcY, $cibleW, $cibleH, $copieW, $copieH);
+
+            $dossier = dirname($destinationAbsolue);
+            if (! is_dir($dossier)) {
+                @mkdir($dossier, 0755, true);
+            }
+
+            // JPEG qualité 82 : ~150-200 Ko pour du 1200×630, bien sous la
+            // limite au-delà de laquelle WhatsApp cesse d'afficher l'image.
+            imagejpeg($dst, $destinationAbsolue, 82);
+
+            imagedestroy($src);
+            imagedestroy($dst);
+
+            return is_file($destinationAbsolue);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
 }

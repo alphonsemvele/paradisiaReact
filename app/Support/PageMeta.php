@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Services\ImageOptimizer;
 use Illuminate\Support\Str;
 
 /**
@@ -34,6 +35,11 @@ class PageMeta
     ): array {
         $image = $image ?: self::defaultImage();
 
+        // Vignette de partage 1200×630 compressée : format exact attendu par
+        // WhatsApp et Facebook. Évite qu'une image lourde ou mal proportionnée
+        // ne s'affiche pas dans l'aperçu.
+        $vignette = self::vignettePartage($image);
+
         return [
             'title' => $title,
             // Titre de l'aperçu partagé, distinct du titre d'onglet : sur
@@ -43,8 +49,8 @@ class PageMeta
                 trim(preg_replace('/\s+/', ' ', (string) $description)) ?: self::defaultDescription(),
                 200
             ),
-            'image' => $image,
-            'image_size' => self::imageSize($image),
+            'image' => $vignette ?? $image,
+            'image_size' => $vignette ? ['width' => 1200, 'height' => 630] : self::imageSize($image),
             'url' => $url ?: url()->current(),
             'type' => $type,
             'site_name' => self::SITE_NAME,
@@ -57,6 +63,37 @@ class PageMeta
      *
      * @return array{width:int,height:int}|null
      */
+    /**
+     * Renvoie l'URL d'une vignette de partage 1200×630 dérivée de l'image
+     * donnée, en la générant à la volée si elle n'existe pas encore. Retourne
+     * null si l'image source est introuvable ou la génération échoue (on
+     * retombe alors sur l'image d'origine).
+     */
+    private static function vignettePartage(?string $imageUrl): ?string
+    {
+        if (! $imageUrl) {
+            return null;
+        }
+
+        $chemin = ltrim((string) parse_url($imageUrl, PHP_URL_PATH), '/');
+        $source = public_path($chemin);
+
+        if (! is_file($source)) {
+            return null;
+        }
+
+        // Nom stable dérivé du contenu : régénéré si l'image source change.
+        $cle = substr(md5($chemin.'|'.filemtime($source)), 0, 16);
+        $relative = 'uploads/og/og_'.$cle.'.jpg';
+        $destination = public_path($relative);
+
+        if (is_file($destination) || ImageOptimizer::vignettePartage($source, $destination)) {
+            return asset($relative);
+        }
+
+        return null;
+    }
+
     private static function imageSize(?string $imageUrl): ?array
     {
         if (! $imageUrl) {
