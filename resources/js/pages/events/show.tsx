@@ -160,7 +160,7 @@ export default function EventShow() {
                     </div>
 
                     {/* Inscription */}
-                    <div className="lg:col-span-2">
+                    <div className="lg:col-span-2" id="inscription" style={{ scrollMarginTop: '90px' }}>
                         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                             className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-6 lg:sticky lg:top-24">
 
@@ -252,6 +252,32 @@ export default function EventShow() {
                     </div>
                 </div>
             </div>
+
+            {/* Barre d'inscription fixe (mobile) : le formulaire est en bas de
+                page sur petit écran, cette barre y amène en un tap. */}
+            {!event.passe && event.inscriptions_ouvertes && !modalOuvert && (
+                <div className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-white/95 backdrop-blur border-t border-zinc-200 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-xs text-zinc-500">
+                            {event.places_restantes !== null
+                                ? `${event.places_restantes} place(s) restante(s)`
+                                : 'Places limitées'}
+                        </p>
+                        <p className="text-sm font-semibold text-zinc-900 truncate">{event.date_label}</p>
+                    </div>
+                    <button
+                        onClick={() =>
+                            document.getElementById('inscription')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }
+                        className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition-colors"
+                    >
+                        S'inscrire
+                    </button>
+                </div>
+            )}
+
+            {/* Espace pour que la barre fixe ne masque pas le bas de page */}
+            {!event.passe && event.inscriptions_ouvertes && <div className="lg:hidden h-20" />}
 
             {/* Modal de confirmation d'inscription */}
             <AnimatePresence>
