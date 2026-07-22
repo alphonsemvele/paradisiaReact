@@ -181,7 +181,7 @@ export default function EventShow() {
                                             <Calendar className="w-5 h-5 text-emerald-600" />
                                         </div>
                                         <div>
-                                            <h2 className="font-semibold text-zinc-900">S'inscrire</h2>
+                                            <h2 className="font-semibold text-zinc-900">S'enregistrer</h2>
                                             <p className="text-xs text-zinc-500">
                                                 {event.places_restantes !== null
                                                     ? `${event.places_restantes} place(s) restante(s)`
@@ -239,7 +239,7 @@ export default function EventShow() {
 
                                         <button type="submit" disabled={processing}
                                             className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 text-white font-semibold rounded-lg transition-colors mt-2">
-                                            {processing ? 'Envoi…' : "M'inscrire"}
+                                            {processing ? 'Envoi…' : "M'enregistrer"}
                                         </button>
 
                                         <p className="text-xs text-zinc-400 text-center">
@@ -271,7 +271,7 @@ export default function EventShow() {
                         }
                         className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-bold transition-colors"
                     >
-                        S'inscrire
+                        S'enregistrer
                     </button>
                 </div>
             )}
