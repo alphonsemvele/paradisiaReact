@@ -18,10 +18,12 @@ class Sale extends Model
         'id_point_de_vente',
         'customer_name',
         'customer_phone',
+        'delivery_location',
         'subtotal',
         'discount',
         'total',
         'payment_method',
+        'channel',
         'status',
         'notes',
     ];

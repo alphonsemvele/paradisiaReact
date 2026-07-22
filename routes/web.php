@@ -175,6 +175,11 @@ Route::get('/formations/{formation}', [FormationController::class, 'show'])->nam
 
 // ── Événements (public) ───────────────────────────────────────────────────────
 Route::get('/events', [\App\Http\Controllers\EventController::class, 'index'])->name('events.index');
+
+// ── Commande par lien partagé (public, sans compte) ───────────────────────────
+Route::get('/commander', [\App\Http\Controllers\OrderLinkController::class, 'create'])->name('order-link.create');
+Route::post('/commander', [\App\Http\Controllers\OrderLinkController::class, 'store'])->name('order-link.store');
+Route::get('/commander/facture/{reference}', [\App\Http\Controllers\OrderLinkController::class, 'invoice'])->name('order-link.invoice');
 Route::get('/events/{event}', [\App\Http\Controllers\EventController::class, 'show'])->name('events.show');
 Route::post('/events/{event}/inscription', [\App\Http\Controllers\EventController::class, 'register'])->name('events.register');
 Route::post('/formations/{formation}/inscription', [FormationController::class, 'register'])->name('formations.register');
