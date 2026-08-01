@@ -50,17 +50,31 @@ const operateurStyle: Record<string, { label: string; emoji: string; accent: str
 
 const nf = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
 
-const csrf = () =>
-    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+/** Jeton CSRF frais : le cookie XSRF-TOKEN est mis à jour à chaque réponse,
+ *  contrairement au <meta> qui se périme après une navigation SPA Inertia. */
+const lireCookie = (nom: string): string => {
+    const m = document.cookie.match(new RegExp('(?:^|;\\s*)' + nom + '=([^;]*)'));
+    return m ? decodeURIComponent(m[1]) : '';
+};
 
 const poster = async (url: string, corps: unknown) => {
+    const xsrf = lireCookie('XSRF-TOKEN');
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+    };
+    // On privilégie X-XSRF-TOKEN (cookie frais). En repli seulement, le <meta>.
+    if (xsrf) {
+        headers['X-XSRF-TOKEN'] = xsrf;
+    } else {
+        headers['X-CSRF-TOKEN'] =
+            document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+    }
+
     const res = await fetch(url, {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-CSRF-TOKEN': csrf(),
-        },
+        headers,
         credentials: 'same-origin',
         body: JSON.stringify(corps),
     });
