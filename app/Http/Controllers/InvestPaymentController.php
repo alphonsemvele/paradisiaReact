@@ -43,6 +43,23 @@ class InvestPaymentController extends Controller
     }
 
     /**
+     * Moyens de paiement disponibles pour un pays : toujours le portefeuille
+     * MalaPay, plus les opérateurs mobile money là où ils sont proposés
+     * (Cameroun : Orange Money, MTN Mobile Money).
+     */
+    public function operateurs(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'pays' => ['required', 'string', 'size:2'],
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'operateurs' => $this->malapay->operateurs(strtoupper($validated['pays'])),
+        ]);
+    }
+
+    /**
      * Vérifie le portefeuille avant paiement : devise cohérente avec le pays
      * choisi, solde suffisant pour le nombre de parts demandé.
      */
@@ -219,6 +236,91 @@ class InvestPaymentController extends Controller
     }
 
     /**
+     * Paie l'investissement par mobile money (Orange/MTN). MalaPay renvoie une
+     * URL de paiement vers laquelle rediriger l'investisseur ; le paiement est
+     * confirmé ensuite (notification MalaPay), suivi par polling de statut().
+     */
+    public function payerMobile(Request $request): JsonResponse
+    {
+        if (! Auth::check()) {
+            return response()->json(['ok' => false, 'message' => 'Connectez-vous pour investir.'], 401);
+        }
+
+        $validated = $request->validate([
+            'pays' => ['required', 'string', 'size:2'],
+            'devise' => ['required', 'string', 'size:3'],
+            'parts' => ['required', 'integer', 'min:1', 'max:'.self::PARTS_MAX],
+            'operateur' => ['required', 'string', 'in:orange,mtn'],
+            'telephone' => ['required', 'string', 'max:20'],
+        ]);
+
+        $round = $this->roundActif();
+
+        if (! $round) {
+            return response()->json(['ok' => false, 'message' => 'Aucun round d\'investissement n\'est ouvert.'], 422);
+        }
+
+        $devise = strtoupper($validated['devise']);
+        $montant = $this->montant($round, $validated['parts']);
+        $reference = 'INV_'.strtoupper(Str::random(12));
+        $user = Auth::user();
+
+        $payment = Payment::create([
+            'ref' => $reference,
+            'id_round' => $round->id,
+            'id_user' => $user->id,
+            'amount' => $montant,
+            'total_amount' => $montant,
+            'currency' => $devise,
+            'share' => $validated['parts'],
+            'status' => 'pending',
+            'type_paiement' => 'Mobile',
+            'payment_country' => strtoupper($validated['pays']),
+            'customer_email' => $user->email,
+            'customer_name' => $user->name,
+        ]);
+
+        $resultat = $this->malapay->payerMobile(
+            reference: $reference,
+            montant: $montant,
+            devise: $devise,
+            pays: strtoupper($validated['pays']),
+            operateur: $validated['operateur'],
+            telephone: $validated['telephone'],
+            description: sprintf('Investissement Paradisia — %d part%s (%s)',
+                $validated['parts'],
+                $validated['parts'] > 1 ? 's' : '',
+                $round->name
+            ),
+            service: 'investissement',
+            urlRetour: url('/invest?ref='.$reference),
+        );
+
+        if (! $resultat['ok']) {
+            $payment->update(['status' => 'Failed', 'error_code' => $resultat['code']]);
+
+            return response()->json([
+                'ok' => false,
+                'code' => $resultat['code'],
+                'message' => $resultat['message'],
+            ], 422);
+        }
+
+        $donnees = $resultat['data'] ?? [];
+
+        return response()->json([
+            'ok' => true,
+            'en_attente' => true,
+            'reference' => $reference,
+            'parts' => $validated['parts'],
+            'montant_formate' => number_format($montant, 0, ',', ' ').' '.$devise,
+            'url_paiement' => $donnees['url_paiement'] ?? null,
+            'operateur_libelle' => $donnees['operateur_libelle'] ?? null,
+            'message' => $donnees['instruction'] ?? 'Finalisez votre paiement mobile money pour valider votre investissement.',
+        ], 202);
+    }
+
+    /**
      * Suivi d'un paiement en attente : le navigateur interroge cette route
      * pendant que le titulaire valide depuis sa boîte e-mail.
      */
@@ -244,6 +346,11 @@ class InvestPaymentController extends Controller
                 'termine' => true,
                 'reussi' => $payment->status === 'Success',
             ]);
+        }
+
+        // Paiement mobile money : on interroge le suivi mobile de MalaPay.
+        if ($payment->type_paiement === 'Mobile') {
+            return $this->statutMobile($payment, $reference);
         }
 
         $resultat = $this->malapay->statutDebit($reference);
@@ -280,6 +387,49 @@ class InvestPaymentController extends Controller
                 'message' => $statutMalapay === 'expire'
                     ? 'Le lien de validation a expiré. Relancez le paiement pour en recevoir un nouveau.'
                     : 'Le paiement a été annulé.',
+            ]);
+        }
+
+        return response()->json(['ok' => true, 'statut' => 'pending', 'termine' => false]);
+    }
+
+    /**
+     * Rapproche un paiement mobile money de l'état constaté chez MalaPay.
+     */
+    private function statutMobile(Payment $payment, string $reference): JsonResponse
+    {
+        $resultat = $this->malapay->statutMobile($reference);
+
+        if (! $resultat['ok']) {
+            return response()->json(['ok' => true, 'statut' => 'pending', 'termine' => false]);
+        }
+
+        $statut = $resultat['data']['statut'] ?? 'en_attente';
+
+        if ($statut === 'reussi') {
+            $payment->update(['status' => 'Success']);
+            $this->notifierInvestisseur($payment);
+
+            return response()->json([
+                'ok' => true,
+                'statut' => 'Success',
+                'termine' => true,
+                'reussi' => true,
+                'message' => 'Paiement confirmé : votre investissement est enregistré.',
+            ]);
+        }
+
+        if (in_array($statut, ['echoue', 'annule', 'expire'], true)) {
+            $payment->update(['status' => 'Failed', 'error_code' => strtoupper($statut)]);
+
+            return response()->json([
+                'ok' => true,
+                'statut' => 'Failed',
+                'termine' => true,
+                'reussi' => false,
+                'message' => $statut === 'annule'
+                    ? 'Le paiement a été annulé.'
+                    : 'Le paiement mobile money n\'a pas abouti. Vous pouvez réessayer.',
             ]);
         }
 

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import {
     X, Wallet, Globe, Loader2, AlertCircle, CheckCircle2,
     ArrowRight, Phone, MessageCircle, ShieldCheck, PlusCircle, LifeBuoy, MailCheck,
+    Smartphone, ExternalLink,
 } from 'lucide-react';
 
 interface Pays {
@@ -11,6 +12,11 @@ interface Pays {
     drapeau: string | null;
     devise: string;
     indicatif: string | null;
+}
+
+interface Operateur {
+    code: string;
+    nom: string;
 }
 
 interface Representant {
@@ -27,7 +33,20 @@ interface Props {
     onClose: () => void;
 }
 
-type Etape = 'pays' | 'portefeuille' | 'confirmation' | 'attente_validation' | 'succes';
+type Etape =
+    | 'pays'
+    | 'moyen'
+    | 'portefeuille'
+    | 'confirmation'
+    | 'attente_validation'
+    | 'mobile'
+    | 'attente_mobile'
+    | 'succes';
+
+const operateurStyle: Record<string, { label: string; emoji: string; accent: string }> = {
+    orange: { label: 'Orange Money', emoji: '🟠', accent: 'text-orange-600' },
+    mtn: { label: 'MTN Mobile Money', emoji: '🟡', accent: 'text-yellow-600' },
+};
 
 const nf = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
 
@@ -67,12 +86,68 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
     const [paysChoisi, setPaysChoisi] = useState<Pays | null>(null);
     const [code, setCode] = useState('');
 
+    const [operateurs, setOperateurs] = useState<Operateur[]>([]);
+    const [chargementOperateurs, setChargementOperateurs] = useState(false);
+    const [operateurChoisi, setOperateurChoisi] = useState<Operateur | null>(null);
+    const [telephone, setTelephone] = useState('');
+
     const [enCours, setEnCours] = useState(false);
     const [erreur, setErreur] = useState<string | null>(null);
     const [representants, setRepresentants] = useState<Representant[]>([]);
     const [portefeuille, setPortefeuille] = useState<any>(null);
     const [succes, setSucces] = useState<any>(null);
     const [attente, setAttente] = useState<any>(null);
+
+    // Sélection d'un pays → on charge les moyens de paiement disponibles.
+    const choisirPays = async (p: Pays) => {
+        setPaysChoisi(p);
+        setOperateurs([]);
+        setOperateurChoisi(null);
+        reinitialiserErreur();
+        setEtape('moyen');
+        setChargementOperateurs(true);
+        try {
+            const res = await fetch(`/invest/paiement/operateurs?pays=${p.code}`, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            const d = await res.json();
+            setOperateurs(d.operateurs ?? []);
+        } catch {
+            setOperateurs([]);
+        } finally {
+            setChargementOperateurs(false);
+        }
+    };
+
+    const payerMobile = async () => {
+        if (!paysChoisi || !operateurChoisi || telephone.trim().length < 6) return;
+        setEnCours(true);
+        reinitialiserErreur();
+
+        const { corps } = await poster('/invest/paiement/mobile', {
+            pays: paysChoisi.code,
+            devise: paysChoisi.devise,
+            parts,
+            operateur: operateurChoisi.code,
+            telephone: telephone.trim(),
+        });
+
+        setEnCours(false);
+
+        if (!corps.ok) {
+            setErreur(corps.message ?? 'Le paiement mobile a échoué.');
+            return;
+        }
+
+        setAttente(corps);
+        setEtape('attente_mobile');
+
+        // Ouvre la page de paiement de l'opérateur dans un nouvel onglet.
+        if (corps.url_paiement) {
+            window.open(corps.url_paiement, '_blank', 'noopener,noreferrer');
+        }
+    };
 
     // Chargement des pays à l'ouverture
     useEffect(() => {
@@ -167,10 +242,12 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
         setEtape('succes');
     };
 
-    // Interroge le serveur pendant que le titulaire valide depuis sa boîte mail
+    // Interroge le serveur pendant l'attente (validation e-mail OU paiement mobile).
     useEffect(() => {
-        if (etape !== 'attente_validation' || !attente?.reference) return;
+        const enAttente = etape === 'attente_validation' || etape === 'attente_mobile';
+        if (!enAttente || !attente?.reference) return;
 
+        const retourSurEchec: Etape = etape === 'attente_mobile' ? 'moyen' : 'portefeuille';
         let annule = false;
 
         const sonder = async () => {
@@ -195,7 +272,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                 setEtape('succes');
             } else {
                 setErreur(d.message ?? 'Le paiement n\'a pas abouti.');
-                setEtape('portefeuille');
+                setEtape(retourSurEchec);
             }
         };
 
@@ -264,10 +341,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                                     {paysFiltres.map((p) => (
                                         <button
                                             key={p.code}
-                                            onClick={() => {
-                                                setPaysChoisi(p);
-                                                setEtape('portefeuille');
-                                            }}
+                                            onClick={() => choisirPays(p)}
                                             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-emerald-50 transition-colors text-left"
                                         >
                                             <span className="text-xl">{p.drapeau ?? '🌍'}</span>
@@ -283,6 +357,170 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                                 </div>
                             )}
                         </>
+                    )}
+
+                    {/* ── Étape 1bis : moyen de paiement ──────────────── */}
+                    {etape === 'moyen' && paysChoisi && (
+                        <>
+                            <div className="flex items-center justify-between rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3 mb-4">
+                                <span className="flex items-center gap-2 text-sm text-zinc-700">
+                                    <span className="text-lg">{paysChoisi.drapeau ?? '🌍'}</span>
+                                    {paysChoisi.nom}
+                                </span>
+                                <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                                    {paysChoisi.devise}
+                                </span>
+                            </div>
+
+                            <label className="block text-sm font-medium text-zinc-700 mb-2">
+                                Comment souhaitez-vous payer ?
+                            </label>
+
+                            <div className="space-y-2">
+                                <button
+                                    onClick={() => { reinitialiserErreur(); setEtape('portefeuille'); }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-zinc-200 hover:border-emerald-400 hover:bg-emerald-50 transition-colors text-left"
+                                >
+                                    <span className="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                        <Wallet className="w-5 h-5 text-emerald-600" />
+                                    </span>
+                                    <span className="flex-1">
+                                        <span className="block text-sm font-semibold text-zinc-800">Portefeuille MalaPay</span>
+                                        <span className="block text-xs text-zinc-500">Payer depuis votre solde MalaPay</span>
+                                    </span>
+                                    <ArrowRight className="w-4 h-4 text-zinc-400" />
+                                </button>
+
+                                {chargementOperateurs && (
+                                    <div className="py-4 flex items-center justify-center gap-2 text-sm text-zinc-500">
+                                        <Loader2 className="w-4 h-4 animate-spin" /> Chargement des opérateurs…
+                                    </div>
+                                )}
+
+                                {operateurs.map((op) => {
+                                    const st = operateurStyle[op.code] ?? { label: op.nom, emoji: '📱', accent: 'text-zinc-700' };
+                                    return (
+                                        <button
+                                            key={op.code}
+                                            onClick={() => { reinitialiserErreur(); setOperateurChoisi(op); setTelephone(''); setEtape('mobile'); }}
+                                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-zinc-200 hover:border-emerald-400 hover:bg-emerald-50 transition-colors text-left"
+                                        >
+                                            <span className="w-9 h-9 rounded-lg bg-zinc-50 flex items-center justify-center text-lg">{st.emoji}</span>
+                                            <span className="flex-1">
+                                                <span className="block text-sm font-semibold text-zinc-800">{st.label}</span>
+                                                <span className="block text-xs text-zinc-500">Paiement mobile money</span>
+                                            </span>
+                                            <ArrowRight className="w-4 h-4 text-zinc-400" />
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            <button
+                                onClick={() => { setEtape('pays'); reinitialiserErreur(); }}
+                                className="mt-4 px-4 py-2.5 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50"
+                            >
+                                Retour
+                            </button>
+                        </>
+                    )}
+
+                    {/* ── Étape mobile money : numéro ──────────────────── */}
+                    {etape === 'mobile' && paysChoisi && operateurChoisi && (
+                        <>
+                            <div className="flex items-center gap-3 rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3 mb-4">
+                                <span className="w-9 h-9 rounded-lg bg-white border border-zinc-200 flex items-center justify-center text-lg">
+                                    {(operateurStyle[operateurChoisi.code]?.emoji) ?? '📱'}
+                                </span>
+                                <span className="flex-1 text-sm font-semibold text-zinc-800">
+                                    {operateurStyle[operateurChoisi.code]?.label ?? operateurChoisi.nom}
+                                </span>
+                                <span className="text-xs font-semibold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                                    {nf(total)} {paysChoisi.devise}
+                                </span>
+                            </div>
+
+                            <label className="block text-sm font-medium text-zinc-700 mb-1.5">
+                                <Smartphone className="w-4 h-4 inline mr-1.5 text-zinc-400" />
+                                Numéro {operateurStyle[operateurChoisi.code]?.label ?? ''}
+                            </label>
+                            <div className="flex items-center rounded-lg border border-zinc-200 bg-zinc-50 focus-within:ring-2 focus-within:ring-emerald-500">
+                                <span className="px-3 py-2.5 text-sm font-semibold text-zinc-500 border-r border-zinc-200">
+                                    +{paysChoisi.indicatif ?? ''}
+                                </span>
+                                <input
+                                    type="tel"
+                                    value={telephone}
+                                    onChange={(e) => { setTelephone(e.target.value.replace(/[^0-9]/g, '')); reinitialiserErreur(); }}
+                                    placeholder="6xx xxx xxx"
+                                    className="flex-1 px-3 py-2.5 bg-transparent text-sm focus:outline-none"
+                                    maxLength={15}
+                                />
+                            </div>
+                            <p className="text-xs text-zinc-500 mt-1.5">
+                                Vous serez redirigé vers une page sécurisée pour valider le paiement avec votre code secret.
+                            </p>
+
+                            {erreur && <Alerte titre="Paiement impossible" message={erreur} />}
+
+                            <div className="flex gap-2 mt-5">
+                                <button
+                                    onClick={() => { setEtape('moyen'); reinitialiserErreur(); }}
+                                    className="px-4 py-2.5 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50"
+                                >
+                                    Retour
+                                </button>
+                                <button
+                                    onClick={payerMobile}
+                                    disabled={enCours || telephone.trim().length < 6}
+                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-emerald-500 hover:bg-emerald-600 disabled:bg-zinc-300 text-white text-sm font-semibold rounded-lg transition-colors"
+                                >
+                                    {enCours ? (
+                                        <><Loader2 className="w-4 h-4 animate-spin" /> Initialisation…</>
+                                    ) : (
+                                        <>Payer {nf(total)} {paysChoisi.devise} <ArrowRight className="w-4 h-4" /></>
+                                    )}
+                                </button>
+                            </div>
+                        </>
+                    )}
+
+                    {/* ── Étape mobile money : attente de confirmation ─── */}
+                    {etape === 'attente_mobile' && attente && (
+                        <div className="text-center py-2">
+                            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                                <Smartphone className="w-7 h-7 text-emerald-600" />
+                            </div>
+                            <h4 className="text-lg font-bold text-zinc-900 mb-1">Finalisez votre paiement</h4>
+                            <p className="text-sm text-zinc-600 mb-4">
+                                {attente.message ?? 'Terminez le paiement sur la page ouverte, puis revenez ici.'}
+                            </p>
+
+                            <div className="rounded-xl border border-zinc-200 p-4 text-left mb-4">
+                                <Ligne label="Montant" valeur={attente.montant_formate} />
+                                <Ligne label="Référence" valeur={attente.reference} />
+                            </div>
+
+                            {attente.url_paiement && (
+                                <a
+                                    href={attente.url_paiement}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 mb-3 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg"
+                                >
+                                    <ExternalLink className="w-4 h-4" /> Rouvrir la page de paiement
+                                </a>
+                            )}
+
+                            <div className="flex items-center justify-center gap-2 rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3">
+                                <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
+                                <span className="text-sm text-zinc-600">En attente de la confirmation du paiement…</span>
+                            </div>
+
+                            <p className="text-xs text-zinc-500 mt-3">
+                                Cette page se met à jour automatiquement dès que le paiement est confirmé.
+                            </p>
+                        </div>
                     )}
 
                     {/* ── Étape 2 : code du portefeuille ──────────────── */}
@@ -342,7 +580,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
                             <div className="flex gap-2 mt-5">
                                 <button
-                                    onClick={() => { setEtape('pays'); reinitialiserErreur(); }}
+                                    onClick={() => { setEtape('moyen'); reinitialiserErreur(); }}
                                     className="px-4 py-2.5 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50"
                                 >
                                     Retour

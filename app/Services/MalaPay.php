@@ -123,6 +123,58 @@ class MalaPay
         return $resultat['ok'] ? ($resultat['data'] ?? []) : [];
     }
 
+    /**
+     * Opérateurs mobile money disponibles pour un pays (vide = portefeuille seul).
+     *
+     * @return array<int, array{code:string, nom:string}>
+     */
+    public function operateurs(string $pays): array
+    {
+        $resultat = $this->appeler('get', '/v1/operateurs', ['pays' => $pays]);
+
+        return $resultat['ok'] ? ($resultat['data']['operateurs'] ?? []) : [];
+    }
+
+    /**
+     * Initie un paiement mobile money (Orange/MTN). Renvoie notamment l'URL de
+     * paiement (`url_paiement`) vers laquelle rediriger le client.
+     *
+     * @return array{ok:bool, data?:array, code?:string, message?:string}
+     */
+    public function payerMobile(
+        string $reference,
+        float $montant,
+        string $devise,
+        string $pays,
+        string $operateur,
+        string $telephone,
+        ?string $description = null,
+        ?string $service = null,
+        ?string $urlRetour = null,
+    ): array {
+        return $this->appeler('post', '/v1/paiements/mobile', [
+            'reference' => $reference,
+            'montant' => $montant,
+            'devise' => $devise,
+            'pays' => $pays,
+            'operateur' => $operateur,
+            'telephone' => $telephone,
+            'description' => $description,
+            'service' => $service,
+            'url_retour' => $urlRetour,
+        ]);
+    }
+
+    /**
+     * État d'un paiement mobile money.
+     *
+     * @return array{ok:bool, data?:array, code?:string, message?:string}
+     */
+    public function statutMobile(string $reference): array
+    {
+        return $this->appeler('get', '/v1/paiements/mobile/'.urlencode($reference), []);
+    }
+
     /* ═══════════════════════ Interne ═══════════════════════ */
 
     /**
