@@ -6,29 +6,76 @@ import type { Publication, Comment, User } from '@/types';
 interface Props {
     publication: Publication;
     currentUser: User | null;
+    onCommentAdded?: () => void;
 }
 
 const EMOJIS = ['😀', '😂', '😍', '🥰', '😊', '🤔', '😢', '😮', '👍', '❤️', '🔥', '🎉', '👏', '💯', '🙏', '😎'];
 
-export default function CommentsSection({ publication, currentUser }: Props) {
+const csrf = () =>
+    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+
+export default function CommentsSection({ publication, currentUser, onCommentAdded }: Props) {
     const [commentText, setCommentText] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    // Liste locale : le commentaire apparaît immédiatement, l'envoi suit en fond.
+    const [comments, setComments] = useState<Comment[]>(publication.comments ?? []);
+    const [envoi, setEnvoi] = useState(false);
 
     const handleAddComment = () => {
         if (!currentUser) {
             router.visit('/login');
             return;
         }
-        if (!commentText.trim()) return;
+        const texte = commentText.trim();
+        if (!texte || envoi) return;
 
-        router.post(
-            `/publications/${publication.id}/comment`,
-            { body: commentText.trim() },
-            {
-                preserveScroll: true,
-                onSuccess: () => setCommentText(''),
-            }
-        );
+        // 1) Affichage immédiat d'un commentaire provisoire
+        const tempId = -Date.now();
+        const optimiste: Comment = {
+            id: tempId,
+            body: texte,
+            created_at_human: "À l'instant",
+            likes_count: 0,
+            has_liked: false,
+            is_owner: true,
+            replies: [],
+            user: {
+                id: currentUser.id,
+                name: currentUser.name,
+                photo: currentUser.photo ?? null,
+            },
+        } as unknown as Comment;
+
+        setComments((c) => [...c, optimiste]);
+        setCommentText('');
+        setEnvoi(true);
+        onCommentAdded?.();
+
+        // 2) Envoi en arrière-plan, sans recharger le fil
+        fetch(`/publications/${publication.id}/comment`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrf(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ body: texte }),
+        })
+            .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+            .then((d) => {
+                // On remplace le provisoire par le commentaire réel
+                if (d.comment) {
+                    setComments((c) => c.map((x) => (x.id === tempId ? d.comment : x)));
+                }
+            })
+            .catch(() => {
+                // Échec : on retire le provisoire et on restaure le texte
+                setComments((c) => c.filter((x) => x.id !== tempId));
+                setCommentText(texte);
+            })
+            .finally(() => setEnvoi(false));
     };
 
     const insertEmoji = (emoji: string) => {
@@ -101,8 +148,8 @@ export default function CommentsSection({ publication, currentUser }: Props) {
             </div>
 
             {/* Comments List */}
-            {publication.comments.length > 0 ? (
-                publication.comments.map((comment) => (
+            {comments.length > 0 ? (
+                comments.map((comment) => (
                     <CommentItem
                         key={comment.id}
                         comment={comment}

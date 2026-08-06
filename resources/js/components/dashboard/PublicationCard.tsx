@@ -12,12 +12,27 @@ interface Props {
     onShare: () => void;
 }
 
+const csrf = () =>
+    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+
 export default function PublicationCard({ publication, currentUser, onShare }: Props) {
     const [showComments, setShowComments] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [showStats, setShowStats] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    // État local du like : mis à jour instantanément, la requête part en fond.
+    const [liked, setLiked] = useState(!!publication.has_liked);
+    const [likesCount, setLikesCount] = useState(publication.likes_count ?? 0);
+    const likeEnCours = useRef(false);
+
+    // Compteur de commentaires ajustable quand on en poste un (optimiste).
+    const [commentsCount, setCommentsCount] = useState(publication.comments_count ?? 0);
+
+    // « Voir plus » : le texte long est replié par défaut.
+    const [texteDeplie, setTexteDeplie] = useState(false);
+    const SEUIL_TEXTE = 280;
 
     const userName = publication.user?.name ?? 'Utilisateur supprimé';
     const userPhoto =
@@ -42,7 +57,39 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             router.visit('/login');
             return;
         }
-        router.post(`/publications/${publication.id}/like`, {}, { preserveScroll: true });
+        if (likeEnCours.current) return;
+        likeEnCours.current = true;
+
+        // 1) Réaction immédiate à l'écran
+        const avant = { liked, count: likesCount };
+        const nouveau = !liked;
+        setLiked(nouveau);
+        setLikesCount((n) => n + (nouveau ? 1 : -1));
+
+        // 2) Requête en arrière-plan, sans recharger le fil
+        fetch(`/publications/${publication.id}/like`, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrf(),
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        })
+            .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+            .then((d) => {
+                // On aligne sur le compte réel renvoyé par le serveur
+                if (typeof d.likes_count === 'number') setLikesCount(d.likes_count);
+                if (typeof d.liked === 'boolean') setLiked(d.liked);
+            })
+            .catch(() => {
+                // Échec : on revient à l'état précédent
+                setLiked(avant.liked);
+                setLikesCount(avant.count);
+            })
+            .finally(() => {
+                likeEnCours.current = false;
+            });
     };
 
     const handleDelete = () => {
@@ -131,8 +178,18 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                 publication.text && (
                     <div className="px-4 py-3">
                         <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
-                            {publication.text}
+                            {texteDeplie || publication.text.length <= SEUIL_TEXTE
+                                ? publication.text
+                                : publication.text.slice(0, SEUIL_TEXTE).trimEnd() + '…'}
                         </p>
+                        {publication.text.length > SEUIL_TEXTE && (
+                            <button
+                                onClick={() => setTexteDeplie((v) => !v)}
+                                className="mt-1 text-sm font-semibold text-emerald-600 hover:underline"
+                            >
+                                {texteDeplie ? 'Voir moins' : 'Voir plus'}
+                            </button>
+                        )}
                     </div>
                 )
             )}
@@ -143,7 +200,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             {/* Stats */}
             <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 border-b border-gray-100">
                 <div className="flex items-center gap-1">
-                    {publication.likes_count > 0 && (
+                    {likesCount > 0 && (
                         <div className="flex items-center">
                             <span className="bg-blue-500 text-white rounded-full p-1 -mr-1 z-10">
                                 <ThumbsUp className="w-3 h-3 fill-current" />
@@ -162,25 +219,23 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                                 </svg>
                             </span>
                             <span className="ml-2 hover:underline cursor-pointer">
-                                {publication.has_liked && publication.likes_count === 1
+                                {liked && likesCount === 1
                                     ? 'Vous'
-                                    : publication.has_liked && publication.likes_count > 1
-                                    ? `Vous et ${publication.likes_count - 1} autre${
-                                          publication.likes_count > 2 ? 's' : ''
-                                      }`
-                                    : publication.likes_count}
+                                    : liked && likesCount > 1
+                                    ? `Vous et ${likesCount - 1} autre${likesCount > 2 ? 's' : ''}`
+                                    : likesCount}
                             </span>
                         </div>
                     )}
                 </div>
                 <div className="flex items-center gap-3">
-                    {publication.comments_count > 0 && (
+                    {commentsCount > 0 && (
                         <span
                             onClick={() => setShowComments(!showComments)}
                             className="hover:underline cursor-pointer"
                         >
-                            {publication.comments_count} commentaire
-                            {publication.comments_count > 1 ? 's' : ''}
+                            {commentsCount} commentaire
+                            {commentsCount > 1 ? 's' : ''}
                         </span>
                     )}
                     {/* Nombre de vues : visible par tous. L'auteur peut cliquer
@@ -208,13 +263,11 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             <div className="px-2 py-1 flex items-center justify-around border-b border-gray-100">
                 <button
                     onClick={handleLike}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 transition-all ${
-                        publication.has_liked ? 'text-blue-600' : 'text-gray-600'
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 transition-all active:scale-95 ${
+                        liked ? 'text-blue-600' : 'text-gray-600'
                     }`}
                 >
-                    <ThumbsUp
-                        className={`w-5 h-5 ${publication.has_liked ? 'fill-current' : ''}`}
-                    />
+                    <ThumbsUp className={`w-5 h-5 transition-transform ${liked ? 'fill-current scale-110' : ''}`} />
                     <span className="font-semibold text-sm">J'aime</span>
                 </button>
 
@@ -224,9 +277,9 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                 >
                     <MessageCircle className="w-5 h-5" />
                     <span className="font-semibold text-sm">Commenter</span>
-                    {publication.comments_count > 0 && (
+                    {commentsCount > 0 && (
                         <span className="text-xs bg-gray-200 px-1.5 py-0.5 rounded-full">
-                            {publication.comments_count}
+                            {commentsCount}
                         </span>
                     )}
                 </button>
@@ -247,7 +300,11 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
 
             {/* Comments */}
             {showComments && (
-                <CommentsSection publication={publication} currentUser={currentUser} />
+                <CommentsSection
+                    publication={publication}
+                    currentUser={currentUser}
+                    onCommentAdded={() => setCommentsCount((n) => n + 1)}
+                />
             )}
 
             {/* Statistiques (auteur uniquement) */}

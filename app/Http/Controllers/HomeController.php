@@ -30,6 +30,14 @@ class HomeController extends Controller
         // /p/{id} (lien de partage) ou /?highlight={id} (ancien format)
         $highlightId = $publication ?? $request->query('highlight');
 
+        // Graine de mélange stable le temps de la session : l'ordre aléatoire
+        // ne saute pas à chaque navigation, mais diffère d'une visite à l'autre.
+        $seed = $request->session()->get('feed_seed');
+        if (! $seed) {
+            $seed = random_int(1, 999999);
+            $request->session()->put('feed_seed', $seed);
+        }
+
         $publications = Publication::with('user')
             ->withCount([
                 'likes',
@@ -37,7 +45,11 @@ class HomeController extends Controller
                 'comments as comments_success_count' => fn ($q) => $q->where('status', 'Success'),
             ])
             ->where('status', 'Success')
-            ->orderBy('created_at', 'desc')
+            // Ordre aléatoire : pendant le concours, aucune publication n'est
+            // systématiquement en tête. Une graine par session garde le même
+            // ordre le temps de la visite (pas de saut à chaque interaction),
+            // et le mélange change à la visite suivante.
+            ->inRandomOrder($seed)
             ->limit(10)
             ->get();
 
@@ -205,10 +217,12 @@ class HomeController extends Controller
         return response()->json(PublicationStats::for($publication));
     }
 
-    public function toggleLike(Request $request, int $publicationId): RedirectResponse
+    public function toggleLike(Request $request, int $publicationId): RedirectResponse|JsonResponse
     {
         if (! Auth::check()) {
-            return redirect()->route('login');
+            return $request->wantsJson()
+                ? response()->json(['ok' => false, 'auth' => false], 401)
+                : redirect()->route('login');
         }
 
         $existingLike = Like::where('id_user', Auth::id())
@@ -217,12 +231,24 @@ class HomeController extends Controller
 
         if ($existingLike) {
             $existingLike->delete();
+            $liked = false;
         } else {
             Like::create([
                 'id_user' => Auth::id(),
                 'id_publication' => $publicationId,
                 'ip_address' => $request->ip(),
                 'status' => 'Success',
+            ]);
+            $liked = true;
+        }
+
+        // Appel en arrière-plan (fetch) : réponse JSON légère, pas de
+        // rechargement de tout le fil. L'UI a déjà été mise à jour côté client.
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'liked' => $liked,
+                'likes_count' => Like::where('id_publication', $publicationId)->count(),
             ]);
         }
 
@@ -253,10 +279,12 @@ class HomeController extends Controller
         return back();
     }
 
-    public function addComment(Request $request, int $publicationId): RedirectResponse
+    public function addComment(Request $request, int $publicationId): RedirectResponse|JsonResponse
     {
         if (! Auth::check()) {
-            return redirect()->route('login');
+            return $request->wantsJson()
+                ? response()->json(['ok' => false, 'auth' => false], 401)
+                : redirect()->route('login');
         }
 
         $validated = $request->validate([
@@ -264,13 +292,38 @@ class HomeController extends Controller
             'parent_id' => 'nullable|integer|exists:comments,id',
         ]);
 
-        Comment::create([
+        $comment = Comment::create([
             'id_user' => Auth::id(),
             'id_publication' => $publicationId,
             'body' => trim($validated['body']),
             'parent_id' => $validated['parent_id'] ?? null,
             'status' => 'Success',
         ]);
+
+        // En arrière-plan : on renvoie le commentaire créé pour que le client
+        // remplace sa version optimiste, sans recharger tout le fil.
+        if ($request->wantsJson()) {
+            $user = Auth::user();
+
+            return response()->json([
+                'ok' => true,
+                'comment' => [
+                    'id' => $comment->id,
+                    'body' => $comment->body,
+                    'parent_id' => $comment->parent_id,
+                    'created_at_human' => $comment->created_at->diffForHumans(),
+                    'likes_count' => 0,
+                    'has_liked' => false,
+                    'is_owner' => true,
+                    'replies' => [],
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'photo' => $this->mediaUrl($user->photo),
+                    ],
+                ],
+            ]);
+        }
 
         return back();
     }
