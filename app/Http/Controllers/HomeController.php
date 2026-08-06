@@ -30,14 +30,6 @@ class HomeController extends Controller
         // /p/{id} (lien de partage) ou /?highlight={id} (ancien format)
         $highlightId = $publication ?? $request->query('highlight');
 
-        // Graine de mélange stable le temps de la session : l'ordre aléatoire
-        // ne saute pas à chaque navigation, mais diffère d'une visite à l'autre.
-        $seed = $request->session()->get('feed_seed');
-        if (! $seed) {
-            $seed = random_int(1, 999999);
-            $request->session()->put('feed_seed', $seed);
-        }
-
         $publications = Publication::with('user')
             ->withCount([
                 'likes',
@@ -45,11 +37,10 @@ class HomeController extends Controller
                 'comments as comments_success_count' => fn ($q) => $q->where('status', 'Success'),
             ])
             ->where('status', 'Success')
-            // Ordre aléatoire : pendant le concours, aucune publication n'est
-            // systématiquement en tête. Une graine par session garde le même
-            // ordre le temps de la visite (pas de saut à chaque interaction),
-            // et le mélange change à la visite suivante.
-            ->inRandomOrder($seed)
+            // Ordre aléatoire re-tiré à chaque chargement : pendant le concours,
+            // aucune publication n'est systématiquement en tête. Sans risque de
+            // « saut » puisque les likes/commentaires ne rechargent plus le fil.
+            ->inRandomOrder()
             ->limit(10)
             ->get();
 
