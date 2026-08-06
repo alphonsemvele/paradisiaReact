@@ -7,6 +7,7 @@ interface Props {
     publication: Publication;
     currentUser: User | null;
     onCommentAdded?: () => void;
+    onRequireAuth?: () => void;
 }
 
 const EMOJIS = ['😀', '😂', '😍', '🥰', '😊', '🤔', '😢', '😮', '👍', '❤️', '🔥', '🎉', '👏', '💯', '🙏', '😎'];
@@ -14,7 +15,7 @@ const EMOJIS = ['😀', '😂', '😍', '🥰', '😊', '🤔', '😢', '😮', 
 const csrf = () =>
     document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
-export default function CommentsSection({ publication, currentUser, onCommentAdded }: Props) {
+export default function CommentsSection({ publication, currentUser, onCommentAdded, onRequireAuth }: Props) {
     const [commentText, setCommentText] = useState('');
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     // Liste locale : le commentaire apparaît immédiatement, l'envoi suit en fond.
@@ -23,7 +24,7 @@ export default function CommentsSection({ publication, currentUser, onCommentAdd
 
     const handleAddComment = () => {
         if (!currentUser) {
-            router.visit('/login');
+            onRequireAuth?.();
             return;
         }
         const texte = commentText.trim();
@@ -155,6 +156,7 @@ export default function CommentsSection({ publication, currentUser, onCommentAdd
                         comment={comment}
                         publicationId={publication.id}
                         currentUser={currentUser}
+                        onRequireAuth={onRequireAuth}
                     />
                 ))
             ) : (
@@ -170,9 +172,10 @@ interface CommentItemProps {
     comment: Comment;
     publicationId: number;
     currentUser: User | null;
+    onRequireAuth?: () => void;
 }
 
-function CommentItem({ comment, publicationId, currentUser }: CommentItemProps) {
+function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: CommentItemProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [editText, setEditText] = useState(comment.body);
     const [showReplies, setShowReplies] = useState(false);
@@ -185,7 +188,7 @@ function CommentItem({ comment, publicationId, currentUser }: CommentItemProps) 
 
     const handleLike = () => {
         if (!currentUser) {
-            router.visit('/login');
+            onRequireAuth?.();
             return;
         }
         router.post(`/comments/${comment.id}/like`, {}, { preserveScroll: true });
@@ -209,6 +212,10 @@ function CommentItem({ comment, publicationId, currentUser }: CommentItemProps) 
     };
 
     const handleReply = () => {
+        if (!currentUser) {
+            onRequireAuth?.();
+            return;
+        }
         if (!replyText.trim()) return;
         router.post(
             `/publications/${publicationId}/comment`,
@@ -335,7 +342,7 @@ function CommentItem({ comment, publicationId, currentUser }: CommentItemProps) 
 
                             {(showReplies ? comment.replies : comment.replies.slice(0, 1)).map(
                                 (reply) => (
-                                    <ReplyItem
+                                    <ReplyItem onRequireAuth={onRequireAuth}
                                         key={reply.id}
                                         reply={reply}
                                         currentUser={currentUser}
@@ -380,7 +387,7 @@ function CommentItem({ comment, publicationId, currentUser }: CommentItemProps) 
     );
 }
 
-function ReplyItem({ reply, currentUser }: { reply: Comment; currentUser: User | null }) {
+function ReplyItem({ reply, currentUser, onRequireAuth }: { reply: Comment; currentUser: User | null; onRequireAuth?: () => void }) {
     const userName = reply.user?.name ?? 'Utilisateur supprimé';
     const userPhoto =
         reply.user?.photo ??
@@ -388,7 +395,7 @@ function ReplyItem({ reply, currentUser }: { reply: Comment; currentUser: User |
 
     const handleLike = () => {
         if (!currentUser) {
-            router.visit('/login');
+            onRequireAuth?.();
             return;
         }
         router.post(`/comments/${reply.id}/like`, {}, { preserveScroll: true });

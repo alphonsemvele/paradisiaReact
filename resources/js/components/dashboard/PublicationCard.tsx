@@ -4,6 +4,7 @@ import { MoreHorizontal, ThumbsUp, MessageCircle, Share2, Edit2, Trash2, X, Eye,
 import PublicationMedia from './PublicationMedia';
 import StatsModal from './StatsModal';
 import CommentsSection from './CommentsSection';
+import AuthPrompt from './AuthPrompt';
 import type { Publication, User } from '@/types';
 
 interface Props {
@@ -34,6 +35,9 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
     const [texteDeplie, setTexteDeplie] = useState(false);
     const SEUIL_TEXTE = 280;
 
+    // Invite à se connecter (visiteur non connecté qui tente une action).
+    const [authPrompt, setAuthPrompt] = useState<'like' | 'comment' | 'share' | null>(null);
+
     const userName = publication.user?.name ?? 'Utilisateur supprimé';
     const userPhoto =
         publication.user?.photo ??
@@ -54,7 +58,8 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
 
     const handleLike = () => {
         if (!currentUser) {
-            router.visit('/login');
+            // Instantané : on ouvre l'invite, aucune navigation.
+            setAuthPrompt('like');
             return;
         }
         if (likeEnCours.current) return;
@@ -285,7 +290,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                 </button>
 
                 <button
-                    onClick={onShare}
+                    onClick={() => (currentUser ? onShare() : setAuthPrompt('share'))}
                     className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-all"
                 >
                     <Share2 className="w-5 h-5" />
@@ -304,6 +309,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                     publication={publication}
                     currentUser={currentUser}
                     onCommentAdded={() => setCommentsCount((n) => n + 1)}
+                    onRequireAuth={() => setAuthPrompt('comment')}
                 />
             )}
 
@@ -314,6 +320,9 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                     onClose={() => setShowStats(false)}
                 />
             )}
+
+            {/* Invite à se connecter (visiteur) */}
+            <AuthPrompt open={authPrompt !== null} action={authPrompt} onClose={() => setAuthPrompt(null)} />
         </div>
     );
 }
