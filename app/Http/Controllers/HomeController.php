@@ -246,10 +246,12 @@ class HomeController extends Controller
         return back();
     }
 
-    public function toggleCommentLike(Request $request, int $commentId): RedirectResponse
+    public function toggleCommentLike(Request $request, int $commentId): RedirectResponse|JsonResponse
     {
         if (! Auth::check()) {
-            return redirect()->route('login');
+            return $request->wantsJson()
+                ? response()->json(['ok' => false, 'auth' => false], 401)
+                : redirect()->route('login');
         }
 
         $existingLike = CommentLike::where('id_user', Auth::id())
@@ -258,12 +260,22 @@ class HomeController extends Controller
 
         if ($existingLike) {
             $existingLike->delete();
+            $liked = false;
         } else {
             CommentLike::create([
                 'id_user' => Auth::id(),
                 'id_comment' => $commentId,
                 'ip_address' => $request->ip(),
                 'status' => 'Success',
+            ]);
+            $liked = true;
+        }
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'liked' => $liked,
+                'likes_count' => CommentLike::where('id_comment', $commentId)->count(),
             ]);
         }
 
@@ -319,39 +331,55 @@ class HomeController extends Controller
         return back();
     }
 
-    public function updateComment(Request $request, int $commentId): RedirectResponse
+    public function updateComment(Request $request, int $commentId): RedirectResponse|JsonResponse
     {
         if (! Auth::check()) {
-            return redirect()->route('login');
+            return $request->wantsJson()
+                ? response()->json(['ok' => false, 'auth' => false], 401)
+                : redirect()->route('login');
         }
 
         $comment = Comment::find($commentId);
 
         if (! $comment || $comment->id_user !== Auth::id()) {
-            return back()->withErrors(['error' => 'Action non autorisée']);
+            return $request->wantsJson()
+                ? response()->json(['ok' => false], 403)
+                : back()->withErrors(['error' => 'Action non autorisée']);
         }
 
         $validated = $request->validate(['body' => 'required|string|max:1000']);
 
         $comment->update(['body' => trim($validated['body'])]);
 
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true, 'body' => $comment->body]);
+        }
+
         return back();
     }
 
-    public function deleteComment(int $commentId): RedirectResponse
+    public function deleteComment(Request $request, int $commentId): RedirectResponse|JsonResponse
     {
         if (! Auth::check()) {
-            return redirect()->route('login');
+            return $request->wantsJson()
+                ? response()->json(['ok' => false, 'auth' => false], 401)
+                : redirect()->route('login');
         }
 
         $comment = Comment::find($commentId);
 
         if (! $comment || $comment->id_user !== Auth::id()) {
-            return back()->withErrors(['error' => 'Action non autorisée']);
+            return $request->wantsJson()
+                ? response()->json(['ok' => false], 403)
+                : back()->withErrors(['error' => 'Action non autorisée']);
         }
 
         Comment::where('parent_id', $commentId)->delete();
         $comment->delete();
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true]);
+        }
 
         return back();
     }
