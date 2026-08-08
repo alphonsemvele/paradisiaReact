@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 import SupportButton from '@/components/SupportButton';
+import NotificationBell from '@/components/NotificationBell';
 
 interface Props {
     children: ReactNode;
@@ -108,6 +109,9 @@ export default function AppLayout({ children }: Props) {
                         <div className="flex items-center gap-2">
                             {auth?.user ? (
                                 <>
+                                    {/* Cloche de notifications */}
+                                    <NotificationBell />
+
                                     {/* 🆕 Bouton Administration (visible si admin) */}
                                     {isAdmin && (
                                         <Link

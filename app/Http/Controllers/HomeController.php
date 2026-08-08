@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\NouveauCommentaireMail;
 use App\Models\Comment;
 use App\Models\CommentLike;
 use App\Models\Event;
 use App\Models\Like;
+use App\Models\Notification;
 use App\Models\PointDeVente;
 use App\Models\Product;
 use App\Models\Publication;
 use App\Models\Share;
+use App\Models\User;
 use App\Models\View;
 use App\Services\PublicationStats;
 use App\Support\PageMeta;
@@ -309,6 +312,11 @@ class HomeController extends Controller
             'status' => 'Success',
         ]);
 
+        // Prévenir l'auteur de la publication (notification + e-mail), sauf
+        // s'il commente sa propre publication. Différé après la réponse pour
+        // ne pas ralentir l'envoi du commentaire.
+        $this->notifierAuteurPublication($publicationId, $comment);
+
         // En arrière-plan : on renvoie le commentaire créé pour que le client
         // remplace sa version optimiste, sans recharger tout le fil.
         if ($request->wantsJson()) {
@@ -335,6 +343,52 @@ class HomeController extends Controller
         }
 
         return back();
+    }
+
+    /**
+     * Notifie l'auteur d'une publication qu'elle a été commentée : une entrée
+     * en base (cloche) + un e-mail. Envoi différé après la réponse HTTP ; un
+     * échec n'affecte jamais l'enregistrement du commentaire.
+     */
+    private function notifierAuteurPublication(int $publicationId, Comment $comment): void
+    {
+        $publication = Publication::find($publicationId);
+
+        if (! $publication || ! $publication->id_user || $publication->id_user === Auth::id()) {
+            return; // publication introuvable ou auteur qui se commente lui-même
+        }
+
+        $auteurId = (int) $publication->id_user;
+        $acteur = Auth::user();
+        $extrait = \Illuminate\Support\Str::limit($comment->body, 120);
+
+        // Notification cloche : immédiate (légère).
+        try {
+            Notification::create([
+                'type' => 'publication',
+                'body' => "{$acteur->name} a commenté votre publication : «{$extrait}»",
+                'status' => 'Success',
+                'id_publication' => $publicationId,
+                'id_user' => $auteurId,
+                'id_actor' => $acteur->id,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Notification commentaire non créée : '.$e->getMessage());
+        }
+
+        // E-mail : après la réponse HTTP, pour ne pas ralentir le commentaire.
+        app()->terminating(function () use ($auteurId, $acteur, $publication, $comment) {
+            try {
+                $destinataire = User::find($auteurId);
+                if ($destinataire?->email) {
+                    Mail::to($destinataire->email)->send(
+                        new NouveauCommentaireMail($destinataire, $acteur, $publication, $comment)
+                    );
+                }
+            } catch (\Throwable $e) {
+                Log::error('E-mail commentaire non envoyé : '.$e->getMessage());
+            }
+        });
     }
 
     public function updateComment(Request $request, int $commentId): RedirectResponse|JsonResponse

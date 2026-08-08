@@ -111,6 +111,12 @@ Route::get('/formations/{formation}/edit', [AdminFormationController::class, 'ed
 Route::post('/formations/{formation}', [AdminFormationController::class, 'update'])->name('formations.update');
 Route::patch('/formations/{formation}/toggle-status', [AdminFormationController::class, 'toggleStatus'])->name('formations.toggle-status');
 
+        // ── E-mailing (envoi en masse par lots) ────────────────────────────
+        Route::get('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'index'])->name('emails.index');
+        Route::post('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'store'])->name('emails.store');
+        Route::post('/emails/{campagne}/lot', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'envoyerLot'])->name('emails.lot');
+        Route::delete('/emails/{campagne}', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'destroy'])->name('emails.destroy');
+
         // ── Événements ────────────────────────────────────────────────────
         Route::get('/events', [\App\Http\Controllers\Admin\EventController::class, 'index'])->name('events.index');
         Route::get('/events/create', [\App\Http\Controllers\Admin\EventController::class, 'create'])->name('events.create');
@@ -207,6 +213,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/publications/{id}', [HomeController::class, 'deletePost'])->name('publication.delete'); // 🆕
     Route::post('/publications/{id}/like', [HomeController::class, 'toggleLike'])->name('publication.like');
     Route::post('/publications/{id}/comment', [HomeController::class, 'addComment'])->name('publication.comment');
+    // Notifications (cloche du header)
+    Route::get('/notifications/liste', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.liste');
+    Route::post('/notifications/lire-tout', [\App\Http\Controllers\NotificationController::class, 'lireTout'])->name('notifications.lire-tout');
     Route::post('/publications/{id}/share', [HomeController::class, 'recordShare'])->name('publication.share');
     // Statistiques d'une publication (réservées à son auteur)
     Route::get('/publications/{id}/stats', [HomeController::class, 'publicationStats'])->name('publication.stats');

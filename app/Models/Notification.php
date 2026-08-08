@@ -22,6 +22,8 @@ class Notification extends Model
         'id_project',
         'id_publication',
         'id_user',
+        'id_actor',
+        'read_at',
     ];
 
     /**

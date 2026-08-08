@@ -23,6 +23,7 @@ import {
     ChevronDown,
     ExternalLink,
     Store,
+    Mail,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 
@@ -71,6 +72,12 @@ const menuSections: MenuSection[] = [
             { label: 'Formations', href: '/admin/formations', icon: GraduationCap },
             { label: 'Événements', href: '/admin/events', icon: CalendarDays },
             { label: 'Inscriptions', href: '/admin/inscriptions', icon: Users },
+        ],
+    },
+    {
+        title: 'Communication',
+        items: [
+            { label: 'E-mailing', href: '/admin/emails', icon: Mail },
         ],
     },
     {
