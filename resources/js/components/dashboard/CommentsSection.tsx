@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { router } from '@inertiajs/react';
 import { Smile, Send, Heart } from 'lucide-react';
 import type { Publication, Comment, User } from '@/types';
 
@@ -10,28 +11,6 @@ interface Props {
 }
 
 const EMOJIS = ['😀', '😂', '😍', '🥰', '😊', '🤔', '😢', '😮', '👍', '❤️', '🔥', '🎉', '👏', '💯', '🙏', '😎'];
-
-const csrf = () =>
-    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-
-/**
- * Envoi en arrière-plan sans recharger le fil. `redirect: 'manual'` évite de
- * suivre le back() de Laravel (qui rechargerait l'accueil). L'écriture serveur
- * a lieu avant la réponse : on peut ignorer celle-ci.
- */
-const bgFetch = (url: string, method: string, body?: unknown) =>
-    fetch(url, {
-        method,
-        headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-CSRF-TOKEN': csrf(),
-            'X-Requested-With': 'XMLHttpRequest',
-        },
-        credentials: 'same-origin',
-        redirect: 'manual',
-        body: body ? JSON.stringify(body) : undefined,
-    });
 
 export default function CommentsSection({ publication, currentUser, onCommentAdded, onRequireAuth }: Props) {
     const [commentText, setCommentText] = useState('');
@@ -70,31 +49,19 @@ export default function CommentsSection({ publication, currentUser, onCommentAdd
         setEnvoi(true);
         onCommentAdded?.();
 
-        // 2) Envoi en arrière-plan, sans recharger le fil
-        fetch(`/publications/${publication.id}/comment`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrf(),
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({ body: texte }),
-        })
-            .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-            .then((d) => {
-                // On remplace le provisoire par le commentaire réel
-                if (d.comment) {
-                    setComments((c) => c.map((x) => (x.id === tempId ? d.comment : x)));
-                }
-            })
-            .catch(() => {
-                // Échec : on retire le provisoire et on restaure le texte
-                setComments((c) => c.filter((x) => x.id !== tempId));
-                setCommentText(texte);
-            })
-            .finally(() => setEnvoi(false));
+        // Envoi via Inertia (CSRF géré automatiquement, fiable). preserveState
+        // garde notre commentaire optimiste à l'écran ; le seed stable évite
+        // que le fil se re-mélange. On ne retire jamais le commentaire :
+        // l'écriture serveur a bien lieu.
+        router.post(
+            `/publications/${publication.id}/comment`,
+            { body: texte },
+            {
+                preserveScroll: true,
+                preserveState: true,
+                onFinish: () => setEnvoi(false),
+            }
+        );
     };
 
     const insertEmoji = (emoji: string) => {
@@ -199,13 +166,6 @@ function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: Com
     const [showReplies, setShowReplies] = useState(false);
     const [replyText, setReplyText] = useState('');
 
-    // État local : tout se met à jour à l'écran, l'envoi suit en arrière-plan.
-    const [body, setBody] = useState(comment.body);
-    const [liked, setLiked] = useState(!!comment.has_liked);
-    const [likesCount, setLikesCount] = useState(comment.likes_count ?? 0);
-    const [replies, setReplies] = useState<Comment[]>(comment.replies ?? []);
-    const [deleted, setDeleted] = useState(false);
-
     const userName = comment.user?.name ?? 'Utilisateur supprimé';
     const userPhoto =
         comment.user?.photo ??
@@ -216,28 +176,24 @@ function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: Com
             onRequireAuth?.();
             return;
         }
-        const n = !liked;
-        setLiked(n);
-        setLikesCount((c) => c + (n ? 1 : -1));
-        bgFetch(`/comments/${comment.id}/like`, 'POST').catch(() => {
-            setLiked(!n);
-            setLikesCount((c) => c + (n ? -1 : 1));
-        });
+        router.post(`/comments/${comment.id}/like`, {}, { preserveScroll: true });
     };
 
     const handleUpdate = () => {
-        const texte = editText.trim();
-        if (!texte) return;
-        const avant = body;
-        setBody(texte);
-        setIsEditing(false);
-        bgFetch(`/comments/${comment.id}`, 'PATCH', { body: texte }).catch(() => setBody(avant));
+        if (!editText.trim()) return;
+        router.patch(
+            `/comments/${comment.id}`,
+            { body: editText.trim() },
+            {
+                preserveScroll: true,
+                onSuccess: () => setIsEditing(false),
+            }
+        );
     };
 
     const handleDelete = () => {
         if (!confirm('Supprimer ce commentaire ?')) return;
-        setDeleted(true); // disparaît immédiatement
-        bgFetch(`/comments/${comment.id}`, 'DELETE').catch(() => setDeleted(false));
+        router.delete(`/comments/${comment.id}`, { preserveScroll: true });
     };
 
     const handleReply = () => {
@@ -245,33 +201,19 @@ function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: Com
             onRequireAuth?.();
             return;
         }
-        const texte = replyText.trim();
-        if (!texte) return;
-
-        const tempId = -Date.now();
-        const optimiste = {
-            id: tempId,
-            body: texte,
-            created_at_human: "À l'instant",
-            likes_count: 0,
-            has_liked: false,
-            is_owner: true,
-            user: { id: currentUser.id, name: currentUser.name, photo: currentUser.photo ?? null },
-        } as unknown as Comment;
-
-        setReplies((r) => [...r, optimiste]);
-        setReplyText('');
-        setShowReplies(true);
-
-        bgFetch(`/publications/${publicationId}/comment`, 'POST', { body: texte, parent_id: comment.id })
-            .then((r) => (r.ok ? r.json() : null))
-            .then((d) => {
-                if (d?.comment) setReplies((rs) => rs.map((x) => (x.id === tempId ? d.comment : x)));
-            })
-            .catch(() => setReplies((rs) => rs.filter((x) => x.id !== tempId)));
+        if (!replyText.trim()) return;
+        router.post(
+            `/publications/${publicationId}/comment`,
+            { body: replyText.trim(), parent_id: comment.id },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setReplyText('');
+                    setShowReplies(true);
+                },
+            }
+        );
     };
-
-    if (deleted) return null;
 
     return (
         <div className="mb-3">
@@ -318,15 +260,15 @@ function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: Com
                                     <p className="font-semibold text-xs text-gray-900">
                                         {userName}
                                     </p>
-                                    <p className="text-sm text-gray-800">{body}</p>
+                                    <p className="text-sm text-gray-800">{comment.body}</p>
                                 </div>
 
                                 {/* Badge likes count sur le commentaire */}
-                                {likesCount > 0 && (
+                                {comment.likes_count > 0 && (
                                     <div className="absolute -bottom-2 -right-1 flex items-center gap-1 bg-white border border-gray-200 rounded-full px-2 py-0.5 shadow-sm">
                                         <Heart className="w-3 h-3 fill-red-500 text-red-500" />
                                         <span className="text-xs font-medium text-gray-700">
-                                            {likesCount}
+                                            {comment.likes_count}
                                         </span>
                                     </div>
                                 )}
@@ -337,7 +279,9 @@ function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: Com
                                 <button
                                     onClick={handleLike}
                                     className={`font-semibold hover:underline transition-colors ${
-                                        liked ? 'text-red-500' : 'text-gray-600 hover:text-red-500'
+                                        comment.has_liked
+                                            ? 'text-red-500'
+                                            : 'text-gray-600 hover:text-red-500'
                                     }`}
                                 >
                                     J'aime
@@ -369,26 +313,27 @@ function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: Com
                     )}
 
                     {/* Replies */}
-                    {replies.length > 0 && (
+                    {comment.replies && comment.replies.length > 0 && (
                         <div className="mt-3 ml-4 space-y-2">
-                            {!showReplies && replies.length > 1 && (
+                            {!showReplies && comment.replies.length > 1 && (
                                 <button
                                     onClick={() => setShowReplies(true)}
                                     className="text-xs font-semibold text-gray-600 hover:underline"
                                 >
-                                    Voir {replies.length} réponse
-                                    {replies.length > 1 ? 's' : ''}
+                                    Voir {comment.replies.length} réponse
+                                    {comment.replies.length > 1 ? 's' : ''}
                                 </button>
                             )}
 
-                            {(showReplies ? replies : replies.slice(0, 1)).map((reply) => (
-                                <ReplyItem
-                                    onRequireAuth={onRequireAuth}
-                                    key={reply.id}
-                                    reply={reply}
-                                    currentUser={currentUser}
-                                />
-                            ))}
+                            {(showReplies ? comment.replies : comment.replies.slice(0, 1)).map(
+                                (reply) => (
+                                    <ReplyItem onRequireAuth={onRequireAuth}
+                                        key={reply.id}
+                                        reply={reply}
+                                        currentUser={currentUser}
+                                    />
+                                )
+                            )}
                         </div>
                     )}
 
@@ -428,10 +373,6 @@ function CommentItem({ comment, publicationId, currentUser, onRequireAuth }: Com
 }
 
 function ReplyItem({ reply, currentUser, onRequireAuth }: { reply: Comment; currentUser: User | null; onRequireAuth?: () => void }) {
-    const [liked, setLiked] = useState(!!reply.has_liked);
-    const [likesCount, setLikesCount] = useState(reply.likes_count ?? 0);
-    const [deleted, setDeleted] = useState(false);
-
     const userName = reply.user?.name ?? 'Utilisateur supprimé';
     const userPhoto =
         reply.user?.photo ??
@@ -442,22 +383,13 @@ function ReplyItem({ reply, currentUser, onRequireAuth }: { reply: Comment; curr
             onRequireAuth?.();
             return;
         }
-        const n = !liked;
-        setLiked(n);
-        setLikesCount((c) => c + (n ? 1 : -1));
-        bgFetch(`/comments/${reply.id}/like`, 'POST').catch(() => {
-            setLiked(!n);
-            setLikesCount((c) => c + (n ? -1 : 1));
-        });
+        router.post(`/comments/${reply.id}/like`, {}, { preserveScroll: true });
     };
 
     const handleDelete = () => {
         if (!confirm('Supprimer cette réponse ?')) return;
-        setDeleted(true);
-        bgFetch(`/comments/${reply.id}`, 'DELETE').catch(() => setDeleted(false));
+        router.delete(`/comments/${reply.id}`, { preserveScroll: true });
     };
-
-    if (deleted) return null;
 
     return (
         <div className="flex items-start gap-2">
@@ -473,11 +405,11 @@ function ReplyItem({ reply, currentUser, onRequireAuth }: { reply: Comment; curr
                         <p className="text-sm text-gray-800">{reply.body}</p>
                     </div>
 
-                    {likesCount > 0 && (
+                    {reply.likes_count > 0 && (
                         <div className="absolute -bottom-2 -right-1 flex items-center gap-1 bg-white border border-gray-200 rounded-full px-2 py-0.5 shadow-sm">
                             <Heart className="w-3 h-3 fill-red-500 text-red-500" />
                             <span className="text-xs font-medium text-gray-700">
-                                {likesCount}
+                                {reply.likes_count}
                             </span>
                         </div>
                     )}
@@ -488,7 +420,7 @@ function ReplyItem({ reply, currentUser, onRequireAuth }: { reply: Comment; curr
                     <button
                         onClick={handleLike}
                         className={`font-semibold hover:underline transition-colors ${
-                            liked ? 'text-red-500' : 'text-gray-600 hover:text-red-500'
+                            reply.has_liked ? 'text-red-500' : 'text-gray-600 hover:text-red-500'
                         }`}
                     >
                         J'aime

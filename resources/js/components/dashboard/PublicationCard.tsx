@@ -13,9 +13,6 @@ interface Props {
     onShare: () => void;
 }
 
-const csrf = () =>
-    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
-
 export default function PublicationCard({ publication, currentUser, onShare }: Props) {
     const [showComments, setShowComments] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
@@ -26,7 +23,6 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
     // État local du like : mis à jour instantanément, la requête part en fond.
     const [liked, setLiked] = useState(!!publication.has_liked);
     const [likesCount, setLikesCount] = useState(publication.likes_count ?? 0);
-    const likeEnCours = useRef(false);
 
     // Compteur de commentaires ajustable quand on en poste un (optimiste).
     const [commentsCount, setCommentsCount] = useState(publication.comments_count ?? 0);
@@ -62,39 +58,19 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             setAuthPrompt('like');
             return;
         }
-        if (likeEnCours.current) return;
-        likeEnCours.current = true;
 
-        // 1) Réaction immédiate à l'écran
-        const avant = { liked, count: likesCount };
+        // Réaction immédiate à l'écran (pouce bleu).
         const nouveau = !liked;
         setLiked(nouveau);
         setLikesCount((n) => n + (nouveau ? 1 : -1));
 
-        // 2) Requête en arrière-plan, sans recharger le fil
-        fetch(`/publications/${publication.id}/like`, {
-            method: 'POST',
-            headers: {
-                Accept: 'application/json',
-                'X-CSRF-TOKEN': csrf(),
-                'X-Requested-With': 'XMLHttpRequest',
-            },
-            credentials: 'same-origin',
-        })
-            .then((r) => (r.ok ? r.json() : Promise.reject(r)))
-            .then((d) => {
-                // On aligne sur le compte réel renvoyé par le serveur
-                if (typeof d.likes_count === 'number') setLikesCount(d.likes_count);
-                if (typeof d.liked === 'boolean') setLiked(d.liked);
-            })
-            .catch(() => {
-                // Échec : on revient à l'état précédent
-                setLiked(avant.liked);
-                setLikesCount(avant.count);
-            })
-            .finally(() => {
-                likeEnCours.current = false;
-            });
+        // Envoi via Inertia : CSRF géré automatiquement (fiable). preserveState
+        // garde l'état optimiste ; le seed stable évite le re-mélange du fil.
+        router.post(
+            `/publications/${publication.id}/like`,
+            {},
+            { preserveScroll: true, preserveState: true }
+        );
     };
 
     const handleDelete = () => {
