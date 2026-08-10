@@ -20,7 +20,7 @@
 <body>
   <h1>🍍 Résultats du Jeu Concours PARADISIA — Phase 2</h1>
   <p class="sub">
-    Barème Paradisia-Africa.com : 1 point par like reçu + 1 point par commentaire reçu
+    Barème : 1 point par personne qui like + 1 point par personne qui commente
     (hors interactions de l'auteur).<br>
     Période : du {{ $debut->isoFormat('D MMMM YYYY [à] HH:mm') }}
     au {{ $fin->isoFormat('D MMMM YYYY [à] HH:mm') }}.

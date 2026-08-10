@@ -114,20 +114,35 @@ class ConcoursController extends Controller
             $parUser[$p->id_user]['pubs']++;
         }
 
+        // Une personne = un point maximum par publication, même si elle like
+        // ou commente plusieurs fois. On déduplique donc sur (publication,
+        // utilisateur) : la clé n'est comptée qu'une fois.
+        $likesVus = [];
         foreach ($likes as $l) {
             $auteur = $auteurParPub[$l->id_publication] ?? null;
             if ($auteur === null || (int) $l->id_user === (int) $auteur) {
                 continue; // auto-like non compté
             }
+            $cle = $l->id_publication.':'.$l->id_user;
+            if (isset($likesVus[$cle])) {
+                continue; // déjà compté pour cette personne sur cette publication
+            }
+            $likesVus[$cle] = true;
             $parUser[$auteur]['likes']++;
             $parUser[$auteur]['atteint'] = max($parUser[$auteur]['atteint'], $l->created_at);
         }
 
+        $commentsVus = [];
         foreach ($comments as $c) {
             $auteur = $auteurParPub[$c->id_publication] ?? null;
             if ($auteur === null || (int) $c->id_user === (int) $auteur) {
                 continue; // propre commentaire non compté
             }
+            $cle = $c->id_publication.':'.$c->id_user;
+            if (isset($commentsVus[$cle])) {
+                continue; // 1000 commentaires d'une même personne = 1 seul point
+            }
+            $commentsVus[$cle] = true;
             $parUser[$auteur]['comments']++;
             $parUser[$auteur]['atteint'] = max($parUser[$auteur]['atteint'], $c->created_at);
         }

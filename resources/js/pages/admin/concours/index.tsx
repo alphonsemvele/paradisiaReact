@@ -79,7 +79,7 @@ export default function ConcoursIndex({ classement, debut, fin, debut_label, fin
                 <div style={carte}>
                     <div style={{ padding: '14px 20px', borderBottom: '1px solid #f0f7f2' }}>
                         <p style={{ fontWeight: 800, color: '#14532d', margin: 0 }}>Classement ({classement.length} participant{classement.length > 1 ? 's' : ''})</p>
-                        <p style={{ fontSize: 12, color: '#9db8a4', margin: '2px 0 0' }}>1 like reçu = 1 pt · 1 commentaire reçu = 1 pt · vos propres interactions exclues</p>
+                        <p style={{ fontSize: 12, color: '#9db8a4', margin: '2px 0 0' }}>1 point par personne qui like + 1 point par personne qui commente (une personne = 1 pt max/publi, auto-interactions exclues)</p>
                     </div>
 
                     {classement.length === 0 ? (
