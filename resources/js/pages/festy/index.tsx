@@ -12,16 +12,13 @@ interface Props {
 
 const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
-/* Quartiers de Yaoundé (liste déroulante). */
-const QUARTIERS_YAOUNDE = [
-    'Ahala', 'Anguissa', 'Awae', 'Bastos', 'Biyem-Assi', 'Briqueterie', 'Carrière', 'Cité Verte',
-    'Damas', 'Djoungolo', 'Ekié', 'Ekounou', 'Ekoumdoum', 'Elig-Edzoa', 'Elig-Essono', 'Emana',
-    'Emombo', 'Essos', 'Etoa-Meki', 'Etoudi', 'Etoug-Ebe', 'Febe', 'Kondengui', 'Madagascar',
-    'Mballa II', 'Melen', 'Mendong', 'Messa', 'Messassi', 'Mfandena', 'Mimboman', 'Mokolo',
-    'Mvan', 'Mvog-Ada', 'Mvog-Atangana Mballa', 'Mvog-Betsi', 'Mvog-Mbi', 'Mvolyé', 'Ngoa-Ekelle',
-    'Ngousso', 'Nkoabang', 'Nkolbikok', 'Nkolbisson', 'Nkolmesseng', 'Nkolndongo', 'Nkolo', 'Nkomo',
-    'Nlongkak', 'Nsam', 'Nsimeyong', 'Ntougou', 'Obili', 'Odza', 'Olembe', 'Olezoa', 'Oyom-Abang',
-    'Simbock', 'Tongolo', 'Tsinga',
+/* Villes du Cameroun (liste déroulante). */
+const VILLES_CAMEROUN = [
+    'Yaoundé', 'Douala', 'Bafoussam', 'Bamenda', 'Garoua', 'Maroua', 'Ngaoundéré', 'Bertoua',
+    'Ebolowa', 'Kribi', 'Limbe', 'Buea', 'Kumba', 'Edéa', 'Nkongsamba', 'Dschang', 'Foumban',
+    'Sangmélima', 'Mbalmayo', 'Bafia', 'Bafang', 'Mbouda', 'Kumbo', 'Tiko', 'Guider', 'Kousséri',
+    'Meiganga', 'Batouri', 'Yokadouma', 'Wum', 'Nkambe', 'Mora', 'Tibati', 'Banyo', 'Obala',
+    'Mbandjock', 'Eséka', 'Loum', 'Manjo', 'Melong', 'Bangangté', 'Foumbot', 'Akonolinga',
 ];
 
 /* Vraies images des fruits (SVG inline, papaye comprise — aucun emoji papaye n'existe). */
@@ -194,9 +191,9 @@ export default function FestyIndex({ festy, equipes }: Props) {
                                         if (e.target.value === '__autre__') { setAutreVille(true); setForm({ ...form, ville: '' }); }
                                         else { setAutreVille(false); setForm({ ...form, ville: e.target.value }); }
                                     }}>
-                                    <option value="">Ville / quartier…</option>
-                                    {QUARTIERS_YAOUNDE.map((q) => <option key={q} value={q}>{q}</option>)}
-                                    <option value="__autre__">Autre / non listé…</option>
+                                    <option value="">Ville…</option>
+                                    {VILLES_CAMEROUN.map((v) => <option key={v} value={v}>{v}</option>)}
+                                    <option value="__autre__">Autre / non listée…</option>
                                 </select>
                             </Champ>
                             <Champ icon={Home} err={erreurs.quartier}><input className="ipt" placeholder="Quartier" value={form.quartier} onChange={(e) => setForm({ ...form, quartier: e.target.value })} /></Champ>
