@@ -112,6 +112,10 @@ Route::post('/formations/{formation}', [AdminFormationController::class, 'update
 Route::patch('/formations/{formation}/toggle-status', [AdminFormationController::class, 'toggleStatus'])->name('formations.toggle-status');
 
         // ── E-mailing (envoi en masse par lots) ────────────────────────────
+        // ── Résultats du concours ──────────────────────────────────────────
+        Route::get('/concours', [\App\Http\Controllers\Admin\ConcoursController::class, 'index'])->name('concours.index');
+        Route::get('/concours/export', [\App\Http\Controllers\Admin\ConcoursController::class, 'export'])->name('concours.export');
+
         Route::get('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'index'])->name('emails.index');
         Route::post('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'store'])->name('emails.store');
         Route::post('/emails/{campagne}/lot', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'envoyerLot'])->name('emails.lot');

@@ -24,6 +24,7 @@ import {
     ExternalLink,
     Store,
     Mail,
+    Trophy,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 
@@ -77,6 +78,7 @@ const menuSections: MenuSection[] = [
     {
         title: 'Communication',
         items: [
+            { label: 'Résultats concours', href: '/admin/concours', icon: Trophy },
             { label: 'E-mailing', href: '/admin/emails', icon: Mail },
         ],
     },
