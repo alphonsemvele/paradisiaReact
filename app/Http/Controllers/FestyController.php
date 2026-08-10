@@ -35,6 +35,28 @@ class FestyController extends Controller
                 'membres' => $t->registrations_count,
             ]);
 
+        $user = auth()->user();
+
+        // Le profil affiché « en vue » (nom + téléphone du compte).
+        $moi = $user ? [
+            'nom' => trim($user->name.' '.($user->last_name ?? '')),
+            'telephone' => $user->phone,
+            'ville' => $user->ville,
+        ] : null;
+
+        // Inscription existante de l'utilisateur connecté (statut + groupe).
+        $inscription = null;
+        if ($user) {
+            $r = FestyRegistration::with('team')->where('user_id', $user->id)->first();
+            if ($r && $r->team) {
+                $inscription = [
+                    'equipe' => $r->team->nom,
+                    'couleur' => $r->team->couleur,
+                    'whatsapp' => $r->team->whatsapp_group,
+                ];
+            }
+        }
+
         return Inertia::render('festy/index', [
             'festy' => [
                 'titre' => $settings->titre,
@@ -45,6 +67,8 @@ class FestyController extends Controller
                 'inscriptions_ouvertes' => $settings->inscriptions_ouvertes,
             ],
             'equipes' => $equipes,
+            'moi' => $moi,
+            'inscription' => $inscription,
         ])->withViewData([
             'meta' => PageMeta::make(
                 title: $settings->titre.($settings->date_label ? ' — '.$settings->date_label : ''),
@@ -56,18 +80,23 @@ class FestyController extends Controller
 
     public function register(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        // Réservé aux membres connectés.
+        if (! $user) {
+            return response()->json(['ok' => false, 'message' => 'Connectez-vous pour vous inscrire.'], 401);
+        }
+
         $settings = FestySetting::actuel();
 
         if (! $settings->inscriptions_ouvertes) {
             return response()->json(['ok' => false, 'message' => 'Les inscriptions sont closes.'], 422);
         }
 
+        // On ne demande que l'équipe, la ville et le quartier ; le reste vient
+        // du compte (nom, téléphone, e-mail).
         $validated = $request->validate([
             'festy_team_id' => ['required', 'integer', 'exists:festy_teams,id'],
-            'nom' => ['required', 'string', 'max:160'],
-            'prenom' => ['required', 'string', 'max:120'],
-            'telephone' => ['required', 'string', 'max:40'],
-            'email' => ['nullable', 'email', 'max:180'],
             'ville' => ['nullable', 'string', 'max:120'],
             'quartier' => ['nullable', 'string', 'max:160'],
         ]);
@@ -78,8 +107,8 @@ class FestyController extends Controller
             return response()->json(['ok' => false, 'message' => 'Équipe indisponible.'], 422);
         }
 
-        // Déjà inscrit avec ce numéro : on renvoie son équipe et le groupe.
-        $existant = FestyRegistration::where('telephone', $validated['telephone'])->first();
+        // Déjà inscrit (identifié par son compte) : on renvoie son équipe.
+        $existant = FestyRegistration::where('user_id', $user->id)->first();
 
         if ($existant) {
             $equipe = $existant->team;
@@ -95,10 +124,11 @@ class FestyController extends Controller
 
         FestyRegistration::create([
             'festy_team_id' => $team->id,
-            'nom' => $validated['nom'],
-            'prenom' => $validated['prenom'],
-            'telephone' => $validated['telephone'],
-            'email' => $validated['email'] ?? null,
+            'user_id' => $user->id,
+            'nom' => $user->name,
+            'prenom' => $user->last_name,
+            'telephone' => $user->phone,
+            'email' => $user->email,
             'ville' => $validated['ville'] ?? null,
             'quartier' => $validated['quartier'] ?? null,
             'ip' => $request->ip(),

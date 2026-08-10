@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class FestyRegistration extends Model
 {
-    protected $fillable = ['festy_team_id', 'nom', 'prenom', 'telephone', 'email', 'ville', 'quartier', 'ip'];
+    protected $fillable = ['festy_team_id', 'user_id', 'nom', 'prenom', 'telephone', 'email', 'ville', 'quartier', 'ip'];
 
     public function team(): BelongsTo
     {

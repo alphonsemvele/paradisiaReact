@@ -198,7 +198,7 @@ Route::get('/events', [\App\Http\Controllers\EventController::class, 'index'])->
 
 // ── PARADISIA FESTY (public) ──────────────────────────────────────────────────
 Route::get('/festy', [\App\Http\Controllers\FestyController::class, 'index'])->name('festy.index');
-Route::post('/festy/inscription', [\App\Http\Controllers\FestyController::class, 'register'])->name('festy.register');
+Route::post('/festy/inscription', [\App\Http\Controllers\FestyController::class, 'register'])->middleware('auth')->name('festy.register');
 
 // ── Commande par lien partagé (public, sans compte) ───────────────────────────
 Route::get('/commander', [\App\Http\Controllers\OrderLinkController::class, 'create'])->name('order-link.create');

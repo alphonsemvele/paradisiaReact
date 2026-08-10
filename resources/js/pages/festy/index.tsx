@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/layouts/AppLayout';
-import { Trophy, Users, CheckCircle2, MessageCircle, User, Phone, Mail, MapPin, Home, PartyPopper, ChevronDown } from 'lucide-react';
+import { Trophy, Users, CheckCircle2, MessageCircle, Phone, MapPin, Home, PartyPopper, ChevronDown, LogIn, UserPlus, User } from 'lucide-react';
 
 interface Equipe { id: number; nom: string; trait: string | null; couleur: string; emoji: string | null; image: string | null; membres: number }
 interface Props {
     festy: { titre: string; sous_titre: string | null; date_label: string | null; prix: string | null; description: string | null; inscriptions_ouvertes: boolean };
     equipes: Equipe[];
+    moi: { nom: string; telephone: string | null; ville: string | null } | null;
+    inscription: { equipe: string; couleur: string; whatsapp: string | null } | null;
 }
 
 const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
@@ -85,22 +87,24 @@ function Fruit({ nom, size = 40 }: { nom: string; size?: number }) {
     }
 }
 
-export default function FestyIndex({ festy, equipes }: Props) {
+export default function FestyIndex({ festy, equipes, moi, inscription }: Props) {
+    const { auth } = usePage().props as any;
+    const connecte = !!auth?.user && !!moi;
+
     const [choix, setChoix] = useState<Equipe | null>(null);
     const [ouvert, setOuvert] = useState(false);
-    const [form, setForm] = useState({ nom: '', prenom: '', email: '', telephone: '', ville: '', quartier: '' });
+    const villeInitiale = moi?.ville && VILLES_CAMEROUN.includes(moi.ville) ? moi.ville : '';
+    const [ville, setVille] = useState(villeInitiale);
     const [autreVille, setAutreVille] = useState(false);
+    const [quartier, setQuartier] = useState('');
     const [erreurs, setErreurs] = useState<Record<string, string>>({});
     const [envoi, setEnvoi] = useState(false);
-    const [succes, setSucces] = useState<any>(null);
+    const [succes, setSucces] = useState<any>(inscription ? { deja_inscrit: true, equipe: inscription.equipe, whatsapp: inscription.whatsapp, message: `Tu es déjà inscrit dans l'équipe ${inscription.equipe}.` } : null);
 
     const inscrire = async () => {
         setErreurs({});
         const e: Record<string, string> = {};
-        if (!choix) e.equipe = 'Choisissez une équipe.';
-        if (!form.nom.trim()) e.nom = 'Le nom est requis.';
-        if (!form.prenom.trim()) e.prenom = 'Le prénom est requis.';
-        if (!form.telephone.trim()) e.telephone = 'Le téléphone est requis.';
+        if (!choix) e.equipe = 'Choisis ton équipe.';
         if (Object.keys(e).length) { setErreurs(e); return; }
 
         setEnvoi(true);
@@ -109,7 +113,7 @@ export default function FestyIndex({ festy, equipes }: Props) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin',
-                body: JSON.stringify({ festy_team_id: choix!.id, ...form }),
+                body: JSON.stringify({ festy_team_id: choix!.id, ville, quartier }),
             });
             const d = await r.json();
             if (d.ok) setSucces(d);
@@ -138,86 +142,141 @@ export default function FestyIndex({ festy, equipes }: Props) {
             </div>
 
             <div className="max-w-md mx-auto px-4 py-10">
-                <h2 className="text-2xl font-bold text-zinc-900 text-center mb-1">Inscris-toi</h2>
-                <p className="text-center text-zinc-500 text-sm mb-6">Choisis ton équipe et rejoins son groupe WhatsApp.</p>
-
-                {festy.inscriptions_ouvertes ? (
-                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 space-y-3">
-                        {/* Sélecteur d'équipe (menu déroulant avec images de fruits) */}
-                        <div className="relative">
-                            <span className="block text-xs font-medium text-zinc-500 mb-1">Équipe</span>
-                            <button type="button" onClick={() => setOuvert(!ouvert)}
-                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-white text-left transition-colors"
-                                style={{ borderColor: choix ? choix.couleur : '#e4e4e7' }}>
-                                {choix ? <Fruit nom={choix.nom} size={30} /> : <div className="w-[30px] h-[30px] rounded-lg bg-zinc-100 flex items-center justify-center"><PartyPopper className="w-4 h-4 text-zinc-400" /></div>}
-                                <span className="flex-1 font-semibold text-sm" style={{ color: choix ? choix.couleur : '#a1a1aa' }}>
-                                    {choix ? `Équipe ${choix.nom}` : 'Choisis ton équipe'}
-                                </span>
-                                <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${ouvert ? 'rotate-180' : ''}`} />
-                            </button>
-                            <AnimatePresence>
-                                {ouvert && (
-                                    <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                        className="absolute z-20 mt-2 w-full bg-white rounded-xl border border-zinc-200 shadow-xl overflow-hidden">
-                                        {equipes.map((eq) => (
-                                            <button key={eq.id} type="button" onClick={() => { setChoix(eq); setOuvert(false); setErreurs((prev) => ({ ...prev, equipe: '' })); }}
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 text-left">
-                                                <Fruit nom={eq.nom} size={34} />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-bold text-sm" style={{ color: eq.couleur }}>Équipe {eq.nom}</p>
-                                                    {eq.trait && <p className="text-[11px] text-zinc-400">{eq.trait}</p>}
-                                                </div>
-                                                <span className="text-[11px] text-zinc-400 flex items-center gap-1"><Users className="w-3 h-3" />{eq.membres}</span>
-                                                {choix?.id === eq.id && <CheckCircle2 className="w-4 h-4" style={{ color: eq.couleur }} />}
-                                            </button>
-                                        ))}
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                            {erreurs.equipe && <p className="text-xs text-red-600 mt-1">{erreurs.equipe}</p>}
+                {!connecte ? (
+                    /* Invité : on demande la connexion / création de compte. */
+                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-7 text-center">
+                        <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                            <PartyPopper className="w-8 h-8 text-emerald-600" />
                         </div>
-
-                        {/* Champs */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <Champ icon={User} err={erreurs.nom}><input className="ipt" placeholder="Nom" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} /></Champ>
-                            <Champ icon={User} err={erreurs.prenom}><input className="ipt" placeholder="Prénom" value={form.prenom} onChange={(e) => setForm({ ...form, prenom: e.target.value })} /></Champ>
+                        <h2 className="text-xl font-bold text-zinc-900">Rejoins Paradisia Festy</h2>
+                        <p className="mt-2 text-sm text-zinc-500">Connecte-toi ou crée ton compte pour choisir ton équipe et participer.</p>
+                        <div className="mt-6 space-y-2.5">
+                            <Link href="/login" className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold">
+                                <LogIn className="w-5 h-5" /> Se connecter
+                            </Link>
+                            <Link href="/register" className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-bold">
+                                <UserPlus className="w-5 h-5" /> Créer un compte
+                            </Link>
                         </div>
-                        <Champ icon={Mail} err={erreurs.email}><input className="ipt" placeholder="E-mail (optionnel)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Champ>
-                        <Champ icon={Phone} err={erreurs.telephone}><input className="ipt" placeholder="Téléphone (WhatsApp)" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} /></Champ>
-                        <div className="grid grid-cols-2 gap-3">
-                            <Champ icon={MapPin} err={erreurs.ville}>
-                                <select className="ipt ipt-select" value={autreVille ? '__autre__' : form.ville}
-                                    onChange={(e) => {
-                                        if (e.target.value === '__autre__') { setAutreVille(true); setForm({ ...form, ville: '' }); }
-                                        else { setAutreVille(false); setForm({ ...form, ville: e.target.value }); }
-                                    }}>
-                                    <option value="">Ville…</option>
-                                    {VILLES_CAMEROUN.map((v) => <option key={v} value={v}>{v}</option>)}
-                                    <option value="__autre__">Autre / non listée…</option>
-                                </select>
-                            </Champ>
-                            <Champ icon={Home} err={erreurs.quartier}><input className="ipt" placeholder="Quartier" value={form.quartier} onChange={(e) => setForm({ ...form, quartier: e.target.value })} /></Champ>
+                    </div>
+                ) : inscription ? (
+                    /* Déjà inscrit : rappel de l'équipe + groupe WhatsApp. */
+                    <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-7 text-center">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${inscription.couleur}20` }}>
+                            <Fruit nom={inscription.equipe} size={40} />
                         </div>
-                        {autreVille && (
-                            <input className="ipt-plain" placeholder="Précise ta ville" autoFocus
-                                value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} />
-                        )}
-
-                        {erreurs.global && <p className="text-red-600 text-sm">{erreurs.global}</p>}
-                        <button onClick={inscrire} disabled={envoi}
-                            className="w-full py-3 rounded-xl text-white font-bold transition-colors disabled:opacity-60"
-                            style={{ background: choix?.couleur ?? '#14532d' }}>
-                            {envoi ? 'Inscription…' : 'Rejoindre mon équipe'}
-                        </button>
+                        <p className="text-sm text-zinc-500">Tu fais partie de</p>
+                        <h2 className="text-2xl font-extrabold" style={{ color: inscription.couleur }}>Équipe {inscription.equipe}</h2>
+                        <div className="mt-6">
+                            {inscription.whatsapp ? (
+                                <a href={inscription.whatsapp} target="_blank" rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold">
+                                    <MessageCircle className="w-5 h-5" /> Rejoindre le groupe WhatsApp
+                                </a>
+                            ) : (
+                                <p className="text-sm text-zinc-500 bg-zinc-50 rounded-xl p-3">Le lien du groupe WhatsApp de ton équipe arrive très bientôt.</p>
+                            )}
+                        </div>
                     </div>
                 ) : (
-                    <p className="text-center text-zinc-500">Les inscriptions ne sont pas encore ouvertes.</p>
+                    /* Connecté, pas encore inscrit : profil en vue + choix. */
+                    <>
+                        <h2 className="text-2xl font-bold text-zinc-900 text-center mb-1">Inscris-toi</h2>
+                        <p className="text-center text-zinc-500 text-sm mb-6">Choisis ton équipe et rejoins son groupe WhatsApp.</p>
+
+                        {festy.inscriptions_ouvertes ? (
+                            <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 space-y-3">
+                                {/* Profil (nom + téléphone) affiché en lecture seule. */}
+                                <div className="rounded-xl bg-emerald-50 border border-emerald-100 p-3 flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center"><User className="w-4 h-4" /></div>
+                                    <div className="min-w-0">
+                                        <p className="font-semibold text-sm text-emerald-900 truncate">{moi!.nom}</p>
+                                        <p className="text-xs text-emerald-700 flex items-center gap-1">
+                                            <Phone className="w-3 h-3" />{moi!.telephone || 'Téléphone non renseigné'}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Sélecteur d'équipe (menu déroulant avec images de fruits) */}
+                                <div className="relative">
+                                    <span className="block text-xs font-medium text-zinc-500 mb-1">Équipe</span>
+                                    <button type="button" onClick={() => setOuvert(!ouvert)}
+                                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border bg-white text-left transition-colors"
+                                        style={{ borderColor: choix ? choix.couleur : '#e4e4e7' }}>
+                                        {choix ? <Fruit nom={choix.nom} size={30} /> : <div className="w-[30px] h-[30px] rounded-lg bg-zinc-100 flex items-center justify-center"><PartyPopper className="w-4 h-4 text-zinc-400" /></div>}
+                                        <span className="flex-1 font-semibold text-sm" style={{ color: choix ? choix.couleur : '#a1a1aa' }}>
+                                            {choix ? `Équipe ${choix.nom}` : 'Choisis ton équipe'}
+                                        </span>
+                                        <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${ouvert ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    <AnimatePresence>
+                                        {ouvert && (
+                                            <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                                                className="absolute z-20 mt-2 w-full bg-white rounded-xl border border-zinc-200 shadow-xl overflow-hidden">
+                                                {equipes.map((eq) => (
+                                                    <button key={eq.id} type="button" onClick={() => { setChoix(eq); setOuvert(false); setErreurs((prev) => ({ ...prev, equipe: '' })); }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 text-left">
+                                                        <Fruit nom={eq.nom} size={34} />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="font-bold text-sm" style={{ color: eq.couleur }}>Équipe {eq.nom}</p>
+                                                            {eq.trait && <p className="text-[11px] text-zinc-400">{eq.trait}</p>}
+                                                        </div>
+                                                        <span className="text-[11px] text-zinc-400 flex items-center gap-1"><Users className="w-3 h-3" />{eq.membres}</span>
+                                                        {choix?.id === eq.id && <CheckCircle2 className="w-4 h-4" style={{ color: eq.couleur }} />}
+                                                    </button>
+                                                ))}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    {erreurs.equipe && <p className="text-xs text-red-600 mt-1">{erreurs.equipe}</p>}
+                                </div>
+
+                                {/* Ville (select) + Quartier (input) */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <span className="block text-xs font-medium text-zinc-500 mb-1">Ville</span>
+                                        <div className="relative">
+                                            <MapPin className="absolute left-2.5 top-3 w-4 h-4 text-zinc-400" />
+                                            <select className="ipt ipt-select" value={autreVille ? '__autre__' : ville}
+                                                onChange={(e) => {
+                                                    if (e.target.value === '__autre__') { setAutreVille(true); setVille(''); }
+                                                    else { setAutreVille(false); setVille(e.target.value); }
+                                                }}>
+                                                <option value="">Ville…</option>
+                                                {VILLES_CAMEROUN.map((v) => <option key={v} value={v}>{v}</option>)}
+                                                <option value="__autre__">Autre / non listée…</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <span className="block text-xs font-medium text-zinc-500 mb-1">Quartier</span>
+                                        <div className="relative">
+                                            <Home className="absolute left-2.5 top-3 w-4 h-4 text-zinc-400" />
+                                            <input className="ipt" placeholder="Quartier" value={quartier} onChange={(e) => setQuartier(e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+                                {autreVille && (
+                                    <input className="ipt-plain" placeholder="Précise ta ville" autoFocus value={ville} onChange={(e) => setVille(e.target.value)} />
+                                )}
+
+                                {erreurs.global && <p className="text-red-600 text-sm">{erreurs.global}</p>}
+                                <button onClick={inscrire} disabled={envoi}
+                                    className="w-full py-3 rounded-xl text-white font-bold transition-colors disabled:opacity-60"
+                                    style={{ background: choix?.couleur ?? '#14532d' }}>
+                                    {envoi ? 'Inscription…' : 'Rejoindre mon équipe'}
+                                </button>
+                            </div>
+                        ) : (
+                            <p className="text-center text-zinc-500">Les inscriptions ne sont pas encore ouvertes.</p>
+                        )}
+                    </>
                 )}
             </div>
 
             {/* Confirmation + groupe WhatsApp */}
             <AnimatePresence>
-                {succes && (
+                {succes && !inscription && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSucces(null)}>
                         <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} onClick={(e) => e.stopPropagation()}
@@ -249,17 +308,5 @@ export default function FestyIndex({ festy, equipes }: Props) {
 
             <style>{`.ipt{width:100%;padding:.65rem .75rem .65rem 2.4rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.7rem;font-size:.9rem}.ipt:focus{outline:none;box-shadow:0 0 0 2px #10b981}.ipt-select{padding-right:1.6rem;cursor:pointer}.ipt-plain{width:100%;padding:.65rem .75rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.7rem;font-size:.9rem}.ipt-plain:focus{outline:none;box-shadow:0 0 0 2px #10b981}`}</style>
         </AppLayout>
-    );
-}
-
-function Champ({ icon: Icon, err, children }: { icon: any; err?: string; children: React.ReactNode }) {
-    return (
-        <div>
-            <div className="relative">
-                <Icon className="absolute left-2.5 top-3 w-4 h-4 text-zinc-400" />
-                {children}
-            </div>
-            {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
-        </div>
     );
 }
