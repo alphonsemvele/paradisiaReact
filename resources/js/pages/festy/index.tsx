@@ -12,6 +12,18 @@ interface Props {
 
 const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
+/* Quartiers de Yaoundé (liste déroulante). */
+const QUARTIERS_YAOUNDE = [
+    'Ahala', 'Anguissa', 'Awae', 'Bastos', 'Biyem-Assi', 'Briqueterie', 'Carrière', 'Cité Verte',
+    'Damas', 'Djoungolo', 'Ekié', 'Ekounou', 'Ekoumdoum', 'Elig-Edzoa', 'Elig-Essono', 'Emana',
+    'Emombo', 'Essos', 'Etoa-Meki', 'Etoudi', 'Etoug-Ebe', 'Febe', 'Kondengui', 'Madagascar',
+    'Mballa II', 'Melen', 'Mendong', 'Messa', 'Messassi', 'Mfandena', 'Mimboman', 'Mokolo',
+    'Mvan', 'Mvog-Ada', 'Mvog-Atangana Mballa', 'Mvog-Betsi', 'Mvog-Mbi', 'Mvolyé', 'Ngoa-Ekelle',
+    'Ngousso', 'Nkoabang', 'Nkolbikok', 'Nkolbisson', 'Nkolmesseng', 'Nkolndongo', 'Nkolo', 'Nkomo',
+    'Nlongkak', 'Nsam', 'Nsimeyong', 'Ntougou', 'Obili', 'Odza', 'Olembe', 'Olezoa', 'Oyom-Abang',
+    'Simbock', 'Tongolo', 'Tsinga',
+];
+
 /* Vraies images des fruits (SVG inline, papaye comprise — aucun emoji papaye n'existe). */
 function Fruit({ nom, size = 40 }: { nom: string; size?: number }) {
     const k = nom.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
@@ -80,6 +92,7 @@ export default function FestyIndex({ festy, equipes }: Props) {
     const [choix, setChoix] = useState<Equipe | null>(null);
     const [ouvert, setOuvert] = useState(false);
     const [form, setForm] = useState({ nom: '', prenom: '', email: '', telephone: '', ville: '', quartier: '' });
+    const [autreVille, setAutreVille] = useState(false);
     const [erreurs, setErreurs] = useState<Record<string, string>>({});
     const [envoi, setEnvoi] = useState(false);
     const [succes, setSucces] = useState<any>(null);
@@ -175,9 +188,23 @@ export default function FestyIndex({ festy, equipes }: Props) {
                         <Champ icon={Mail} err={erreurs.email}><input className="ipt" placeholder="E-mail (optionnel)" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Champ>
                         <Champ icon={Phone} err={erreurs.telephone}><input className="ipt" placeholder="Téléphone (WhatsApp)" value={form.telephone} onChange={(e) => setForm({ ...form, telephone: e.target.value })} /></Champ>
                         <div className="grid grid-cols-2 gap-3">
-                            <Champ icon={MapPin} err={erreurs.ville}><input className="ipt" placeholder="Ville" value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} /></Champ>
+                            <Champ icon={MapPin} err={erreurs.ville}>
+                                <select className="ipt ipt-select" value={autreVille ? '__autre__' : form.ville}
+                                    onChange={(e) => {
+                                        if (e.target.value === '__autre__') { setAutreVille(true); setForm({ ...form, ville: '' }); }
+                                        else { setAutreVille(false); setForm({ ...form, ville: e.target.value }); }
+                                    }}>
+                                    <option value="">Ville / quartier…</option>
+                                    {QUARTIERS_YAOUNDE.map((q) => <option key={q} value={q}>{q}</option>)}
+                                    <option value="__autre__">Autre / non listé…</option>
+                                </select>
+                            </Champ>
                             <Champ icon={Home} err={erreurs.quartier}><input className="ipt" placeholder="Quartier" value={form.quartier} onChange={(e) => setForm({ ...form, quartier: e.target.value })} /></Champ>
                         </div>
+                        {autreVille && (
+                            <input className="ipt-plain" placeholder="Précise ta ville" autoFocus
+                                value={form.ville} onChange={(e) => setForm({ ...form, ville: e.target.value })} />
+                        )}
 
                         {erreurs.global && <p className="text-red-600 text-sm">{erreurs.global}</p>}
                         <button onClick={inscrire} disabled={envoi}
@@ -223,7 +250,7 @@ export default function FestyIndex({ festy, equipes }: Props) {
                 )}
             </AnimatePresence>
 
-            <style>{`.ipt{width:100%;padding:.65rem .75rem .65rem 2.4rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.7rem;font-size:.9rem}.ipt:focus{outline:none;box-shadow:0 0 0 2px #10b981}`}</style>
+            <style>{`.ipt{width:100%;padding:.65rem .75rem .65rem 2.4rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.7rem;font-size:.9rem}.ipt:focus{outline:none;box-shadow:0 0 0 2px #10b981}.ipt-select{padding-right:1.6rem;cursor:pointer}.ipt-plain{width:100%;padding:.65rem .75rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.7rem;font-size:.9rem}.ipt-plain:focus{outline:none;box-shadow:0 0 0 2px #10b981}`}</style>
         </AppLayout>
     );
 }
