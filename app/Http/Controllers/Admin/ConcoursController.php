@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +30,69 @@ class ConcoursController extends Controller
             'fin' => $fin->toIso8601String(),
             'debut_label' => $debut->isoFormat('D MMMM YYYY [à] HH:mm'),
             'fin_label' => $fin->isoFormat('D MMMM YYYY [à] HH:mm'),
+        ]);
+    }
+
+    /**
+     * Détail d'un participant : ses publications de la période, et pour
+     * chacune, qui a liké et qui a commenté (une personne = 1 point, même si
+     * elle a commenté plusieurs fois — le nombre est affiché pour le prouver).
+     */
+    public function participant(Request $request, int $user): JsonResponse
+    {
+        [$debut, $fin] = $this->fenetre($request);
+
+        // Seules les publications publiées PENDANT la période (à partir du 6).
+        $publications = DB::table('publications')
+            ->where('id_user', $user)
+            ->where('status', 'Success')
+            ->whereBetween('created_at', [$debut, $fin])
+            ->orderBy('created_at')
+            ->get(['id', 'text', 'img_1', 'created_at']);
+
+        $auteur = DB::table('users')->where('id', $user)->first(['id', 'name', 'email']);
+
+        $detail = $publications->map(function ($p) use ($debut, $fin, $user) {
+            // Likers distincts (hors auteur).
+            $likers = DB::table('likes')
+                ->join('users', 'users.id', '=', 'likes.id_user')
+                ->where('likes.id_publication', $p->id)
+                ->where('likes.status', 'Success')
+                ->where('likes.id_user', '<>', $user)
+                ->whereBetween('likes.created_at', [$debut, $fin])
+                ->distinct()
+                ->pluck('users.name')
+                ->all();
+
+            // Commentateurs distincts (hors auteur) + leur nombre de commentaires.
+            $commenters = DB::table('comments')
+                ->join('users', 'users.id', '=', 'comments.id_user')
+                ->where('comments.id_publication', $p->id)
+                ->where('comments.status', 'Success')
+                ->where('comments.id_user', '<>', $user)
+                ->whereBetween('comments.created_at', [$debut, $fin])
+                ->groupBy('users.id', 'users.name')
+                ->selectRaw('users.name as nom, COUNT(*) as nb')
+                ->get()
+                ->map(fn ($c) => ['nom' => $c->nom, 'nb' => (int) $c->nb])
+                ->all();
+
+            return [
+                'id' => $p->id,
+                'texte' => $p->text ? \Illuminate\Support\Str::limit($p->text, 160) : '(sans texte)',
+                'image' => $this->mediaUrl($p->img_1),
+                'lien' => '/p/'.$p->id,
+                'date' => \Illuminate\Support\Carbon::parse($p->created_at)->isoFormat('D MMM YYYY [à] HH:mm'),
+                'likers' => $likers,
+                'commenters' => $commenters,
+                'points' => count($likers) + count($commenters),
+            ];
+        });
+
+        return response()->json([
+            'nom' => $auteur->name ?? 'Utilisateur #'.$user,
+            'email' => $auteur->email ?? null,
+            'publications' => $detail,
         ]);
     }
 

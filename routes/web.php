@@ -115,6 +115,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         // ── Résultats du concours ──────────────────────────────────────────
         Route::get('/concours', [\App\Http\Controllers\Admin\ConcoursController::class, 'index'])->name('concours.index');
         Route::get('/concours/export', [\App\Http\Controllers\Admin\ConcoursController::class, 'export'])->name('concours.export');
+        Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 
         Route::get('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'index'])->name('emails.index');
         Route::post('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'store'])->name('emails.store');
