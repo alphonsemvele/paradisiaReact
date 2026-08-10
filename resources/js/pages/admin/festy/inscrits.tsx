@@ -5,9 +5,11 @@ import { Users, Download, Phone, Mail, MapPin } from 'lucide-react';
 interface Inscrit {
     id: number;
     nom: string;
+    prenom: string | null;
     telephone: string;
     email: string | null;
     ville: string | null;
+    quartier: string | null;
     equipe: string | null;
     date: string;
 }
@@ -64,10 +66,12 @@ export default function FestyInscrits({ inscrits, equipes, filtre, total, par_eq
                         <thead className="bg-zinc-50 text-zinc-500 text-xs uppercase">
                             <tr>
                                 <th className="text-left px-4 py-3 font-medium">Nom</th>
+                                <th className="text-left px-4 py-3 font-medium">Prénom</th>
                                 <th className="text-left px-4 py-3 font-medium">Équipe</th>
                                 <th className="text-left px-4 py-3 font-medium">Téléphone</th>
                                 <th className="text-left px-4 py-3 font-medium">E-mail</th>
                                 <th className="text-left px-4 py-3 font-medium">Ville</th>
+                                <th className="text-left px-4 py-3 font-medium">Quartier</th>
                                 <th className="text-left px-4 py-3 font-medium">Date</th>
                             </tr>
                         </thead>
@@ -75,15 +79,17 @@ export default function FestyInscrits({ inscrits, equipes, filtre, total, par_eq
                             {inscrits.map((i) => (
                                 <tr key={i.id} className="hover:bg-zinc-50">
                                     <td className="px-4 py-3 font-medium text-zinc-900">{i.nom}</td>
+                                    <td className="px-4 py-3 text-zinc-600">{i.prenom ?? '—'}</td>
                                     <td className="px-4 py-3 text-zinc-600">{i.equipe ?? '—'}</td>
                                     <td className="px-4 py-3 text-zinc-600"><a href={`tel:${i.telephone}`} className="hover:text-emerald-700 inline-flex items-center gap-1"><Phone className="w-3 h-3" />{i.telephone}</a></td>
                                     <td className="px-4 py-3 text-zinc-600">{i.email ? <span className="inline-flex items-center gap-1"><Mail className="w-3 h-3" />{i.email}</span> : '—'}</td>
                                     <td className="px-4 py-3 text-zinc-600">{i.ville ? <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3" />{i.ville}</span> : '—'}</td>
+                                    <td className="px-4 py-3 text-zinc-600">{i.quartier ?? '—'}</td>
                                     <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">{i.date}</td>
                                 </tr>
                             ))}
                             {inscrits.length === 0 && (
-                                <tr><td colSpan={6} className="px-4 py-12 text-center text-zinc-400">
+                                <tr><td colSpan={8} className="px-4 py-12 text-center text-zinc-400">
                                     <Users className="w-8 h-8 mx-auto mb-2 opacity-40" /> Aucun inscrit pour ce filtre.
                                 </td></tr>
                             )}

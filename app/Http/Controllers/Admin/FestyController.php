@@ -107,9 +107,11 @@ class FestyController extends Controller
         $inscrits = $query->get()->map(fn (FestyRegistration $r) => [
             'id' => $r->id,
             'nom' => $r->nom,
+            'prenom' => $r->prenom,
             'telephone' => $r->telephone,
             'email' => $r->email,
             'ville' => $r->ville,
+            'quartier' => $r->quartier,
             'equipe' => $r->team?->nom,
             'date' => $r->created_at->isoFormat('D MMM YYYY [à] HH:mm'),
         ]);
@@ -132,14 +134,16 @@ class FestyController extends Controller
     {
         $rows = FestyRegistration::with('team')->orderBy('festy_team_id')->latest()->get();
 
-        $csv = "Équipe;Nom;Téléphone;E-mail;Ville;Date\n";
+        $csv = "Équipe;Nom;Prénom;Téléphone;E-mail;Ville;Quartier;Date\n";
         foreach ($rows as $r) {
             $csv .= implode(';', [
                 $r->team?->nom,
                 str_replace(';', ',', (string) $r->nom),
+                str_replace(';', ',', (string) $r->prenom),
                 $r->telephone,
                 $r->email,
                 str_replace(';', ',', (string) $r->ville),
+                str_replace(';', ',', (string) $r->quartier),
                 $r->created_at->format('d/m/Y H:i'),
             ])."\n";
         }

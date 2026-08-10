@@ -65,9 +65,11 @@ class FestyController extends Controller
         $validated = $request->validate([
             'festy_team_id' => ['required', 'integer', 'exists:festy_teams,id'],
             'nom' => ['required', 'string', 'max:160'],
+            'prenom' => ['required', 'string', 'max:120'],
             'telephone' => ['required', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:180'],
             'ville' => ['nullable', 'string', 'max:120'],
+            'quartier' => ['nullable', 'string', 'max:160'],
         ]);
 
         $team = FestyTeam::where('id', $validated['festy_team_id'])->where('actif', true)->first();
@@ -94,9 +96,11 @@ class FestyController extends Controller
         FestyRegistration::create([
             'festy_team_id' => $team->id,
             'nom' => $validated['nom'],
+            'prenom' => $validated['prenom'],
             'telephone' => $validated['telephone'],
             'email' => $validated['email'] ?? null,
             'ville' => $validated['ville'] ?? null,
+            'quartier' => $validated['quartier'] ?? null,
             'ip' => $request->ip(),
         ]);
 
