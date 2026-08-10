@@ -21,6 +21,7 @@ class Event extends Model
         'collecte_profil',
         'collecte_telephone',
         'collecte_nom',
+        'email_optionnel',
         'message_confirmation',
         'lien_reunion',
         'statut',
@@ -37,6 +38,7 @@ class Event extends Model
             'collecte_profil' => 'boolean',
             'collecte_telephone' => 'boolean',
             'collecte_nom' => 'boolean',
+            'email_optionnel' => 'boolean',
             'inscriptions_ouvertes' => 'boolean',
             'places_max' => 'integer',
         ];

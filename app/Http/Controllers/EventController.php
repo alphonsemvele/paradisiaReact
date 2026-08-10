@@ -60,7 +60,10 @@ class EventController extends Controller
         }
 
         // Les règles s'adaptent à ce que l'événement demande.
-        $regles = ['email' => ['required', 'email', 'max:180']];
+        // L'e-mail peut être rendu facultatif (ex. meeting contacté par WhatsApp).
+        $regles = [
+            'email' => [$event->email_optionnel ? 'nullable' : 'required', 'email', 'max:180'],
+        ];
 
         if ($event->collecte_nom) {
             $regles['nom'] = ['required', 'string', 'max:160'];
@@ -77,31 +80,41 @@ class EventController extends Controller
 
         $validated = $request->validate($regles);
 
-        // Une même adresse ne s'inscrit qu'une fois : on renvoie un message
-        // clair plutôt qu'une erreur de contrainte unique.
-        $existe = $event->registrations()->where('email', $validated['email'])->exists();
+        $email = $validated['email'] ?? null;
+        $telephone = $validated['telephone'] ?? null;
 
-        if ($existe) {
+        // Si l'e-mail est facultatif, il faut au moins un moyen de contact.
+        if ($event->email_optionnel && ! $email && ! $telephone) {
+            return back()->withErrors(['telephone' => 'Indiquez au moins un e-mail ou un numéro WhatsApp.']);
+        }
+
+        // Une même adresse ne s'inscrit qu'une fois : message clair plutôt
+        // qu'une erreur de contrainte. (Sans e-mail, pas de dédoublonnage.)
+        if ($email && $event->registrations()->where('email', $email)->exists()) {
             return back()->with('info', 'Vous êtes déjà inscrit à cet événement. Un e-mail de confirmation vous a été envoyé.');
         }
 
         $inscription = $event->registrations()->create([
-            'email' => $validated['email'],
+            'email' => $email,
             'nom' => $validated['nom'] ?? null,
             'pays' => $validated['pays'] ?? null,
-            'telephone' => $validated['telephone'] ?? null,
+            'telephone' => $telephone,
             'profil' => $validated['profil'] ?? null,
             'ip' => $request->ip(),
         ]);
 
-        // La confirmation ne doit jamais faire échouer l'inscription.
-        try {
-            Mail::to($inscription->email)->send(new EventInscriptionMail($event, $inscription));
-        } catch (\Throwable $e) {
-            Log::error("Confirmation d'inscription à l'événement {$event->id} non envoyée : ".$e->getMessage());
+        // Confirmation e-mail seulement si une adresse a été fournie.
+        if ($email) {
+            try {
+                Mail::to($inscription->email)->send(new EventInscriptionMail($event, $inscription));
+            } catch (\Throwable $e) {
+                Log::error("Confirmation d'inscription à l'événement {$event->id} non envoyée : ".$e->getMessage());
+            }
+
+            return back()->with('success', 'Inscription confirmée ! Un e-mail vient de vous être envoyé.');
         }
 
-        return back()->with('success', 'Inscription confirmée ! Un e-mail vient de vous être envoyé.');
+        return back()->with('success', 'Inscription confirmée ! Nous vous contacterons sur WhatsApp.');
     }
 
     /* ═══════════════════════ Interne ═══════════════════════ */
@@ -147,6 +160,7 @@ class EventController extends Controller
             'collecte_profil' => $e->collecte_profil,
             'collecte_telephone' => $e->collecte_telephone,
             'collecte_nom' => $e->collecte_nom,
+            'email_optionnel' => $e->email_optionnel,
             'places_max' => $e->places_max,
             'places_restantes' => $e->places_max !== null
                 ? max(0, $e->places_max - $e->registrations()->count())

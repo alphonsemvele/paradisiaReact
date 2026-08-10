@@ -22,6 +22,7 @@ export default function EventEdit({ event }: { event: any }) {
         collecte_profil: !!event.collecte_profil,
         collecte_telephone: !!event.collecte_telephone,
         collecte_nom: !!event.collecte_nom,
+        email_optionnel: !!event.email_optionnel,
         message_confirmation: event.message_confirmation || '',
         lien_reunion: event.lien_reunion || '',
         statut: event.statut || 'publie',

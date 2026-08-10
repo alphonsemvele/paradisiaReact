@@ -19,6 +19,7 @@ export default function EventCreate() {
         collecte_profil: true,
         collecte_telephone: false,
         collecte_nom: false,
+        email_optionnel: false,
         message_confirmation: '',
         lien_reunion: '',
         statut: 'publie',
@@ -174,12 +175,13 @@ export function EventFields({ data, setData, errors, preview, onImage, galleryPr
             {/* Configuration du formulaire d'inscription */}
             <div>
                 <p className="text-sm font-semibold text-zinc-800 mb-2">Que demander à l'inscription ?</p>
-                <p className="text-xs text-zinc-500 mb-3">L'e-mail est toujours demandé. Choisissez les champs supplémentaires.</p>
+                <p className="text-xs text-zinc-500 mb-3">Par défaut l'e-mail est demandé. Choisissez les champs supplémentaires.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <Toggle k="collecte_profil" titre="Profil" desc="Investisseur ou participant" />
                     <Toggle k="collecte_pays" titre="Pays" desc="Sélection dans la liste des pays" />
                     <Toggle k="collecte_nom" titre="Nom" desc="Nom complet de la personne" />
-                    <Toggle k="collecte_telephone" titre="Téléphone" desc="Numéro de contact (facultatif)" />
+                    <Toggle k="collecte_telephone" titre="Numéro WhatsApp" desc="Numéro de contact WhatsApp" />
+                    <Toggle k="email_optionnel" titre="E-mail facultatif" desc="Ne pas exiger l'e-mail (WhatsApp suffit)" />
                 </div>
             </div>
 

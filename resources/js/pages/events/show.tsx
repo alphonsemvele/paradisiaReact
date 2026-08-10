@@ -28,6 +28,7 @@ interface EventData {
     collecte_profil: boolean;
     collecte_telephone: boolean;
     collecte_nom: boolean;
+    email_optionnel: boolean;
     inscriptions_ouvertes: boolean;
     places_restantes: number | null;
 }
@@ -191,9 +192,9 @@ export default function EventShow() {
                                     </div>
 
                                     <form onSubmit={submit} className="space-y-4">
-                                        <Champ icon={Mail} label="Adresse e-mail" error={errors.email}>
+                                        <Champ icon={Mail} label={event.email_optionnel ? 'Adresse e-mail (facultatif)' : 'Adresse e-mail'} error={errors.email}>
                                             <input type="email" value={data.email} onChange={(e) => setData('email', e.target.value)}
-                                                required placeholder="vous@exemple.com" className="input" />
+                                                required={!event.email_optionnel} placeholder="vous@exemple.com" className="input" />
                                         </Champ>
 
                                         {event.collecte_nom && (
@@ -214,9 +215,9 @@ export default function EventShow() {
                                         )}
 
                                         {event.collecte_telephone && (
-                                            <Champ icon={Phone} label="Téléphone (facultatif)" error={errors.telephone}>
+                                            <Champ icon={Phone} label={event.email_optionnel ? 'Numéro WhatsApp' : 'Numéro WhatsApp (facultatif)'} error={errors.telephone}>
                                                 <input type="tel" value={data.telephone} onChange={(e) => setData('telephone', e.target.value)}
-                                                    className="input" placeholder="+237 6 99 88 77 66" />
+                                                    required={event.email_optionnel} className="input" placeholder="+237 6 99 88 77 66" />
                                             </Champ>
                                         )}
 
