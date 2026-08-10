@@ -52,6 +52,7 @@ class RegisteredUserController extends Controller
         event(new Registered($user));
         Auth::login($user);
 
-        return redirect('/');
+        // Honore la destination mémorisée (ex. /festy) pour « suivre » l'utilisateur.
+        return redirect()->intended('/');
     }
 }

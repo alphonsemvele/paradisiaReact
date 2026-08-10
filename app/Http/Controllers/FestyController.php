@@ -17,9 +17,15 @@ use Inertia\Response;
  */
 class FestyController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $settings = FestySetting::actuel();
+
+        // Invité : on mémorise le retour vers Festy après connexion/inscription,
+        // pour « suivre » l'utilisateur et lui montrer la suite (choix d'équipe).
+        if (! $request->user()) {
+            $request->session()->put('url.intended', route('festy.index', ['bienvenue' => 1]));
+        }
 
         $equipes = FestyTeam::where('actif', true)
             ->orderBy('position')

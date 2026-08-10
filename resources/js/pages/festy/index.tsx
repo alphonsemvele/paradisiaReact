@@ -88,8 +88,12 @@ function Fruit({ nom, size = 40 }: { nom: string; size?: number }) {
 }
 
 export default function FestyIndex({ festy, equipes, moi, inscription }: Props) {
-    const { auth } = usePage().props as any;
+    const page = usePage();
+    const { auth } = page.props as any;
     const connecte = !!auth?.user && !!moi;
+    // L'utilisateur vient de se connecter / créer son compte depuis Festy.
+    const bienvenue = page.url.includes('bienvenue=1');
+    const prenomAffiche = moi?.nom?.split(' ')[0] ?? '';
 
     const [choix, setChoix] = useState<Equipe | null>(null);
     const [ouvert, setOuvert] = useState(false);
@@ -181,8 +185,19 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                 ) : (
                     /* Connecté, pas encore inscrit : profil en vue + choix. */
                     <>
-                        <h2 className="text-2xl font-bold text-zinc-900 text-center mb-1">Inscris-toi</h2>
-                        <p className="text-center text-zinc-500 text-sm mb-6">Choisis ton équipe et rejoins son groupe WhatsApp.</p>
+                        {bienvenue && (
+                            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                                className="mb-5 rounded-2xl bg-emerald-600 text-white p-4 text-center shadow">
+                                <p className="font-bold text-lg">🎉 Bienvenue {prenomAffiche} !</p>
+                                <p className="text-sm text-emerald-50 mt-1">Ton compte est prêt. <b>Ton inscription au Festy n'est pas encore terminée</b> — il te reste juste à choisir ton équipe ci-dessous.</p>
+                            </motion.div>
+                        )}
+
+                        <div className="text-center mb-6">
+                            <span className="inline-block text-xs font-bold tracking-wide text-emerald-700 bg-emerald-100 rounded-full px-3 py-1 mb-2">DERNIÈRE ÉTAPE</span>
+                            <h2 className="text-2xl font-bold text-zinc-900">Choisis ton équipe</h2>
+                            <p className="text-zinc-500 text-sm mt-1">Sélectionne ton équipe, ta ville et ton quartier, puis valide pour terminer.</p>
+                        </div>
 
                         {festy.inscriptions_ouvertes ? (
                             <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-6 space-y-3">
@@ -264,7 +279,7 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                                 <button onClick={inscrire} disabled={envoi}
                                     className="w-full py-3 rounded-xl text-white font-bold transition-colors disabled:opacity-60"
                                     style={{ background: choix?.couleur ?? '#14532d' }}>
-                                    {envoi ? 'Inscription…' : 'Rejoindre mon équipe'}
+                                    {envoi ? 'Validation…' : 'Valider mon inscription'}
                                 </button>
                             </div>
                         ) : (
