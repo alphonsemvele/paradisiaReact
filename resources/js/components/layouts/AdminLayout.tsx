@@ -25,6 +25,7 @@ import {
     Store,
     Mail,
     Trophy,
+    PartyPopper,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 
@@ -80,6 +81,13 @@ const menuSections: MenuSection[] = [
         items: [
             { label: 'Résultats concours', href: '/admin/concours', icon: Trophy },
             { label: 'E-mailing', href: '/admin/emails', icon: Mail },
+        ],
+    },
+    {
+        title: 'Paradisia Festy',
+        items: [
+            { label: 'Configuration', href: '/admin/festy', icon: PartyPopper },
+            { label: 'Inscrits', href: '/admin/festy/inscrits', icon: Users },
         ],
     },
     {

@@ -115,6 +115,15 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         // ── Résultats du concours ──────────────────────────────────────────
         Route::get('/concours', [\App\Http\Controllers\Admin\ConcoursController::class, 'index'])->name('concours.index');
         Route::get('/concours/export', [\App\Http\Controllers\Admin\ConcoursController::class, 'export'])->name('concours.export');
+
+        // ── PARADISIA FESTY (admin) ────────────────────────────────────────
+        Route::get('/festy', [\App\Http\Controllers\Admin\FestyController::class, 'index'])->name('festy.index');
+        Route::post('/festy/settings', [\App\Http\Controllers\Admin\FestyController::class, 'updateSettings'])->name('festy.settings');
+        Route::post('/festy/teams', [\App\Http\Controllers\Admin\FestyController::class, 'storeTeam'])->name('festy.teams.store');
+        Route::match(['post','patch'], '/festy/teams/{team}', [\App\Http\Controllers\Admin\FestyController::class, 'updateTeam'])->name('festy.teams.update');
+        Route::delete('/festy/teams/{team}', [\App\Http\Controllers\Admin\FestyController::class, 'destroyTeam'])->name('festy.teams.destroy');
+        Route::get('/festy/inscrits', [\App\Http\Controllers\Admin\FestyController::class, 'registrations'])->name('festy.inscrits');
+        Route::get('/festy/export', [\App\Http\Controllers\Admin\FestyController::class, 'export'])->name('festy.export');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 
         Route::get('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'index'])->name('emails.index');
@@ -186,6 +195,10 @@ Route::get('/formations/{formation}', [FormationController::class, 'show'])->nam
 
 // ── Événements (public) ───────────────────────────────────────────────────────
 Route::get('/events', [\App\Http\Controllers\EventController::class, 'index'])->name('events.index');
+
+// ── PARADISIA FESTY (public) ──────────────────────────────────────────────────
+Route::get('/festy', [\App\Http\Controllers\FestyController::class, 'index'])->name('festy.index');
+Route::post('/festy/inscription', [\App\Http\Controllers\FestyController::class, 'register'])->name('festy.register');
 
 // ── Commande par lien partagé (public, sans compte) ───────────────────────────
 Route::get('/commander', [\App\Http\Controllers\OrderLinkController::class, 'create'])->name('order-link.create');

@@ -14,6 +14,7 @@ import {
     ChevronDown,
     Settings,
     Shield,
+    PartyPopper,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 import SupportButton from '@/components/SupportButton';
@@ -29,6 +30,7 @@ const navLinks = [
     { label: 'Statistique', href: '/statistiques', icon: BarChart3 },
     { label: 'Formations', href: '/formations', icon: GraduationCap },
     { label: 'Événements', href: '/events', icon: Calendar },
+    { label: 'Festy', href: '/festy', icon: PartyPopper },
 ];
 
 export default function AppLayout({ children }: Props) {
