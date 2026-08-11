@@ -103,8 +103,11 @@ class FestyController extends Controller
         // du compte (nom, téléphone, e-mail).
         $validated = $request->validate([
             'festy_team_id' => ['required', 'integer', 'exists:festy_teams,id'],
-            'ville' => ['nullable', 'string', 'max:120'],
-            'quartier' => ['nullable', 'string', 'max:160'],
+            'ville' => ['required', 'string', 'max:120'],
+            'quartier' => ['required', 'string', 'max:160'],
+        ], [
+            'ville.required' => 'Indique ta ville.',
+            'quartier.required' => 'Indique ton quartier.',
         ]);
 
         $team = FestyTeam::where('id', $validated['festy_team_id'])->where('actif', true)->first();

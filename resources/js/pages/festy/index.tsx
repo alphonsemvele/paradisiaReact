@@ -108,10 +108,14 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
     // d'équipe avec le lien WhatsApp (prop « inscription »).
     const inscrire = () => {
         setErreurs({});
-        if (!choix) { setErreurs({ equipe: 'Choisis ton équipe.' }); return; }
+        const e: Record<string, string> = {};
+        if (!choix) e.equipe = 'Choisis ton équipe.';
+        if (!ville.trim()) e.ville = 'Indique ta ville.';
+        if (!quartier.trim()) e.quartier = 'Indique ton quartier.';
+        if (Object.keys(e).length) { setErreurs(e); return; }
 
         setEnvoi(true);
-        router.post('/festy/inscription', { festy_team_id: choix.id, ville, quartier }, {
+        router.post('/festy/inscription', { festy_team_id: choix!.id, ville, quartier }, {
             preserveScroll: true,
             onError: (errs) => setErreurs(errs as Record<string, string>),
             onFinish: () => setEnvoi(false),
@@ -244,7 +248,7 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                                 {/* Ville (select) + Quartier (input) */}
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <span className="block text-xs font-medium text-zinc-500 mb-1">Ville</span>
+                                        <span className="block text-xs font-medium text-zinc-500 mb-1">Ville *</span>
                                         <div className="relative">
                                             <MapPin className="absolute left-2.5 top-3 w-4 h-4 text-zinc-400" />
                                             <select className="ipt ipt-select" value={autreVille ? '__autre__' : ville}
@@ -257,13 +261,15 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                                                 <option value="__autre__">Autre / non listée…</option>
                                             </select>
                                         </div>
+                                        {erreurs.ville && <p className="text-xs text-red-600 mt-1">{erreurs.ville}</p>}
                                     </div>
                                     <div>
-                                        <span className="block text-xs font-medium text-zinc-500 mb-1">Quartier</span>
+                                        <span className="block text-xs font-medium text-zinc-500 mb-1">Quartier *</span>
                                         <div className="relative">
                                             <Home className="absolute left-2.5 top-3 w-4 h-4 text-zinc-400" />
                                             <input className="ipt" placeholder="Quartier" value={quartier} onChange={(e) => setQuartier(e.target.value)} />
                                         </div>
+                                        {erreurs.quartier && <p className="text-xs text-red-600 mt-1">{erreurs.quartier}</p>}
                                     </div>
                                 </div>
                                 {autreVille && (
