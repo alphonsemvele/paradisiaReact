@@ -33,6 +33,8 @@ interface UserItem {
     confirmed: boolean;
     status: string | null;
     is_blocked: boolean;
+    phone_partage?: boolean;
+    email_partage?: boolean;
     publications_count: number;
     comments_count: number;
     last_active_human: string | null;
@@ -293,8 +295,14 @@ export default function UsersIndex({ users, stats, filters }: Props) {
                                                     className="w-9 h-9 rounded-full object-cover flex-shrink-0"
                                                 />
                                                 <div className="min-w-0">
-                                                    <p className="font-medium text-zinc-900 group-hover:text-emerald-600 transition-colors truncate">
+                                                    <p className="font-medium text-zinc-900 group-hover:text-emerald-600 transition-colors truncate flex items-center gap-1.5">
                                                         {user.name}
+                                                        {(user.phone_partage || user.email_partage) && (
+                                                            <span title={`Partage ${user.phone_partage ? 'le même numéro' : ''}${user.phone_partage && user.email_partage ? ' et ' : ''}${user.email_partage ? 'le même e-mail' : ''} avec d'autres comptes`}
+                                                                className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-amber-700 bg-amber-100 rounded px-1.5 py-0.5 whitespace-nowrap">
+                                                                ⚠ {user.phone_partage ? 'n°' : ''}{user.phone_partage && user.email_partage ? '+' : ''}{user.email_partage ? 'e-mail' : ''} partagé
+                                                            </span>
+                                                        )}
                                                     </p>
                                                     <p className="text-xs text-zinc-500 truncate flex items-center gap-1">
                                                         {user.country && (

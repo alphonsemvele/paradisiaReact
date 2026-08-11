@@ -72,7 +72,16 @@ class UserController extends Controller
 
         $users = $query->paginate(15)->withQueryString();
 
-        $users->getCollection()->transform(function ($u) {
+        // Indice de doublons : numéros / e-mails partagés par plusieurs comptes.
+        $pagePhones = $users->getCollection()->pluck('phone')->filter()->unique()->values();
+        $pageEmails = $users->getCollection()->pluck('email')->filter()->unique()->values();
+
+        $dupPhones = $pagePhones->isEmpty() ? [] : User::whereIn('phone', $pagePhones)
+            ->groupBy('phone')->havingRaw('COUNT(*) > 1')->pluck('phone')->all();
+        $dupEmails = $pageEmails->isEmpty() ? [] : User::whereIn('email', $pageEmails)
+            ->groupBy('email')->havingRaw('COUNT(*) > 1')->pluck('email')->all();
+
+        $users->getCollection()->transform(function ($u) use ($dupPhones, $dupEmails) {
             return [
                 'id' => $u->id,
                 'ref' => $u->ref,
@@ -87,6 +96,8 @@ class UserController extends Controller
                 'confirmed' => (bool) $u->confirmed,
                 'status' => $u->status,
                 'is_blocked' => (bool) $u->is_blocked,
+                'phone_partage' => $u->phone && in_array($u->phone, $dupPhones, true),
+                'email_partage' => $u->email && in_array($u->email, $dupEmails, true),
                 'publications_count' => $u->publications_count,
                 'comments_count' => $u->comments_count,
                 'last_active_human' => $u->last_active?->diffForHumans(),
@@ -170,8 +181,34 @@ class UserController extends Controller
                 'bannie' => BannedIp::estBannie($v->ip_address),
             ]);
 
+        // Comptes liés : même numéro de téléphone ou même e-mail.
+        $comptesLies = collect();
+        if ($user->phone || $user->email) {
+            $comptesLies = User::where('id', '<>', $user->id)
+                ->where(function ($q) use ($user) {
+                    if ($user->phone) {
+                        $q->where('phone', $user->phone);
+                    }
+                    if ($user->email) {
+                        $q->orWhere('email', $user->email);
+                    }
+                })
+                ->limit(30)
+                ->get(['id', 'name', 'email', 'phone', 'is_blocked'])
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'nom' => $u->name,
+                    'email' => $u->email,
+                    'phone' => $u->phone,
+                    'bloque' => (bool) $u->is_blocked,
+                    'meme_phone' => $user->phone && $u->phone === $user->phone,
+                    'meme_email' => $user->email && $u->email === $user->email,
+                ]);
+        }
+
         return Inertia::render('admin/users/show', [
             'connexions' => $connexions,
+            'comptesLies' => $comptesLies,
             'user' => [
                 'id' => $user->id,
                 'ref' => $user->ref,

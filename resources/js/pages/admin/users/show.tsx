@@ -73,6 +73,7 @@ interface Props {
     }>;
     activityChart: Array<{ label: string; visits: number }>;
     connexions: Array<{ ip: string; nombre: number; derniere: string; bannie: boolean }>;
+    comptesLies: Array<{ id: number; nom: string; email: string; phone: string | null; bloque: boolean; meme_phone: boolean; meme_email: boolean }>;
 }
 
 function countryCodeToFlag(code: string | number | null): string {
@@ -94,6 +95,7 @@ export default function UserShow({
     recentPublications,
     activityChart,
     connexions,
+    comptesLies,
 }: Props) {
     const [editMode, setEditMode] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -476,6 +478,33 @@ export default function UserShow({
                                 </BarChart>
                             </ResponsiveContainer>
                         </div>
+
+                        {comptesLies.length > 0 && (
+                            <div className="bg-white rounded-2xl shadow-sm border border-amber-200">
+                                <div className="px-5 py-4 border-b border-amber-100 flex items-center gap-2 bg-amber-50/60 rounded-t-2xl">
+                                    <Ban className="w-4 h-4 text-amber-600" />
+                                    <h3 className="font-semibold text-amber-900">Comptes liés (même numéro ou e-mail)</h3>
+                                    <span className="ml-auto text-xs font-semibold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5">{comptesLies.length}</span>
+                                </div>
+                                <div className="divide-y divide-zinc-100">
+                                    {comptesLies.map((c) => (
+                                        <Link key={c.id} href={`/admin/users/${c.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-zinc-50">
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-zinc-900 truncate">
+                                                    {c.nom}
+                                                    {c.bloque && <span className="ml-2 text-[10px] font-semibold text-red-600">bloqué</span>}
+                                                </p>
+                                                <p className="text-xs text-zinc-500 truncate">{c.email}{c.phone ? ' · ' + c.phone : ''}</p>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                {c.meme_phone && <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 rounded px-1.5 py-0.5">même n°</span>}
+                                                {c.meme_email && <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 rounded px-1.5 py-0.5">même e-mail</span>}
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200">
                             <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-2">
