@@ -6,7 +6,7 @@ use App\Models\FestyRegistration;
 use App\Models\FestySetting;
 use App\Models\FestyTeam;
 use App\Support\PageMeta;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -84,19 +84,19 @@ class FestyController extends Controller
         ]);
     }
 
-    public function register(Request $request): JsonResponse
+    public function register(Request $request): RedirectResponse
     {
         $user = $request->user();
 
         // Réservé aux membres connectés.
         if (! $user) {
-            return response()->json(['ok' => false, 'message' => 'Connectez-vous pour vous inscrire.'], 401);
+            return back()->with('error', 'Connectez-vous pour vous inscrire.');
         }
 
         $settings = FestySetting::actuel();
 
         if (! $settings->inscriptions_ouvertes) {
-            return response()->json(['ok' => false, 'message' => 'Les inscriptions sont closes.'], 422);
+            return back()->with('error', 'Les inscriptions sont closes.');
         }
 
         // On ne demande que l'équipe, la ville et le quartier ; le reste vient
@@ -110,22 +110,15 @@ class FestyController extends Controller
         $team = FestyTeam::where('id', $validated['festy_team_id'])->where('actif', true)->first();
 
         if (! $team) {
-            return response()->json(['ok' => false, 'message' => 'Équipe indisponible.'], 422);
+            return back()->withErrors(['festy_team_id' => 'Équipe indisponible.']);
         }
 
-        // Déjà inscrit (identifié par son compte) : on renvoie son équipe.
+        // Déjà inscrit (identifié par son compte) : on revient, la page affiche
+        // sa carte d'équipe avec le lien WhatsApp.
         $existant = FestyRegistration::where('user_id', $user->id)->first();
 
         if ($existant) {
-            $equipe = $existant->team;
-
-            return response()->json([
-                'ok' => true,
-                'deja_inscrit' => true,
-                'equipe' => $equipe->nom,
-                'whatsapp' => $equipe->whatsapp_group,
-                'message' => "Vous êtes déjà inscrit dans l'équipe {$equipe->nom}.",
-            ]);
+            return back()->with('info', "Vous êtes déjà inscrit dans l'équipe {$existant->team?->nom}.");
         }
 
         FestyRegistration::create([
@@ -140,12 +133,6 @@ class FestyController extends Controller
             'ip' => $request->ip(),
         ]);
 
-        return response()->json([
-            'ok' => true,
-            'deja_inscrit' => false,
-            'equipe' => $team->nom,
-            'whatsapp' => $team->whatsapp_group,
-            'message' => "Bienvenue dans l'équipe {$team->nom} ! 🎉",
-        ], 201);
+        return back()->with('success', "Bienvenue dans l'équipe {$team->nom} ! 🎉");
     }
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Trophy, Users, CheckCircle2, MessageCircle, Phone, MapPin, Home, PartyPopper, ChevronDown, LogIn, UserPlus, User } from 'lucide-react';
@@ -11,8 +11,6 @@ interface Props {
     moi: { nom: string; telephone: string | null; ville: string | null } | null;
     inscription: { equipe: string; couleur: string; whatsapp: string | null } | null;
 }
-
-const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
 
 /* Villes du Cameroun (liste déroulante). */
 const VILLES_CAMEROUN = [
@@ -103,27 +101,21 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
     const [quartier, setQuartier] = useState('');
     const [erreurs, setErreurs] = useState<Record<string, string>>({});
     const [envoi, setEnvoi] = useState(false);
-    const [succes, setSucces] = useState<any>(inscription ? { deja_inscrit: true, equipe: inscription.equipe, whatsapp: inscription.whatsapp, message: `Tu es déjà inscrit dans l'équipe ${inscription.equipe}.` } : null);
+    const flash = (page.props as any).flash?.success as string | undefined;
 
-    const inscrire = async () => {
+    // Inertia router.post : CSRF fiable via le cookie XSRF (fini le « CSRF token
+    // mismatch » du fetch). Au succès, la page recharge et affiche la carte
+    // d'équipe avec le lien WhatsApp (prop « inscription »).
+    const inscrire = () => {
         setErreurs({});
-        const e: Record<string, string> = {};
-        if (!choix) e.equipe = 'Choisis ton équipe.';
-        if (Object.keys(e).length) { setErreurs(e); return; }
+        if (!choix) { setErreurs({ equipe: 'Choisis ton équipe.' }); return; }
 
         setEnvoi(true);
-        try {
-            const r = await fetch('/festy/inscription', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
-                credentials: 'same-origin',
-                body: JSON.stringify({ festy_team_id: choix!.id, ville, quartier }),
-            });
-            const d = await r.json();
-            if (d.ok) setSucces(d);
-            else setErreurs(d.errors ? Object.fromEntries(Object.entries(d.errors).map(([k, v]: any) => [k, v[0]])) : { global: d.message ?? 'Erreur' });
-        } catch { setErreurs({ global: 'Connexion impossible.' }); }
-        finally { setEnvoi(false); }
+        router.post('/festy/inscription', { festy_team_id: choix.id, ville, quartier }, {
+            preserveScroll: true,
+            onError: (errs) => setErreurs(errs as Record<string, string>),
+            onFinish: () => setEnvoi(false),
+        });
     };
 
     return (
@@ -166,6 +158,9 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                 ) : inscription ? (
                     /* Déjà inscrit : rappel de l'équipe + groupe WhatsApp. */
                     <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-7 text-center">
+                        {flash && (
+                            <div className="mb-4 rounded-xl bg-emerald-600 text-white px-4 py-2.5 text-sm font-semibold">{flash}</div>
+                        )}
                         <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: `${inscription.couleur}20` }}>
                             <Fruit nom={inscription.equipe} size={40} />
                         </div>
@@ -288,38 +283,6 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                     </>
                 )}
             </div>
-
-            {/* Confirmation + groupe WhatsApp */}
-            <AnimatePresence>
-                {succes && !inscription && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setSucces(null)}>
-                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} onClick={(e) => e.stopPropagation()}
-                            className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl">
-                            <div className="px-6 pt-8 pb-5 text-center bg-gradient-to-b from-emerald-50 to-white">
-                                <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
-                                    <PartyPopper className="w-10 h-10 text-emerald-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-zinc-900">{succes.deja_inscrit ? 'Déjà inscrit' : 'Inscription confirmée !'}</h3>
-                                <p className="mt-2 text-sm text-zinc-600">{succes.message}</p>
-                            </div>
-                            <div className="px-6 pb-6">
-                                {succes.whatsapp ? (
-                                    <a href={succes.whatsapp} target="_blank" rel="noopener noreferrer"
-                                        className="flex items-center justify-center gap-2 py-3 rounded-xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold transition-colors">
-                                        <MessageCircle className="w-5 h-5" /> Rejoindre le groupe WhatsApp
-                                    </a>
-                                ) : (
-                                    <p className="text-sm text-center text-zinc-500 bg-zinc-50 rounded-xl p-3">
-                                        Le lien du groupe WhatsApp de l'équipe {succes.equipe} vous sera communiqué très bientôt.
-                                    </p>
-                                )}
-                                <button onClick={() => setSucces(null)} className="mt-2 w-full py-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-sm font-semibold">Fermer</button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
 
             <style>{`.ipt{width:100%;padding:.65rem .75rem .65rem 2.4rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.7rem;font-size:.9rem}.ipt:focus{outline:none;box-shadow:0 0 0 2px #10b981}.ipt-select{padding-right:1.6rem;cursor:pointer}.ipt-plain{width:100%;padding:.65rem .75rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.7rem;font-size:.9rem}.ipt-plain:focus{outline:none;box-shadow:0 0 0 2px #10b981}`}</style>
         </AppLayout>
