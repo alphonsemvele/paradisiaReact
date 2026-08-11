@@ -44,10 +44,17 @@ class RegisteredUserController extends Controller
 
         // Validation serveur du téléphone selon la numérotation du pays, puis
         // normalisation au format international E.164 (ex. +237651234567).
-        $telephone = $this->telephoneValide($validated['phone'], $country->sortname, $country->name);
+        [$telephone, $nsn] = $this->telephoneValide($validated['phone'], $country->sortname, $country->name);
 
-        // Un même numéro ne peut créer qu'un seul compte.
-        if (User::where('phone', $telephone)->exists()) {
+        // Un même numéro ne peut créer qu'un seul compte. On compare la forme
+        // E.164 exacte ET le numéro national « en chiffres » (sans espaces ni
+        // tirets), pour attraper aussi les anciens comptes non normalisés.
+        $chiffres = "REPLACE(REPLACE(REPLACE(REPLACE(phone,' ',''),'-',''),'.',''),'+','')";
+        $existe = User::where('phone', $telephone)
+            ->orWhereRaw("$chiffres LIKE ?", ['%'.$nsn])
+            ->exists();
+
+        if ($existe) {
             throw ValidationException::withMessages([
                 'phone' => 'Un compte existe déjà avec ce numéro de téléphone.',
             ]);
@@ -72,11 +79,10 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Vérifie que le numéro correspond bien à la numérotation du pays choisi
-     * et le renvoie normalisé au format international (E.164). Lève une erreur
-     * de validation claire sinon.
+     * Vérifie que le numéro correspond bien à la numérotation du pays choisi.
+     * Renvoie [E.164, numéro national (NSN)]. Lève une erreur sinon.
      */
-    private function telephoneValide(string $phone, ?string $iso, string $paysNom): string
+    private function telephoneValide(string $phone, ?string $iso, string $paysNom): array
     {
         $iso = strtoupper((string) $iso);
         $util = PhoneNumberUtil::getInstance();
@@ -95,6 +101,9 @@ class RegisteredUserController extends Controller
             ]);
         }
 
-        return $util->format($proto, PhoneNumberFormat::E164);
+        return [
+            $util->format($proto, PhoneNumberFormat::E164),
+            $util->getNationalSignificantNumber($proto),
+        ];
     }
 }
