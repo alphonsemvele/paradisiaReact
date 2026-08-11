@@ -112,9 +112,6 @@ export default function AppLayout({ children }: Props) {
                         <div className="flex items-center gap-2">
                             {auth?.user ? (
                                 <>
-                                    {/* Messagerie */}
-                                    <MessagesButton />
-
                                     {/* Cloche de notifications */}
                                     <NotificationBell />
 
@@ -372,6 +369,9 @@ export default function AppLayout({ children }: Props) {
 
             {/* ============== CONTENT ============== */}
             <main className="flex-1">{children}</main>
+
+            {/* Bouton messagerie flottant (au-dessus du bouton boutique) */}
+            {auth?.user && <MessagesButton />}
 
             {/* ============== FOOTER ============== */}
             <footer className="bg-zinc-900 text-zinc-400 mt-16">
