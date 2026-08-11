@@ -26,6 +26,7 @@ import {
     Mail,
     Trophy,
     PartyPopper,
+    ShieldBan,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 
@@ -59,6 +60,7 @@ const menuSections: MenuSection[] = [
         items: [
             { label: 'Utilisateurs', href: '/admin/users', icon: Users },
             { label: 'Publications', href: '/admin/publications', icon: FileText },
+            { label: 'IP bannies', href: '/admin/securite/ips', icon: ShieldBan },
         ],
     },
     {

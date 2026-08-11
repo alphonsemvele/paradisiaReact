@@ -36,6 +36,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Un compte bloqué ne peut pas se connecter.
+        if (Auth::user()?->status === 'Blocked') {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Ce compte a été bloqué. Contactez l\'administrateur.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

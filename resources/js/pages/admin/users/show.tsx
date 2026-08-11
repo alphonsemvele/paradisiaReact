@@ -72,6 +72,7 @@ interface Props {
         created_at_human: string;
     }>;
     activityChart: Array<{ label: string; visits: number }>;
+    connexions: Array<{ ip: string; nombre: number; derniere: string; bannie: boolean }>;
 }
 
 function countryCodeToFlag(code: string | number | null): string {
@@ -92,9 +93,15 @@ export default function UserShow({
     userStats,
     recentPublications,
     activityChart,
+    connexions,
 }: Props) {
     const [editMode, setEditMode] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
+
+    const bannirIp = (ip: string) => {
+        if (!confirm(`Bannir l'adresse IP ${ip} ? Elle ne pourra plus accéder au site (sauf les administrateurs).`)) return;
+        router.post('/admin/securite/ips', { ip, raison: `Utilisateur #${user.id} — ${user.name}` }, { preserveScroll: true });
+    };
 
     const { data, setData, patch, processing, errors } = useForm({
         name: user.name,
@@ -468,6 +475,37 @@ export default function UserShow({
                                     <Bar dataKey="visits" fill="#10b981" radius={[4, 4, 0, 0]} />
                                 </BarChart>
                             </ResponsiveContainer>
+                        </div>
+
+                        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200">
+                            <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-2">
+                                <Shield className="w-4 h-4 text-zinc-400" />
+                                <h3 className="font-semibold text-zinc-900">Historique de connexion (IP)</h3>
+                            </div>
+                            <div className="divide-y divide-zinc-100">
+                                {connexions.length === 0 && (
+                                    <p className="px-5 py-6 text-sm text-zinc-500 text-center">Aucune connexion enregistrée</p>
+                                )}
+                                {connexions.map((c) => (
+                                    <div key={c.ip} className="px-5 py-3 flex items-center gap-3">
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-mono text-sm font-medium text-zinc-900">
+                                                {c.ip}
+                                                {c.bannie && <span className="ml-2 text-[11px] font-semibold text-red-600 bg-red-50 rounded-full px-2 py-0.5">bannie</span>}
+                                            </p>
+                                            <p className="text-xs text-zinc-500">{c.nombre} visite(s) · dernière {c.derniere}</p>
+                                        </div>
+                                        {c.bannie ? (
+                                            <span className="text-xs text-zinc-400">déjà bannie</span>
+                                        ) : (
+                                            <button onClick={() => bannirIp(c.ip)}
+                                                className="inline-flex items-center gap-1 text-sm font-medium text-red-600 hover:text-red-800">
+                                                <Ban className="w-4 h-4" /> Bannir
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200">

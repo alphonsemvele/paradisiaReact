@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BannedIp;
 use App\Models\FestyRegistration;
 use App\Models\FestySetting;
 use App\Models\FestyTeam;
@@ -115,6 +116,7 @@ class FestyController extends Controller
             'quartier' => $r->quartier,
             'festy_team_id' => $r->festy_team_id,
             'equipe' => $r->team?->nom,
+            'ip' => $r->ip,
             'date' => $r->created_at->isoFormat('D MMM YYYY [à] HH:mm'),
         ]);
 
@@ -179,10 +181,29 @@ class FestyController extends Controller
             return back()->with('success', "Compte de {$nom} supprimé définitivement.");
         } catch (\Throwable $e) {
             // Repli : on bloque le compte s'il ne peut pas être supprimé.
-            $user->update(['valid' => 0, 'confirmed' => 0, 'status' => 'bloque']);
+            $user->update(['valid' => 0, 'confirmed' => 0, 'status' => 'Blocked']);
 
             return back()->with('success', "Compte de {$nom} bloqué (suppression impossible).");
         }
+    }
+
+    /** Bannit l'adresse IP d'un inscrit (faux comptes / spam). */
+    public function bannirIp(Request $request, FestyRegistration $registration): RedirectResponse
+    {
+        if (! $registration->ip) {
+            return back()->withErrors(['ip' => 'Aucune IP enregistrée pour cet inscrit.']);
+        }
+
+        if ($registration->ip === $request->ip()) {
+            return back()->withErrors(['ip' => 'Vous ne pouvez pas bannir votre propre adresse IP.']);
+        }
+
+        BannedIp::firstOrCreate(
+            ['ip' => $registration->ip],
+            ['raison' => 'Festy — '.($registration->nom ?? 'inscrit').' ('.($registration->email ?? '—').')'],
+        );
+
+        return back()->with('success', "IP {$registration->ip} bannie.");
     }
 
     /** Export CSV des inscrits (Excel). */

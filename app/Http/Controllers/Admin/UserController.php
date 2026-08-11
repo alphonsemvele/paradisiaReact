@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BannedIp;
 use App\Models\Comment;
 use App\Models\Like;
 use App\Models\Publication;
@@ -154,7 +155,23 @@ class UserController extends Controller
             ];
         }
 
+        // Historique de connexion : IP distinctes utilisées par l'utilisateur.
+        $connexions = Visit::where('id_user', $user->id)
+            ->whereNotNull('ip_address')
+            ->selectRaw('ip_address, COUNT(*) as n, MAX(created_at) as derniere')
+            ->groupBy('ip_address')
+            ->orderByDesc('derniere')
+            ->limit(50)
+            ->get()
+            ->map(fn ($v) => [
+                'ip' => $v->ip_address,
+                'nombre' => (int) $v->n,
+                'derniere' => Carbon::parse($v->derniere)->isoFormat('D MMM YYYY [à] HH:mm'),
+                'bannie' => BannedIp::estBannie($v->ip_address),
+            ]);
+
         return Inertia::render('admin/users/show', [
+            'connexions' => $connexions,
             'user' => [
                 'id' => $user->id,
                 'ref' => $user->ref,

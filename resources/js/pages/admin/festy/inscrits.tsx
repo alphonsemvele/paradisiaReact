@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Users, Download, Phone, Mail, MapPin, Pencil, Trash2, X, ShieldX } from 'lucide-react';
+import { Users, Download, Phone, Mail, MapPin, Pencil, Trash2, X, ShieldX, Ban } from 'lucide-react';
 
 interface Inscrit {
     id: number;
@@ -13,6 +13,7 @@ interface Inscrit {
     quartier: string | null;
     festy_team_id: number;
     equipe: string | null;
+    ip: string | null;
     date: string;
 }
 interface Props {
@@ -54,6 +55,12 @@ export default function FestyInscrits({ inscrits, equipes, filtre, total, par_eq
     const bloquerCompte = (i: Inscrit) => {
         if (!confirm(`⚠️ BLOQUER ET SUPPRIMER DÉFINITIVEMENT le compte de ${i.nom} ${i.prenom ?? ''} (${i.email ?? 'sans e-mail'}) ?\n\nCette action supprime le compte utilisateur ET son inscription. Irréversible.`)) return;
         router.delete(`/admin/festy/inscrits/${i.id}/compte`, { preserveScroll: true });
+    };
+
+    const bannirIp = (i: Inscrit) => {
+        if (!i.ip) { alert('Aucune IP enregistrée pour cet inscrit.'); return; }
+        if (!confirm(`Bannir l'adresse IP ${i.ip} ? Elle ne pourra plus accéder au site (sauf les administrateurs).`)) return;
+        router.post(`/admin/festy/inscrits/${i.id}/bannir-ip`, {}, { preserveScroll: true });
     };
 
     return (
@@ -121,6 +128,7 @@ export default function FestyInscrits({ inscrits, equipes, filtre, total, par_eq
                                         <div className="flex items-center justify-end gap-1">
                                             <button onClick={() => setEdition({ ...i })} className="p-2 text-zinc-500 hover:text-emerald-700" title="Modifier"><Pencil className="w-4 h-4" /></button>
                                             <button onClick={() => supprimer(i)} className="p-2 text-zinc-500 hover:text-red-600" title="Supprimer l'inscription"><Trash2 className="w-4 h-4" /></button>
+                                            <button onClick={() => bannirIp(i)} className="p-2 text-zinc-500 hover:text-orange-600" title={i.ip ? `Bannir l'IP ${i.ip}` : 'Aucune IP'}><Ban className="w-4 h-4" /></button>
                                             <button onClick={() => bloquerCompte(i)} className="p-2 text-zinc-500 hover:text-red-700" title="Bloquer & supprimer le compte (faux compte)"><ShieldX className="w-4 h-4" /></button>
                                         </div>
                                     </td>

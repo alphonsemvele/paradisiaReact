@@ -14,6 +14,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         //
 
+         $middleware->web(prepend: [
+        \App\Http\Middleware\BlockBannedIp::class,
+    ]);
          $middleware->web(append: [
         \App\Http\Middleware\TrackVisit::class,
     ]);

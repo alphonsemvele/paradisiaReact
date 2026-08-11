@@ -126,8 +126,14 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::match(['post', 'patch'], '/festy/inscrits/{registration}', [\App\Http\Controllers\Admin\FestyController::class, 'updateRegistration'])->name('festy.inscrits.update');
         Route::delete('/festy/inscrits/{registration}', [\App\Http\Controllers\Admin\FestyController::class, 'destroyRegistration'])->name('festy.inscrits.destroy');
         Route::delete('/festy/inscrits/{registration}/compte', [\App\Http\Controllers\Admin\FestyController::class, 'destroyAccount'])->name('festy.inscrits.compte');
+        Route::post('/festy/inscrits/{registration}/bannir-ip', [\App\Http\Controllers\Admin\FestyController::class, 'bannirIp'])->name('festy.inscrits.bannir-ip');
         Route::get('/festy/export', [\App\Http\Controllers\Admin\FestyController::class, 'export'])->name('festy.export');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
+
+        // ── Sécurité : IP bannies ──────────────────────────────────────────
+        Route::get('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'index'])->name('securite.ips');
+        Route::post('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'store'])->name('securite.ips.store');
+        Route::delete('/securite/ips/{bannedIp}', [\App\Http\Controllers\Admin\BannedIpController::class, 'destroy'])->name('securite.ips.destroy');
 
         Route::get('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'index'])->name('emails.index');
         Route::post('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'store'])->name('emails.store');
