@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Users, Download, Phone, Mail, MapPin, Pencil, Trash2, X } from 'lucide-react';
+import { Users, Download, Phone, Mail, MapPin, Pencil, Trash2, X, ShieldX } from 'lucide-react';
 
 interface Inscrit {
     id: number;
@@ -49,6 +49,11 @@ export default function FestyInscrits({ inscrits, equipes, filtre, total, par_eq
     const supprimer = (i: Inscrit) => {
         if (!confirm(`Supprimer l'inscription de ${i.nom} ${i.prenom ?? ''} ?`)) return;
         router.delete(`/admin/festy/inscrits/${i.id}`, { preserveScroll: true });
+    };
+
+    const bloquerCompte = (i: Inscrit) => {
+        if (!confirm(`⚠️ BLOQUER ET SUPPRIMER DÉFINITIVEMENT le compte de ${i.nom} ${i.prenom ?? ''} (${i.email ?? 'sans e-mail'}) ?\n\nCette action supprime le compte utilisateur ET son inscription. Irréversible.`)) return;
+        router.delete(`/admin/festy/inscrits/${i.id}/compte`, { preserveScroll: true });
     };
 
     return (
@@ -115,7 +120,8 @@ export default function FestyInscrits({ inscrits, equipes, filtre, total, par_eq
                                     <td className="px-4 py-3">
                                         <div className="flex items-center justify-end gap-1">
                                             <button onClick={() => setEdition({ ...i })} className="p-2 text-zinc-500 hover:text-emerald-700" title="Modifier"><Pencil className="w-4 h-4" /></button>
-                                            <button onClick={() => supprimer(i)} className="p-2 text-zinc-500 hover:text-red-600" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                                            <button onClick={() => supprimer(i)} className="p-2 text-zinc-500 hover:text-red-600" title="Supprimer l'inscription"><Trash2 className="w-4 h-4" /></button>
+                                            <button onClick={() => bloquerCompte(i)} className="p-2 text-zinc-500 hover:text-red-700" title="Bloquer & supprimer le compte (faux compte)"><ShieldX className="w-4 h-4" /></button>
                                         </div>
                                     </td>
                                 </tr>

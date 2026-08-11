@@ -125,6 +125,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/festy/inscrits', [\App\Http\Controllers\Admin\FestyController::class, 'registrations'])->name('festy.inscrits');
         Route::match(['post', 'patch'], '/festy/inscrits/{registration}', [\App\Http\Controllers\Admin\FestyController::class, 'updateRegistration'])->name('festy.inscrits.update');
         Route::delete('/festy/inscrits/{registration}', [\App\Http\Controllers\Admin\FestyController::class, 'destroyRegistration'])->name('festy.inscrits.destroy');
+        Route::delete('/festy/inscrits/{registration}/compte', [\App\Http\Controllers\Admin\FestyController::class, 'destroyAccount'])->name('festy.inscrits.compte');
         Route::get('/festy/export', [\App\Http\Controllers\Admin\FestyController::class, 'export'])->name('festy.export');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 

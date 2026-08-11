@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FestyRegistration;
 use App\Models\FestySetting;
 use App\Models\FestyTeam;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -154,6 +155,34 @@ class FestyController extends Controller
         $registration->delete();
 
         return back()->with('success', 'Inscrit supprimé.');
+    }
+
+    /**
+     * Bloque et supprime définitivement le compte lié à cet inscrit
+     * (faux comptes / doublons). Repli : blocage si la suppression échoue.
+     */
+    public function destroyAccount(FestyRegistration $registration): RedirectResponse
+    {
+        $user = $registration->user_id ? User::find($registration->user_id) : null;
+
+        $registration->delete();
+
+        if (! $user) {
+            return back()->with('success', 'Inscription supprimée (aucun compte lié).');
+        }
+
+        $nom = trim($user->name.' '.($user->last_name ?? ''));
+
+        try {
+            $user->delete();
+
+            return back()->with('success', "Compte de {$nom} supprimé définitivement.");
+        } catch (\Throwable $e) {
+            // Repli : on bloque le compte s'il ne peut pas être supprimé.
+            $user->update(['valid' => 0, 'confirmed' => 0, 'status' => 'bloque']);
+
+            return back()->with('success', "Compte de {$nom} bloqué (suppression impossible).");
+        }
     }
 
     /** Export CSV des inscrits (Excel). */
