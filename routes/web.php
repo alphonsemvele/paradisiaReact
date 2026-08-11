@@ -257,6 +257,7 @@ Route::middleware('auth')->group(function () {
     // ── Messagerie (1-à-1, style WhatsApp) ────────────────────────────────
     Route::get('/messages', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.index');
     Route::get('/messages/non-lus', [\App\Http\Controllers\MessageController::class, 'nonLus'])->name('messages.non-lus');
+    Route::get('/messages/recherche', [\App\Http\Controllers\MessageController::class, 'rechercher'])->name('messages.recherche');
     Route::get('/messages/u/{user}', [\App\Http\Controllers\MessageController::class, 'with'])->name('messages.with');
     Route::get('/messages/{conversation}', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.show');
     Route::post('/messages/{conversation}', [\App\Http\Controllers\MessageController::class, 'store'])->name('messages.store');

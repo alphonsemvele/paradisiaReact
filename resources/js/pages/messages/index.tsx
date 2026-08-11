@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/components/layouts/AppLayout';
 import { Send, ArrowLeft, MessageCircle, Search } from 'lucide-react';
 
-interface Autre { id: number; name: string; photo: string | null }
+interface Autre { id: number; name: string; photo: string | null; ville?: string | null }
 interface Msg { id: number; de_moi: boolean; body: string; date: string }
 interface Conv { id: number; autre: Autre; dernier: string; de_moi: boolean; date: string; non_lus: number }
 interface Active { id: number; autre: Autre; messages: Msg[] }
@@ -22,7 +22,19 @@ export default function Messages({ conversations, active }: Props) {
     const [body, setBody] = useState('');
     const [envoi, setEnvoi] = useState(false);
     const [recherche, setRecherche] = useState('');
+    const [personnes, setPersonnes] = useState<Autre[]>([]);
     const filEnd = useRef<HTMLDivElement>(null);
+
+    // Recherche de personnes à qui écrire (debounce).
+    useEffect(() => {
+        const t = setTimeout(async () => {
+            try {
+                const r = await fetch(`/messages/recherche?q=${encodeURIComponent(recherche)}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (r.ok) { const d = await r.json(); setPersonnes(d.users ?? []); }
+            } catch { /* silencieux */ }
+        }, 250);
+        return () => clearTimeout(t);
+    }, [recherche]);
 
     // Ré-initialise quand on change de conversation.
     useEffect(() => { setMessages(active?.messages ?? []); }, [active?.id]);
@@ -74,6 +86,8 @@ export default function Messages({ conversations, active }: Props) {
     };
 
     const convsFiltrees = conversations.filter((c) => c.autre.name.toLowerCase().includes(recherche.toLowerCase()));
+    const partenaires = new Set(conversations.map((c) => c.autre.id));
+    const personnesAffichees = personnes.filter((p) => !partenaires.has(p.id)).slice(0, recherche ? 20 : 8);
 
     return (
         <AppLayout>
@@ -92,9 +106,6 @@ export default function Messages({ conversations, active }: Props) {
                             </div>
                         </div>
                         <div className="flex-1 overflow-y-auto">
-                            {convsFiltrees.length === 0 && (
-                                <p className="text-center text-sm text-zinc-400 py-10 px-4">Aucune conversation.<br />Écris à quelqu'un depuis son profil.</p>
-                            )}
                             {convsFiltrees.map((c) => (
                                 <Link key={c.id} href={`/messages/${c.id}`} preserveScroll
                                     className={`flex items-center gap-3 px-3 py-3 hover:bg-zinc-50 border-b border-zinc-50 ${active?.id === c.id ? 'bg-emerald-50/50' : ''}`}>
@@ -111,6 +122,30 @@ export default function Messages({ conversations, active }: Props) {
                                     </div>
                                 </Link>
                             ))}
+
+                            {/* Personnes à qui écrire */}
+                            {personnesAffichees.length > 0 && (
+                                <>
+                                    <p className="px-3 pt-3 pb-1 text-[11px] font-bold text-zinc-400 uppercase tracking-wide">
+                                        {recherche ? 'Résultats' : 'Écrire à quelqu\'un'}
+                                    </p>
+                                    {personnesAffichees.map((p) => (
+                                        <button key={p.id} onClick={() => router.visit(`/messages/u/${p.id}`)}
+                                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-zinc-50 border-b border-zinc-50 text-left">
+                                            <Avatar u={p} size={40} />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-semibold text-sm text-zinc-900 truncate">{p.name}</p>
+                                                {p.ville && <p className="text-xs text-zinc-400 truncate">{p.ville}</p>}
+                                            </div>
+                                            <Send className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                                        </button>
+                                    ))}
+                                </>
+                            )}
+
+                            {convsFiltrees.length === 0 && personnesAffichees.length === 0 && (
+                                <p className="text-center text-sm text-zinc-400 py-10 px-4">Recherche une personne pour lui écrire.</p>
+                            )}
                         </div>
                     </div>
 

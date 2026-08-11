@@ -95,6 +95,39 @@ class MessageController extends Controller
         return response()->json(['messages' => $messages]);
     }
 
+    /**
+     * Recherche de personnes à qui écrire. Sans terme, renvoie des membres
+     * récemment actifs (pour toujours proposer des contacts).
+     */
+    public function rechercher(Request $request): JsonResponse
+    {
+        $me = $request->user()->id;
+        $q = trim((string) $request->query('q', ''));
+
+        $query = User::where('id', '<>', $me)
+            ->where(fn ($x) => $x->where('is_blocked', 0)->orWhereNull('is_blocked'));
+
+        if ($q !== '') {
+            $query->where(fn ($x) => $x
+                ->where('name', 'like', "%{$q}%")
+                ->orWhere('last_name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%"));
+            $query->orderBy('name');
+        } else {
+            $query->orderByDesc('last_active');
+        }
+
+        $users = $query->limit(20)->get(['id', 'name', 'photo', 'ville'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => trim($u->name.' '.($u->last_name ?? '')),
+                'photo' => $u->photo ? $this->mediaUrl($u->photo) : null,
+                'ville' => $u->ville,
+            ]);
+
+        return response()->json(['users' => $users]);
+    }
+
     /** Nombre de messages non lus (pastille du bouton messagerie). */
     public function nonLus(Request $request): JsonResponse
     {
