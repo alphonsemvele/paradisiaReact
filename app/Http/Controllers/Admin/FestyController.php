@@ -112,6 +112,7 @@ class FestyController extends Controller
             'email' => $r->email,
             'ville' => $r->ville,
             'quartier' => $r->quartier,
+            'festy_team_id' => $r->festy_team_id,
             'equipe' => $r->team?->nom,
             'date' => $r->created_at->isoFormat('D MMM YYYY [à] HH:mm'),
         ]);
@@ -127,6 +128,32 @@ class FestyController extends Controller
                 ->get()
                 ->map(fn ($t) => ['nom' => $t->nom, 'couleur' => $t->couleur, 'membres' => $t->registrations_count]),
         ]);
+    }
+
+    /** Modifie un inscrit (équipe, coordonnées). */
+    public function updateRegistration(Request $request, FestyRegistration $registration): RedirectResponse
+    {
+        $validated = $request->validate([
+            'festy_team_id' => ['required', 'integer', 'exists:festy_teams,id'],
+            'nom' => ['nullable', 'string', 'max:160'],
+            'prenom' => ['nullable', 'string', 'max:120'],
+            'telephone' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:180'],
+            'ville' => ['nullable', 'string', 'max:120'],
+            'quartier' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        $registration->update($validated);
+
+        return back()->with('success', 'Inscrit mis à jour.');
+    }
+
+    /** Supprime un inscrit. */
+    public function destroyRegistration(FestyRegistration $registration): RedirectResponse
+    {
+        $registration->delete();
+
+        return back()->with('success', 'Inscrit supprimé.');
     }
 
     /** Export CSV des inscrits (Excel). */

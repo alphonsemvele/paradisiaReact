@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\EventLienReunionMail;
 use App\Models\Event;
+use App\Models\EventRegistration;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -179,6 +180,9 @@ class EventController extends Controller
                 'date_label' => $event->date_debut->isoFormat('D MMMM YYYY [à] HH:mm'),
                 'lien_reunion' => $event->lien_reunion,
                 'collecte_profil' => $event->collecte_profil,
+                'collecte_pays' => $event->collecte_pays,
+                'collecte_telephone' => $event->collecte_telephone,
+                'collecte_nom' => $event->collecte_nom,
             ],
             'inscrits' => $inscrits,
             'filtre' => $profil,
@@ -215,6 +219,34 @@ class EventController extends Controller
         }
 
         return back()->with('success', "Lien envoyé à {$envoyes} inscrit(s).");
+    }
+
+    /** Modifie un inscrit à un événement. */
+    public function updateRegistration(Request $request, Event $event, EventRegistration $registration): RedirectResponse
+    {
+        abort_if($registration->event_id !== $event->id, 404);
+
+        $validated = $request->validate([
+            'email' => ['nullable', 'email', 'max:180'],
+            'nom' => ['nullable', 'string', 'max:160'],
+            'pays' => ['nullable', 'string', 'max:100'],
+            'telephone' => ['nullable', 'string', 'max:40'],
+            'profil' => ['nullable', 'in:investisseur,participant'],
+        ]);
+
+        $registration->update($validated);
+
+        return back()->with('success', 'Inscrit mis à jour.');
+    }
+
+    /** Supprime un inscrit à un événement. */
+    public function destroyRegistration(Event $event, EventRegistration $registration): RedirectResponse
+    {
+        abort_if($registration->event_id !== $event->id, 404);
+
+        $registration->delete();
+
+        return back()->with('success', 'Inscrit supprimé.');
     }
 
     /* ═══════════════════════ Interne ═══════════════════════ */

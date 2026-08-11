@@ -123,6 +123,8 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::match(['post','patch'], '/festy/teams/{team}', [\App\Http\Controllers\Admin\FestyController::class, 'updateTeam'])->name('festy.teams.update');
         Route::delete('/festy/teams/{team}', [\App\Http\Controllers\Admin\FestyController::class, 'destroyTeam'])->name('festy.teams.destroy');
         Route::get('/festy/inscrits', [\App\Http\Controllers\Admin\FestyController::class, 'registrations'])->name('festy.inscrits');
+        Route::match(['post', 'patch'], '/festy/inscrits/{registration}', [\App\Http\Controllers\Admin\FestyController::class, 'updateRegistration'])->name('festy.inscrits.update');
+        Route::delete('/festy/inscrits/{registration}', [\App\Http\Controllers\Admin\FestyController::class, 'destroyRegistration'])->name('festy.inscrits.destroy');
         Route::get('/festy/export', [\App\Http\Controllers\Admin\FestyController::class, 'export'])->name('festy.export');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 
@@ -139,6 +141,8 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::match(['post', 'patch'], '/events/{event}', [\App\Http\Controllers\Admin\EventController::class, 'update'])->name('events.update');
         Route::delete('/events/{event}', [\App\Http\Controllers\Admin\EventController::class, 'destroy'])->name('events.destroy');
         Route::get('/events/{event}/inscrits', [\App\Http\Controllers\Admin\EventController::class, 'registrations'])->name('events.registrations');
+        Route::match(['post', 'patch'], '/events/{event}/inscrits/{registration}', [\App\Http\Controllers\Admin\EventController::class, 'updateRegistration'])->name('events.registrations.update');
+        Route::delete('/events/{event}/inscrits/{registration}', [\App\Http\Controllers\Admin\EventController::class, 'destroyRegistration'])->name('events.registrations.destroy');
         Route::post('/events/{event}/envoyer-lien', [\App\Http\Controllers\Admin\EventController::class, 'envoyerLien'])->name('events.envoyer-lien');
 Route::delete('/formations/{formation}', [AdminFormationController::class, 'destroy'])->name('formations.destroy');
 

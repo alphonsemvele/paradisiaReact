@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { ArrowLeft, Users, Send, Mail, Globe, Phone, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Users, Send, Mail, Globe, Phone, CheckCircle2, Pencil, Trash2, X } from 'lucide-react';
 import AdminLayout from '@/components/layouts/AdminLayout';
 
 interface Inscrit {
@@ -15,7 +16,7 @@ interface Inscrit {
 }
 
 interface Props {
-    event: { id: number; titre: string; date_label: string; lien_reunion: string | null; collecte_profil: boolean };
+    event: { id: number; titre: string; date_label: string; lien_reunion: string | null; collecte_profil: boolean; collecte_pays: boolean; collecte_telephone: boolean; collecte_nom: boolean };
     inscrits: Inscrit[];
     filtre: string | null;
     compteurs: { total: number; investisseurs: number; participants: number; lien_envoye: number };
@@ -23,9 +24,29 @@ interface Props {
 
 export default function Registrations({ event, inscrits, filtre, compteurs }: Props) {
     const envoi = useForm({});
+    const [edition, setEdition] = useState<Inscrit | null>(null);
+    const [busy, setBusy] = useState(false);
 
     const filtrer = (profil: string | null) => {
         router.get(`/admin/events/${event.id}/inscrits`, profil ? { profil } : {}, { preserveState: true, preserveScroll: true });
+    };
+
+    const enregistrer = () => {
+        if (!edition) return;
+        setBusy(true);
+        router.post(`/admin/events/${event.id}/inscrits/${edition.id}`, {
+            _method: 'PATCH',
+            email: edition.email ?? '',
+            nom: edition.nom ?? '',
+            pays: edition.pays ?? '',
+            telephone: edition.telephone ?? '',
+            profil: edition.profil ?? '',
+        }, { preserveScroll: true, onSuccess: () => setEdition(null), onFinish: () => setBusy(false) });
+    };
+
+    const supprimer = (i: Inscrit) => {
+        if (!confirm(`Supprimer l'inscription de ${i.nom || i.email} ?`)) return;
+        router.delete(`/admin/events/${event.id}/inscrits/${i.id}`, { preserveScroll: true });
     };
 
     const envoyerLien = () => {
@@ -141,12 +162,57 @@ export default function Registrations({ event, inscrits, filtre, compteurs }: Pr
                                             <CheckCircle2 className="w-4 h-4" />
                                         </span>
                                     )}
+                                    <div className="flex items-center gap-1">
+                                        <button onClick={() => setEdition({ ...i })} className="p-2 text-zinc-500 hover:text-emerald-700" title="Modifier"><Pencil className="w-4 h-4" /></button>
+                                        <button onClick={() => supprimer(i)} className="p-2 text-zinc-500 hover:text-red-600" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                                    </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
             </div>
+
+            {/* Modale d'édition */}
+            {edition && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setEdition(null)}>
+                    <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-bold text-zinc-900">Modifier l'inscrit</h3>
+                            <button onClick={() => setEdition(null)} className="text-zinc-400 hover:text-zinc-700"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="space-y-3">
+                            <L label="E-mail"><input className="ipt" value={edition.email ?? ''} onChange={(e) => setEdition({ ...edition, email: e.target.value })} /></L>
+                            {event.collecte_nom && <L label="Nom"><input className="ipt" value={edition.nom ?? ''} onChange={(e) => setEdition({ ...edition, nom: e.target.value })} /></L>}
+                            {event.collecte_telephone && <L label="Numéro WhatsApp"><input className="ipt" value={edition.telephone ?? ''} onChange={(e) => setEdition({ ...edition, telephone: e.target.value })} /></L>}
+                            {event.collecte_pays && <L label="Pays"><input className="ipt" value={edition.pays ?? ''} onChange={(e) => setEdition({ ...edition, pays: e.target.value })} /></L>}
+                            {event.collecte_profil && (
+                                <L label="Profil">
+                                    <select className="ipt" value={edition.profil ?? ''} onChange={(e) => setEdition({ ...edition, profil: e.target.value })}>
+                                        <option value="">—</option>
+                                        <option value="investisseur">Investisseur</option>
+                                        <option value="participant">Participant</option>
+                                    </select>
+                                </L>
+                            )}
+                        </div>
+                        <button onClick={enregistrer} disabled={busy}
+                            className="mt-5 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm disabled:opacity-60">
+                            Enregistrer
+                        </button>
+                    </div>
+                    <style>{`.ipt{width:100%;padding:.55rem .7rem;background:#fafafa;border:1px solid #e4e4e7;border-radius:.6rem;font-size:.875rem}.ipt:focus{outline:none;box-shadow:0 0 0 2px #10b981}`}</style>
+                </div>
+            )}
         </AdminLayout>
+    );
+}
+
+function L({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <label className="block">
+            <span className="block text-xs font-medium text-zinc-500 mb-1">{label}</span>
+            {children}
+        </label>
     );
 }
