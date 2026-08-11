@@ -250,6 +250,10 @@ Route::delete('/cart/clear', [ShopController::class, 'clearCart'])->name('cart.c
 
 
 Route::middleware('auth')->group(function () {
+    // ── Mon profil ────────────────────────────────────────────────────────
+    Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::match(['post', 'patch'], '/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
+
     // ── Messagerie (1-à-1, style WhatsApp) ────────────────────────────────
     Route::get('/messages', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.index');
     Route::get('/messages/non-lus', [\App\Http\Controllers\MessageController::class, 'nonLus'])->name('messages.non-lus');
