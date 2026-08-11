@@ -11,8 +11,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use libphonenumber\NumberParseException;
+use libphonenumber\PhoneNumberFormat;
+use libphonenumber\PhoneNumberUtil;
 
 class RegisteredUserController extends Controller
 {
@@ -38,12 +42,23 @@ class RegisteredUserController extends Controller
         // Récupérer le pays pour remplir country et country_code automatiquement
         $country = Country::findOrFail($validated['id_country']);
 
+        // Validation serveur du téléphone selon la numérotation du pays, puis
+        // normalisation au format international E.164 (ex. +237651234567).
+        $telephone = $this->telephoneValide($validated['phone'], $country->sortname, $country->name);
+
+        // Un même numéro ne peut créer qu'un seul compte.
+        if (User::where('phone', $telephone)->exists()) {
+            throw ValidationException::withMessages([
+                'phone' => 'Un compte existe déjà avec ce numéro de téléphone.',
+            ]);
+        }
+
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'sexe' => $validated['sexe'],
-            'phone' => $validated['phone'],
+            'phone' => $telephone,
             'id_country' => $country->id,
             'country' => $country->name,
             'country_code' => $country->phoneCode,
@@ -54,5 +69,32 @@ class RegisteredUserController extends Controller
 
         // Honore la destination mémorisée (ex. /festy) pour « suivre » l'utilisateur.
         return redirect()->intended('/');
+    }
+
+    /**
+     * Vérifie que le numéro correspond bien à la numérotation du pays choisi
+     * et le renvoie normalisé au format international (E.164). Lève une erreur
+     * de validation claire sinon.
+     */
+    private function telephoneValide(string $phone, ?string $iso, string $paysNom): string
+    {
+        $iso = strtoupper((string) $iso);
+        $util = PhoneNumberUtil::getInstance();
+
+        try {
+            $proto = $util->parse($phone, $iso);
+        } catch (NumberParseException) {
+            throw ValidationException::withMessages([
+                'phone' => "Le numéro de téléphone n'est pas valide pour {$paysNom}.",
+            ]);
+        }
+
+        if (! $util->isValidNumberForRegion($proto, $iso)) {
+            throw ValidationException::withMessages([
+                'phone' => "Ce numéro n'est pas un numéro {$paysNom} valide. Vérifiez le pays et le numéro.",
+            ]);
+        }
+
+        return $util->format($proto, PhoneNumberFormat::E164);
     }
 }
