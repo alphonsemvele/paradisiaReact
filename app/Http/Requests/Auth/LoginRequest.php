@@ -37,7 +37,7 @@ class LoginRequest extends FormRequest
         }
 
         // Un compte bloqué ne peut pas se connecter.
-        if (Auth::user()?->status === 'Blocked') {
+        if (Auth::user()?->is_blocked) {
             Auth::logout();
 
             throw ValidationException::withMessages([

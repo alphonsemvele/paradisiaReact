@@ -45,6 +45,7 @@ class User extends Authenticatable
         'recoveryPass_code',
         'sexe',
         'id_country',
+        'is_blocked',
     ];
 
     /**
@@ -73,6 +74,7 @@ class User extends Authenticatable
             'last_active' => 'datetime',
             'birth' => 'date',
             'id_country' => 'integer',
+            'is_blocked' => 'boolean',
         ];
     }
 public function categories(): HasMany

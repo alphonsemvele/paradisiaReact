@@ -50,11 +50,11 @@ class UserController extends Controller
             $query->where('role', $role);
         }
 
-        // Filtre statut
+        // Filtre statut (blocage)
         if ($status === 'active') {
-            $query->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'Blocked'));
+            $query->where(fn ($q) => $q->where('is_blocked', 0)->orWhereNull('is_blocked'));
         } elseif ($status === 'blocked') {
-            $query->where('status', 'Blocked');
+            $query->where('is_blocked', 1);
         }
 
         // Filtre validation
@@ -86,7 +86,7 @@ class UserController extends Controller
                 'valid' => (bool) $u->valid,
                 'confirmed' => (bool) $u->confirmed,
                 'status' => $u->status,
-                'is_blocked' => $u->status === 'Blocked',
+                'is_blocked' => (bool) $u->is_blocked,
                 'publications_count' => $u->publications_count,
                 'comments_count' => $u->comments_count,
                 'last_active_human' => $u->last_active?->diffForHumans(),
@@ -99,8 +99,8 @@ class UserController extends Controller
         $stats = [
             'total' => User::count(),
             'today' => User::whereDate('created_at', Carbon::today())->count(),
-            'active' => User::where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'Blocked'))->count(),
-            'blocked' => User::where('status', 'Blocked')->count(),
+            'active' => User::where(fn ($q) => $q->where('is_blocked', 0)->orWhereNull('is_blocked'))->count(),
+            'blocked' => User::where('is_blocked', 1)->count(),
             'validated' => User::where('valid', 1)->count(),
             'admins' => User::whereIn('role', ['admin', 'super-admin'])->count(),
         ];
@@ -191,7 +191,7 @@ class UserController extends Controller
                 'valid' => (bool) $user->valid,
                 'confirmed' => (bool) $user->confirmed,
                 'status' => $user->status,
-                'is_blocked' => $user->status === 'Blocked',
+                'is_blocked' => (bool) $user->is_blocked,
                 'referral_code' => $user->referral_code,
                 'last_active' => $user->last_active?->format('d/m/Y H:i'),
                 'last_active_human' => $user->last_active?->diffForHumans(),
@@ -246,10 +246,10 @@ class UserController extends Controller
         }
 
         $user->update([
-            'status' => $user->status === 'Blocked' ? 'Active' : 'Blocked',
+            'is_blocked' => ! $user->is_blocked,
         ]);
 
-        $msg = $user->status === 'Blocked' ? 'Utilisateur bloqué.' : 'Utilisateur débloqué.';
+        $msg = $user->is_blocked ? 'Utilisateur bloqué.' : 'Utilisateur débloqué.';
 
         return back()->with('success', $msg);
     }

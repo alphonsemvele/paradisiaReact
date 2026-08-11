@@ -181,7 +181,7 @@ class FestyController extends Controller
             return back()->with('success', "Compte de {$nom} supprimé définitivement.");
         } catch (\Throwable $e) {
             // Repli : on bloque le compte s'il ne peut pas être supprimé.
-            $user->update(['valid' => 0, 'confirmed' => 0, 'status' => 'Blocked']);
+            $user->update(['valid' => 0, 'confirmed' => 0, 'is_blocked' => 1]);
 
             return back()->with('success', "Compte de {$nom} bloqué (suppression impossible).");
         }
