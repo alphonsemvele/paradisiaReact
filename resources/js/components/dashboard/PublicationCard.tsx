@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { MoreHorizontal, ThumbsUp, MessageCircle, Share2, Edit2, Trash2, X, Eye, TrendingUp } from 'lucide-react';
 import PublicationMedia from './PublicationMedia';
 import StatsModal from './StatsModal';
@@ -84,19 +84,23 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             <div className="p-4 pb-0">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <img
-                            src={userPhoto}
-                            alt={userName}
-                            className="w-11 h-11 rounded-full border-2 border-emerald-400 object-cover"
-                        />
-                        <div>
-                            <h4 className="font-bold text-gray-900 text-sm hover:underline cursor-pointer">
-                                {userName}
-                            </h4>
-                            <p className="text-xs text-gray-500 flex items-center gap-1.5">
-                                {publication.created_at_human} · 🌍
-                            </p>
-                        </div>
+                        {publication.user?.id ? (
+                            <Link href={`/u/${publication.user.id}`} className="flex items-center gap-3 group">
+                                <img src={userPhoto} alt={userName} className="w-11 h-11 rounded-full border-2 border-emerald-400 object-cover" />
+                                <div>
+                                    <h4 className="font-bold text-gray-900 text-sm group-hover:underline">{userName}</h4>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1.5">{publication.created_at_human} · 🌍</p>
+                                </div>
+                            </Link>
+                        ) : (
+                            <>
+                                <img src={userPhoto} alt={userName} className="w-11 h-11 rounded-full border-2 border-emerald-400 object-cover" />
+                                <div>
+                                    <h4 className="font-bold text-gray-900 text-sm">{userName}</h4>
+                                    <p className="text-xs text-gray-500 flex items-center gap-1.5">{publication.created_at_human} · 🌍</p>
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Menu modifier/supprimer */}

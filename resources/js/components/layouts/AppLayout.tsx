@@ -19,6 +19,7 @@ import {
 import type { PageProps } from '@/types';
 import SupportButton from '@/components/SupportButton';
 import NotificationBell from '@/components/NotificationBell';
+import MessagesButton from '@/components/MessagesButton';
 
 interface Props {
     children: ReactNode;
@@ -111,6 +112,9 @@ export default function AppLayout({ children }: Props) {
                         <div className="flex items-center gap-2">
                             {auth?.user ? (
                                 <>
+                                    {/* Messagerie */}
+                                    <MessagesButton />
+
                                     {/* Cloche de notifications */}
                                     <NotificationBell />
 

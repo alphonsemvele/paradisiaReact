@@ -27,7 +27,7 @@ class NotificationController extends Controller
                 'id' => $n->id,
                 'type' => $n->type,
                 'body' => $n->body,
-                'lien' => $n->id_publication ? '/p/'.$n->id_publication : null,
+                'lien' => $this->lienNotification($n),
                 'lue' => $n->read_at !== null,
                 'date' => $n->created_at?->diffForHumans(),
             ]);
@@ -36,6 +36,20 @@ class NotificationController extends Controller
             'notifications' => $notifications,
             'non_lues' => Notification::where('id_user', Auth::id())->whereNull('read_at')->count(),
         ]);
+    }
+
+    /** Lien vers l'élément concerné par la notification. */
+    private function lienNotification(Notification $n): ?string
+    {
+        if ($n->type === 'message' && $n->id_actor) {
+            return '/messages/u/'.$n->id_actor;
+        }
+
+        if ($n->id_publication) {
+            return '/p/'.$n->id_publication;
+        }
+
+        return null;
     }
 
     /** Marque tout comme lu. */

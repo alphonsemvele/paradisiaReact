@@ -235,6 +235,9 @@ Route::get('/products/{product}/stats', [PublicStatsController::class, 'productS
 // (image + texte) rendu côté serveur pour WhatsApp, Facebook, Telegram…
 Route::get('/p/{publication}', [HomeController::class, 'index'])->name('publication.share');
 
+// Profil public d'un utilisateur (en-tête + publications)
+Route::get('/u/{user}', [\App\Http\Controllers\PublicProfileController::class, 'show'])->name('profil.public');
+
 // Boutique et panier : accessibles aux visiteurs (panier en session) ;
 // la connexion n'est exigée qu'au moment de passer commande (/checkout).
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');
@@ -247,6 +250,14 @@ Route::delete('/cart/clear', [ShopController::class, 'clearCart'])->name('cart.c
 
 
 Route::middleware('auth')->group(function () {
+    // ── Messagerie (1-à-1, style WhatsApp) ────────────────────────────────
+    Route::get('/messages', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.index');
+    Route::get('/messages/non-lus', [\App\Http\Controllers\MessageController::class, 'nonLus'])->name('messages.non-lus');
+    Route::get('/messages/u/{user}', [\App\Http\Controllers\MessageController::class, 'with'])->name('messages.with');
+    Route::get('/messages/{conversation}', [\App\Http\Controllers\MessageController::class, 'index'])->name('messages.show');
+    Route::post('/messages/{conversation}', [\App\Http\Controllers\MessageController::class, 'store'])->name('messages.store');
+    Route::get('/messages/{conversation}/poll', [\App\Http\Controllers\MessageController::class, 'poll'])->name('messages.poll');
+
     // Publications
     Route::post('/publications', [HomeController::class, 'publishPost'])->name('publication.store');
     Route::patch('/publications/{id}', [HomeController::class, 'updatePost'])->name('publication.update'); // 🆕
