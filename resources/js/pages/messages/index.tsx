@@ -1,10 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/components/layouts/AppLayout';
-import { Send, ArrowLeft, MessageCircle, Search } from 'lucide-react';
+import { Send, ArrowLeft, MessageCircle, Search, Smile, Check, CheckCheck } from 'lucide-react';
 
 interface Autre { id: number; name: string; photo: string | null; ville?: string | null }
-interface Msg { id: number; de_moi: boolean; body: string; date: string }
+interface Msg { id: number; de_moi: boolean; body: string; date: string; jour: string; lu: boolean }
+
+const EMOJIS = [
+    '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤩', '🥳', '😉', '🙃', '😅', '😇', '🥰', '😋',
+    '🤔', '🤗', '🤭', '😴', '😜', '😝', '🤪', '😏', '😒', '🙄', '😬', '😳', '🥺', '😢', '😭', '😤',
+    '😠', '😡', '🤬', '😱', '😨', '😰', '😥', '🤯', '😷', '🤒', '🤕', '🤢', '🥴', '😵', '🤠', '🤡',
+    '👍', '👎', '👏', '🙌', '🙏', '💪', '👌', '✌️', '🤞', '🤝', '👋', '🫶', '❤️', '🔥', '✨', '🎉',
+    '💯', '💥', '⭐', '🌟', '🍍', '🍋', '🍊', '🥭', '🍹', '⚽', '🏆', '🎁', '💚', '😻', '👀', '🚀',
+];
 interface Conv { id: number; autre: Autre; dernier: string; de_moi: boolean; date: string; non_lus: number }
 interface Active { id: number; autre: Autre; messages: Msg[] }
 interface Props { conversations: Conv[]; active: Active | null }
@@ -23,7 +31,9 @@ export default function Messages({ conversations, active }: Props) {
     const [envoi, setEnvoi] = useState(false);
     const [recherche, setRecherche] = useState('');
     const [personnes, setPersonnes] = useState<Autre[]>([]);
+    const [emojisOuvert, setEmojisOuvert] = useState(false);
     const filEnd = useRef<HTMLDivElement>(null);
+    const zoneSaisie = useRef<HTMLTextAreaElement>(null);
 
     // Recherche de personnes à qui écrire (debounce).
     useEffect(() => {
@@ -51,16 +61,34 @@ export default function Messages({ conversations, active }: Props) {
                 const r = await fetch(`/messages/${active.id}/poll?after=${dernier}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
                 if (!r.ok) return;
                 const d = await r.json();
-                if (d.messages?.length) {
-                    setMessages((prev) => {
+                setMessages((prev) => {
+                    let next = prev;
+                    if (d.messages?.length) {
                         const ids = new Set(prev.map((m) => m.id));
-                        return [...prev, ...d.messages.filter((m: Msg) => !ids.has(m.id))];
-                    });
-                }
+                        next = [...prev, ...d.messages.filter((m: Msg) => !ids.has(m.id))];
+                    }
+                    // Accusés de lecture : mes messages ≤ lu_jusqua passent en « lu ».
+                    if (d.lu_jusqua) {
+                        next = next.map((m) => (m.de_moi && !m.lu && m.id <= d.lu_jusqua ? { ...m, lu: true } : m));
+                    }
+                    return next;
+                });
             } catch { /* silencieux */ }
         }, 4000);
         return () => clearInterval(t);
     }, [active?.id, messages]);
+
+    const autoGrow = () => {
+        const el = zoneSaisie.current;
+        if (el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 128) + 'px'; }
+    };
+    const insererEmoji = (em: string) => {
+        setBody((b) => b + em);
+        setTimeout(() => { zoneSaisie.current?.focus(); autoGrow(); }, 0);
+    };
+    const surTouche = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); envoyer(e); }
+    };
 
     const envoyer = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -68,6 +96,8 @@ export default function Messages({ conversations, active }: Props) {
         if (!texte || !active || envoi) return;
         setEnvoi(true);
         setBody('');
+        setEmojisOuvert(false);
+        if (zoneSaisie.current) zoneSaisie.current.style.height = 'auto';
         try {
             const r = await fetch(`/messages/${active.id}`, {
                 method: 'POST',
@@ -161,22 +191,49 @@ export default function Messages({ conversations, active }: Props) {
                                     </Link>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5" style={{ background: '#f7f7f5' }}>
-                                    {messages.map((m) => (
-                                        <div key={m.id} className={`flex ${m.de_moi ? 'justify-end' : 'justify-start'}`}>
-                                            <div className={`max-w-[78%] px-3 py-2 rounded-2xl text-sm leading-snug whitespace-pre-wrap break-words ${m.de_moi ? 'bg-emerald-500 text-white rounded-br-md' : 'bg-white text-zinc-800 rounded-bl-md shadow-sm'}`}>
-                                                {m.body}
-                                                <span className={`block text-[10px] mt-0.5 text-right ${m.de_moi ? 'text-emerald-50/80' : 'text-zinc-400'}`}>{m.date}</span>
+                                <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1" style={{ background: '#eae6df' }}>
+                                    {messages.map((m, i) => {
+                                        const nouveauJour = m.jour && m.jour !== (i > 0 ? messages[i - 1].jour : null);
+                                        return (
+                                            <div key={m.id}>
+                                                {nouveauJour && (
+                                                    <div className="flex justify-center my-3">
+                                                        <span className="text-[11px] font-medium text-zinc-600 bg-white/80 rounded-full px-3 py-1 shadow-sm">{m.jour}</span>
+                                                    </div>
+                                                )}
+                                                <div className={`flex ${m.de_moi ? 'justify-end' : 'justify-start'}`}>
+                                                    <div className={`max-w-[80%] px-2.5 py-1.5 rounded-2xl text-sm leading-snug whitespace-pre-wrap break-words shadow-sm ${m.de_moi ? 'bg-emerald-500 text-white rounded-br-sm' : 'bg-white text-zinc-800 rounded-bl-sm'}`}>
+                                                        <span>{m.body}</span>
+                                                        <span className={`inline-flex items-center gap-0.5 align-bottom ml-2 text-[10px] float-right mt-1 ${m.de_moi ? 'text-emerald-50/90' : 'text-zinc-400'}`}>
+                                                            {m.date}
+                                                            {m.de_moi && (m.lu
+                                                                ? <CheckCheck className="w-3.5 h-3.5 text-sky-200" />
+                                                                : <Check className="w-3.5 h-3.5 text-emerald-100/80" />)}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))}
-                                    {messages.length === 0 && <p className="text-center text-sm text-zinc-400 py-10">Démarre la conversation 👋</p>}
+                                        );
+                                    })}
+                                    {messages.length === 0 && <p className="text-center text-sm text-zinc-500 py-10">Démarre la conversation 👋</p>}
                                     <div ref={filEnd} />
                                 </div>
 
-                                <form onSubmit={envoyer} className="flex items-center gap-2 p-3 border-t border-zinc-100 bg-white">
-                                    <input value={body} onChange={(e) => setBody(e.target.value)} placeholder="Écris un message…" autoFocus
-                                        className="flex-1 px-4 py-2.5 bg-zinc-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                <form onSubmit={envoyer} className="relative flex items-end gap-1.5 p-2.5 border-t border-zinc-100 bg-white">
+                                    {emojisOuvert && (
+                                        <div className="absolute bottom-16 left-2.5 w-72 max-w-[90%] bg-white border border-zinc-200 rounded-2xl shadow-xl p-2 grid grid-cols-8 gap-0.5 max-h-52 overflow-y-auto z-10">
+                                            {EMOJIS.map((em) => (
+                                                <button type="button" key={em} onClick={() => insererEmoji(em)} className="text-xl hover:bg-zinc-100 rounded-lg p-1 leading-none">{em}</button>
+                                            ))}
+                                        </div>
+                                    )}
+                                    <button type="button" onClick={() => setEmojisOuvert((v) => !v)}
+                                        className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${emojisOuvert ? 'text-emerald-600 bg-emerald-50' : 'text-zinc-500 hover:bg-zinc-100'}`}>
+                                        <Smile className="w-6 h-6" />
+                                    </button>
+                                    <textarea ref={zoneSaisie} value={body} rows={1} placeholder="Écris un message…" autoFocus
+                                        onChange={(e) => { setBody(e.target.value); autoGrow(); }} onKeyDown={surTouche}
+                                        className="flex-1 px-4 py-2.5 bg-zinc-100 rounded-2xl text-sm resize-none max-h-32 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                     <button type="submit" disabled={!body.trim() || envoi}
                                         className="w-11 h-11 rounded-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white flex items-center justify-center flex-shrink-0">
                                         <Send className="w-5 h-5" />

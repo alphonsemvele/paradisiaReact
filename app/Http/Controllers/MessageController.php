@@ -92,7 +92,16 @@ class MessageController extends Controller
         // Les messages reçus qu'on vient de voir passent en « lu ».
         $this->marquerLu($conversation, $me);
 
-        return response()->json(['messages' => $messages]);
+        // Jusqu'où l'autre a lu MES messages (accusés de lecture ✓✓).
+        $luJusqua = (int) $conversation->messages()
+            ->where('sender_id', $me)
+            ->whereNotNull('read_at')
+            ->max('id');
+
+        return response()->json([
+            'messages' => $messages,
+            'lu_jusqua' => $luJusqua,
+        ]);
     }
 
     /**
@@ -188,7 +197,24 @@ class MessageController extends Controller
             'de_moi' => (int) $m->sender_id === $me,
             'body' => $m->body,
             'date' => $m->created_at?->isoFormat('HH:mm'),
+            'jour' => $this->jourLabel($m->created_at),
+            'lu' => $m->read_at !== null,
         ];
+    }
+
+    private function jourLabel(?\Illuminate\Support\Carbon $d): string
+    {
+        if (! $d) {
+            return '';
+        }
+        if ($d->isToday()) {
+            return "Aujourd'hui";
+        }
+        if ($d->isYesterday()) {
+            return 'Hier';
+        }
+
+        return $d->isoFormat('D MMMM YYYY');
     }
 
     private function fmtUser(?User $u): array
