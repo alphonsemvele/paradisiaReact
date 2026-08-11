@@ -131,6 +131,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 
         // ── Sécurité : IP bannies ──────────────────────────────────────────
+        Route::get('/securite/connexions', [\App\Http\Controllers\Admin\BannedIpController::class, 'connexions'])->name('securite.connexions');
         Route::get('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'index'])->name('securite.ips');
         Route::post('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'store'])->name('securite.ips.store');
         Route::delete('/securite/ips/{bannedIp}', [\App\Http\Controllers\Admin\BannedIpController::class, 'destroy'])->name('securite.ips.destroy');
