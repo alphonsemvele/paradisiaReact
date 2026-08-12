@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { MoreHorizontal, ThumbsUp, MessageCircle, Share2, Edit2, Trash2, X, Eye, TrendingUp } from 'lucide-react';
 import PublicationMedia from './PublicationMedia';
+import { TexteLie, ApercuYoutube, extraireYoutube } from './PostText';
 import StatsModal from './StatsModal';
 import CommentsSection from './CommentsSection';
 import AuthPrompt from './AuthPrompt';
@@ -79,7 +80,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-100 hover:shadow-xl transition-all duration-300">
+        <div className="bg-white rounded-2xl overflow-hidden border border-zinc-100 shadow-sm hover:shadow-md transition-shadow duration-300">
             {/* Header */}
             <div className="p-4 pb-0">
                 <div className="flex items-center justify-between">
@@ -108,7 +109,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                         <div className="relative" ref={menuRef}>
                             <button
                                 onClick={() => setShowMenu(!showMenu)}
-                                className="p-2 hover:bg-gray-100 rounded-full transition-all"
+                                className="p-2 hover:bg-zinc-100 rounded-full transition-all"
                             >
                                 <MoreHorizontal className="w-5 h-5 text-gray-500" />
                             </button>
@@ -162,11 +163,13 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             ) : (
                 publication.text && (
                     <div className="px-4 py-3">
-                        <p className="text-gray-800 text-sm leading-relaxed whitespace-pre-line">
-                            {texteDeplie || publication.text.length <= SEUIL_TEXTE
-                                ? publication.text
-                                : publication.text.slice(0, SEUIL_TEXTE).trimEnd() + '…'}
-                        </p>
+                        <TexteLie
+                            texte={
+                                texteDeplie || publication.text.length <= SEUIL_TEXTE
+                                    ? publication.text
+                                    : publication.text.slice(0, SEUIL_TEXTE).trimEnd() + '…'
+                            }
+                        />
                         {publication.text.length > SEUIL_TEXTE && (
                             <button
                                 onClick={() => setTexteDeplie((v) => !v)}
@@ -175,6 +178,12 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                                 {texteDeplie ? 'Voir moins' : 'Voir plus'}
                             </button>
                         )}
+
+                        {/* Prévisualisation vidéo (YouTube) détectée dans le texte */}
+                        {(() => {
+                            const yt = extraireYoutube(publication.text || '');
+                            return yt ? <ApercuYoutube id={yt.id} url={yt.url} /> : null;
+                        })()}
                     </div>
                 )
             )}
@@ -183,7 +192,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             <PublicationMedia publication={publication} />
 
             {/* Stats */}
-            <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 border-b border-gray-100">
+            <div className="px-4 py-2 flex items-center justify-between text-xs text-gray-500 border-b border-zinc-100">
                 <div className="flex items-center gap-1">
                     {likesCount > 0 && (
                         <div className="flex items-center">
@@ -245,10 +254,10 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             </div>
 
             {/* Actions */}
-            <div className="px-2 py-1 flex items-center justify-around border-b border-gray-100">
+            <div className="px-2 py-1 flex items-center justify-around border-b border-zinc-100">
                 <button
                     onClick={handleLike}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 transition-all active:scale-95 ${
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-zinc-100 transition-all active:scale-95 ${
                         liked ? 'text-blue-600' : 'text-gray-600'
                     }`}
                 >
@@ -258,7 +267,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
 
                 <button
                     onClick={() => setShowComments(!showComments)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-zinc-100 text-gray-600 transition-all"
                 >
                     <MessageCircle className="w-5 h-5" />
                     <span className="font-semibold text-sm">Commenter</span>
@@ -271,7 +280,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
 
                 <button
                     onClick={() => (currentUser ? onShare() : setAuthPrompt('share'))}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-gray-100 text-gray-600 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-zinc-100 text-gray-600 transition-all"
                 >
                     <Share2 className="w-5 h-5" />
                     <span className="font-semibold text-sm">Partager</span>
