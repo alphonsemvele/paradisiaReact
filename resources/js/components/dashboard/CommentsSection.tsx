@@ -18,6 +18,27 @@ export default function CommentsSection({ publication, currentUser, onCommentAdd
     // Liste locale : le commentaire apparaît immédiatement, l'envoi suit en fond.
     const [comments, setComments] = useState<Comment[]>(publication.comments ?? []);
     const [envoi, setEnvoi] = useState(false);
+    const [tousCharges, setTousCharges] = useState(false);
+    const [chargement, setChargement] = useState(false);
+
+    // L'accueil ne charge que les commentaires récents. On calcule combien sont
+    // affichés (racines + réponses) pour proposer « voir tous les commentaires ».
+    const nbAffiches = comments.reduce((n, c) => n + 1 + (c.replies?.length ?? 0), 0);
+    const total = publication.comments_count ?? nbAffiches;
+    const resteACharger = !tousCharges && total > nbAffiches;
+
+    const chargerTous = async () => {
+        setChargement(true);
+        try {
+            const r = await fetch(`/publications/${publication.id}/comments`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+            if (r.ok) {
+                const d = await r.json();
+                setComments(d.comments ?? []);
+                setTousCharges(true);
+            }
+        } catch { /* silencieux */ }
+        finally { setChargement(false); }
+    };
 
     const handleAddComment = () => {
         if (!currentUser) {
@@ -132,6 +153,17 @@ export default function CommentsSection({ publication, currentUser, onCommentAdd
                     )}
                 </div>
             </div>
+
+            {/* Voir tous les commentaires (l'accueil n'en charge que les récents) */}
+            {resteACharger && (
+                <button
+                    onClick={chargerTous}
+                    disabled={chargement}
+                    className="mb-2 text-sm font-semibold text-emerald-600 hover:underline disabled:opacity-60"
+                >
+                    {chargement ? 'Chargement…' : `Voir les ${total} commentaires`}
+                </button>
+            )}
 
             {/* Comments List */}
             {comments.length > 0 ? (

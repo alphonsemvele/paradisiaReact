@@ -238,6 +238,9 @@ Route::get('/p/{publication}', [HomeController::class, 'index'])->name('publicat
 // Profil public d'un utilisateur (en-tête + publications)
 Route::get('/u/{user}', [\App\Http\Controllers\PublicProfileController::class, 'show'])->name('profil.public');
 
+// Tous les commentaires d'une publication (le fil n'en charge que les récents)
+Route::get('/publications/{id}/comments', [HomeController::class, 'commentsForPublication'])->name('publication.comments');
+
 // Boutique et panier : accessibles aux visiteurs (panier en session) ;
 // la connexion n'est exigée qu'au moment de passer commande (/checkout).
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');

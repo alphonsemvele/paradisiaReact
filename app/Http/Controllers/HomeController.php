@@ -551,6 +551,52 @@ class HomeController extends Controller
     }
 
     /**
+     * Tous les commentaires d'une publication (racines + réponses), au format
+     * du fil. Appelé par « Voir tous les commentaires » puisque l'accueil n'en
+     * charge que les plus récents.
+     */
+    public function commentsForPublication(int $id): JsonResponse
+    {
+        $pub = Publication::findOrFail($id);
+
+        // Borne de sécurité : on ne renvoie pas des dizaines de milliers de
+        // commentaires (publications inondées). 200 racines récentes suffisent.
+        $topLevel = Comment::with('user')
+            ->where('id_publication', $id)
+            ->where('status', 'Success')
+            ->whereNull('parent_id')
+            ->orderByDesc('created_at')
+            ->limit(200)
+            ->get();
+
+        $replies = $topLevel->isEmpty()
+            ? collect()
+            : Comment::with('user')
+                ->where('id_publication', $id)
+                ->where('status', 'Success')
+                ->whereIn('parent_id', $topLevel->pluck('id'))
+                ->orderBy('created_at')
+                ->limit(500)
+                ->get();
+
+        $pub->setRelation('comments', $topLevel->concat($replies));
+
+        $ids = $pub->comments->pluck('id')->toArray();
+        $userCommentLikes = Auth::check()
+            ? CommentLike::where('id_user', Auth::id())->whereIn('id_comment', $ids)->pluck('id_comment')->toArray()
+            : [];
+        $commentLikesCounts = CommentLike::whereIn('id_comment', $ids)
+            ->selectRaw('id_comment, count(*) as count')
+            ->groupBy('id_comment')
+            ->pluck('count', 'id_comment')
+            ->toArray();
+
+        $formatted = $this->formatPublication($pub, $userCommentLikes, $commentLikesCounts);
+
+        return response()->json(['comments' => $formatted['comments']]);
+    }
+
+    /**
      * Attache aux publications leurs commentaires récents seulement (racines
      * + réponses), au lieu de la totalité : une publication très commentée
      * n'alourdit plus chaque affichage de l'accueil.
