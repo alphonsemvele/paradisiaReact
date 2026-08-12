@@ -80,14 +80,14 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
     };
 
     return (
-        <div className="bg-white rounded-2xl overflow-hidden border border-zinc-100 shadow-sm hover:shadow-md transition-shadow duration-300">
+        <div className="group bg-white rounded-3xl overflow-hidden border border-zinc-100 shadow-sm hover:shadow-[0_14px_40px_-16px_rgba(16,185,129,0.35)] hover:-translate-y-0.5 transition-all duration-300">
             {/* Header */}
             <div className="p-4 pb-0">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         {publication.user?.id ? (
                             <Link href={`/u/${publication.user.id}`} className="flex items-center gap-3 group">
-                                <img src={userPhoto} alt={userName} className="w-11 h-11 rounded-full border-2 border-emerald-400 object-cover" />
+                                <span className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-br from-emerald-400 via-lime-400 to-amber-300 flex-shrink-0 inline-flex"><img src={userPhoto} alt={userName} className="w-full h-full rounded-full object-cover border-2 border-white" /></span>
                                 <div>
                                     <h4 className="font-bold text-gray-900 text-sm group-hover:underline">{userName}</h4>
                                     <p className="text-xs text-gray-500 flex items-center gap-1.5">{publication.created_at_human} · 🌍</p>
@@ -95,7 +95,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                             </Link>
                         ) : (
                             <>
-                                <img src={userPhoto} alt={userName} className="w-11 h-11 rounded-full border-2 border-emerald-400 object-cover" />
+                                <span className="w-11 h-11 rounded-full p-[2px] bg-gradient-to-br from-emerald-400 via-lime-400 to-amber-300 flex-shrink-0 inline-flex"><img src={userPhoto} alt={userName} className="w-full h-full rounded-full object-cover border-2 border-white" /></span>
                                 <div>
                                     <h4 className="font-bold text-gray-900 text-sm">{userName}</h4>
                                     <p className="text-xs text-gray-500 flex items-center gap-1.5">{publication.created_at_human} · 🌍</p>
@@ -257,8 +257,8 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
             <div className="px-2 py-1 flex items-center justify-around border-b border-zinc-100">
                 <button
                     onClick={handleLike}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-zinc-100 transition-all active:scale-95 ${
-                        liked ? 'text-blue-600' : 'text-gray-600'
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl transition-all active:scale-95 ${
+                        liked ? 'text-emerald-600 bg-emerald-50' : 'text-gray-600 hover:bg-emerald-50 hover:text-emerald-600'
                     }`}
                 >
                     <ThumbsUp className={`w-5 h-5 transition-transform ${liked ? 'fill-current scale-110' : ''}`} />
@@ -267,7 +267,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
 
                 <button
                     onClick={() => setShowComments(!showComments)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-zinc-100 text-gray-600 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-gray-600 hover:bg-sky-50 hover:text-sky-600 transition-all"
                 >
                     <MessageCircle className="w-5 h-5" />
                     <span className="font-semibold text-sm">Commenter</span>
@@ -280,7 +280,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
 
                 <button
                     onClick={() => (currentUser ? onShare() : setAuthPrompt('share'))}
-                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg hover:bg-zinc-100 text-gray-600 transition-all"
+                    className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-gray-600 hover:bg-amber-50 hover:text-amber-600 transition-all"
                 >
                     <Share2 className="w-5 h-5" />
                     <span className="font-semibold text-sm">Partager</span>
