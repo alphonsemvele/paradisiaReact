@@ -15,6 +15,7 @@ import {
     Gift,
     Shield,
     PartyPopper,
+    MessageCircle,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 import SupportButton from '@/components/SupportButton';
@@ -334,6 +335,30 @@ export default function AppLayout({ children }: Props) {
                                             )}
                                         </div>
                                     </div>
+                                    <Link
+                                        href="/profile"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-lg"
+                                    >
+                                        <User className="w-4 h-4" />
+                                        Mon profil
+                                    </Link>
+                                    <Link
+                                        href="/parrainage"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-lg"
+                                    >
+                                        <Gift className="w-4 h-4" />
+                                        Parrainage
+                                    </Link>
+                                    <Link
+                                        href="/messages"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 rounded-lg"
+                                    >
+                                        <MessageCircle className="w-4 h-4" />
+                                        Messages
+                                    </Link>
                                     <button
                                         onClick={handleLogout}
                                         className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
