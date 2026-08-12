@@ -161,4 +161,26 @@ public function categories(): HasMany
          return $this->hasMany(Product::class,'id_user');
 
     }
+
+    /** Le parrain (celui qui a parrainé cet utilisateur). */
+    public function parrain(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'id_father');
+    }
+
+    /** Les filleuls (utilisateurs parrainés par celui-ci). */
+    public function filleuls(): HasMany
+    {
+        return $this->hasMany(User::class, 'id_father');
+    }
+
+    /** Génère un code de parrainage unique (REF_xxxxxxxxxx). */
+    public static function genererRef(): string
+    {
+        do {
+            $ref = 'REF_'.\Illuminate\Support\Str::random(10);
+        } while (self::where('ref', $ref)->exists());
+
+        return $ref;
+    }
 }

@@ -20,11 +20,13 @@ use libphonenumber\PhoneNumberUtil;
 
 class RegisteredUserController extends Controller
 {
-    public function create(): Response
+    public function create(Request $request): Response
     {
         return Inertia::render('auth/register', [
             'countries' => Country::orderBy('name')
                 ->get(['id', 'name', 'sortname', 'phoneCode']),
+            // Code de parrainage transmis par le lien (?ref=REF_xxxx).
+            'parrain' => $request->query('ref'),
         ]);
     }
 
@@ -37,7 +39,13 @@ class RegisteredUserController extends Controller
             'sexe' => 'required|in:H,F',
             'id_country' => 'required|exists:countries,id',
             'phone' => 'required|string|max:20',
+            'parrain' => ['nullable', 'string', 'max:40'],
         ]);
+
+        // Parrainage : on relie le nouveau compte à son parrain via son code.
+        $parrain = ! empty($validated['parrain'])
+            ? User::where('ref', trim($validated['parrain']))->first()
+            : null;
 
         // Récupérer le pays pour remplir country et country_code automatiquement
         $country = Country::findOrFail($validated['id_country']);
@@ -69,6 +77,9 @@ class RegisteredUserController extends Controller
             'id_country' => $country->id,
             'country' => $country->name,
             'country_code' => $country->phoneCode,
+            'ref' => User::genererRef(),                 // code de parrainage du nouveau
+            'id_father' => $parrain?->id,                // son parrain (le cas échéant)
+            'referral_code' => $parrain?->ref,           // code du parrain utilisé
         ]);
 
         event(new Registered($user));

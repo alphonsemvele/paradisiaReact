@@ -206,9 +206,27 @@ class UserController extends Controller
                 ]);
         }
 
+        // Parrainage (admin : visibilité complète).
+        $parrain = $user->id_father ? User::find($user->id_father) : null;
+        $filleuls = User::where('id_father', $user->id)
+            ->orderByDesc('created_at')
+            ->get(['id', 'name', 'ref', 'created_at'])
+            ->map(fn ($f) => [
+                'id' => $f->id,
+                'nom' => $f->name,
+                'code' => $f->ref,
+                'date' => $f->created_at?->isoFormat('D MMM YYYY'),
+            ]);
+
         return Inertia::render('admin/users/show', [
             'connexions' => $connexions,
             'comptesLies' => $comptesLies,
+            'parrainage' => [
+                'code' => $user->ref,
+                'parrain' => $parrain ? ['id' => $parrain->id, 'nom' => $parrain->name, 'code' => $parrain->ref] : null,
+                'filleuls' => $filleuls,
+                'nb_filleuls' => $filleuls->count(),
+            ],
             'user' => [
                 'id' => $user->id,
                 'ref' => $user->ref,

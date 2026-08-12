@@ -74,6 +74,12 @@ interface Props {
     activityChart: Array<{ label: string; visits: number }>;
     connexions: Array<{ ip: string; nombre: number; derniere: string; bannie: boolean }>;
     comptesLies: Array<{ id: number; nom: string; email: string; phone: string | null; bloque: boolean; meme_phone: boolean; meme_email: boolean }>;
+    parrainage: {
+        code: string | null;
+        parrain: { id: number; nom: string; code: string | null } | null;
+        filleuls: Array<{ id: number; nom: string; code: string | null; date: string }>;
+        nb_filleuls: number;
+    };
 }
 
 function countryCodeToFlag(code: string | number | null): string {
@@ -96,6 +102,7 @@ export default function UserShow({
     activityChart,
     connexions,
     comptesLies,
+    parrainage,
 }: Props) {
     const [editMode, setEditMode] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
@@ -505,6 +512,39 @@ export default function UserShow({
                                 </div>
                             </div>
                         )}
+
+                        {/* Parrainage (admin voit tout) */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200">
+                            <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-2">
+                                <Shield className="w-4 h-4 text-emerald-500" />
+                                <h3 className="font-semibold text-zinc-900">Parrainage</h3>
+                                <span className="ml-auto text-xs text-zinc-500">Code : <span className="font-mono font-semibold text-zinc-700">{parrainage.code ?? '—'}</span></span>
+                            </div>
+                            <div className="px-5 py-3 text-sm">
+                                <p className="text-zinc-600">
+                                    Parrain :{' '}
+                                    {parrainage.parrain
+                                        ? <Link href={`/admin/users/${parrainage.parrain.id}`} className="font-medium text-emerald-700 hover:underline">{parrainage.parrain.nom}</Link>
+                                        : <span className="text-zinc-400">aucun</span>}
+                                </p>
+                            </div>
+                            <div className="px-5 pb-3">
+                                <p className="text-xs font-medium text-zinc-500 mb-2">Filleuls ({parrainage.nb_filleuls})</p>
+                                {parrainage.filleuls.length === 0 ? (
+                                    <p className="text-xs text-zinc-400">Aucun filleul.</p>
+                                ) : (
+                                    <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                                        {parrainage.filleuls.map((f) => (
+                                            <Link key={f.id} href={`/admin/users/${f.id}`} className="flex items-center gap-2 text-sm hover:bg-zinc-50 rounded-lg px-2 py-1.5">
+                                                <span className="flex-1 text-zinc-800 truncate">{f.nom}</span>
+                                                <span className="font-mono text-xs text-zinc-500">{f.code ?? '—'}</span>
+                                                <span className="text-xs text-zinc-400 whitespace-nowrap">{f.date}</span>
+                                            </Link>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
                         <div className="bg-white rounded-2xl shadow-sm border border-zinc-200">
                             <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-2">

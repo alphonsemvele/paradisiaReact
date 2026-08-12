@@ -18,6 +18,7 @@ interface Country {
 
 interface Props {
     countries: Country[];
+    parrain?: string | null;
 }
 
 interface RegisterData {
@@ -28,6 +29,7 @@ interface RegisterData {
     phone: string;
     password: string;
     password_confirmation: string;
+    parrain: string;
     [key: string]: any;
 }
 
@@ -39,7 +41,7 @@ function countryCodeToFlag(isoCode: string): string {
         .replace(/./g, (char) => String.fromCodePoint(127397 + char.charCodeAt(0)));
 }
 
-export default function Register({ countries }: Props) {
+export default function Register({ countries, parrain }: Props) {
     const [showPassword, setShowPassword] = useState(false);
     const [phoneTouched, setPhoneTouched] = useState(false);
 
@@ -51,6 +53,7 @@ export default function Register({ countries }: Props) {
         phone: '',
         password: '',
         password_confirmation: '',
+        parrain: parrain ?? '',
     });
 
     // Pays sélectionné
@@ -428,6 +431,20 @@ export default function Register({ countries }: Props) {
                                         placeholder="••••••••"
                                     />
                                 </div>
+                            </div>
+
+                            {/* Code de parrainage (optionnel, pré-rempli par le lien) */}
+                            <div>
+                                <label className="block text-sm font-medium text-zinc-700 mb-1.5">Code de parrainage (optionnel)</label>
+                                <input
+                                    type="text"
+                                    value={data.parrain}
+                                    onChange={(e) => setData('parrain', e.target.value)}
+                                    className="w-full px-4 py-2.5 bg-zinc-50 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-mono"
+                                    placeholder="REF_XXXXXXXXXX"
+                                />
+                                {parrain && <p className="mt-1 text-xs text-emerald-600">Tu t'inscris grâce à un parrain 🎉</p>}
+                                {errors.parrain && <p className="mt-1 text-xs text-red-600">{errors.parrain}</p>}
                             </div>
 
                             {/* Bouton submit */}

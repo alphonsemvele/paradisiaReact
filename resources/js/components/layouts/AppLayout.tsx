@@ -12,7 +12,7 @@ import {
     Menu,
     X,
     ChevronDown,
-    Settings,
+    Gift,
     Shield,
     PartyPopper,
 } from 'lucide-react';
@@ -178,11 +178,11 @@ export default function AppLayout({ children }: Props) {
                                                             Mon profil
                                                         </Link>
                                                         <Link
-                                                            href="/settings"
+                                                            href="/parrainage"
                                                             className="flex items-center gap-2 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
                                                         >
-                                                            <Settings className="w-4 h-4" />
-                                                            Paramètres
+                                                            <Gift className="w-4 h-4" />
+                                                            Parrainage
                                                         </Link>
                                                         {isAdmin && (
                                                             <Link

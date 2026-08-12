@@ -250,6 +250,9 @@ Route::delete('/cart/clear', [ShopController::class, 'clearCart'])->name('cart.c
 
 
 Route::middleware('auth')->group(function () {
+    // ── Parrainage (mon code / lien + mes filleuls) ───────────────────────
+    Route::get('/parrainage', [\App\Http\Controllers\ParrainageController::class, 'index'])->name('parrainage.index');
+
     // ── Mon profil ────────────────────────────────────────────────────────
     Route::get('/profile', [\App\Http\Controllers\ProfileController::class, 'edit'])->name('profile.edit');
     Route::match(['post', 'patch'], '/profile', [\App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
