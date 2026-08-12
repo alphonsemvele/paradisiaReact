@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/components/layouts/AppLayout';
-import { Camera, CalendarDays, FileText, Heart, MessageSquare, Save, ExternalLink, MapPin, Pencil, X, Image as ImageIcon } from 'lucide-react';
+import { Camera, CalendarDays, FileText, Heart, MessageSquare, Save, ExternalLink, MapPin, Pencil, X, Gift, Image as ImageIcon } from 'lucide-react';
 
 interface Profil {
     id: number;
@@ -41,11 +41,15 @@ export default function MonProfil({ profil, publications }: Props) {
                             ? <img src={profil.photo} alt={nomComplet} className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-4 border-white shadow-md" />
                             : <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-emerald-100 text-emerald-700 text-4xl font-bold flex items-center justify-center border-4 border-white shadow-md">{profil.name.charAt(0).toUpperCase()}</div>}
 
-                        <div className="mb-2 flex gap-2">
+                        <div className="mb-2 flex flex-wrap gap-2 justify-end">
                             <button onClick={() => setEdition(true)}
                                 className="inline-flex items-center gap-2 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold px-4 py-2 shadow-sm">
                                 <Pencil className="w-4 h-4" /> Modifier le profil
                             </button>
+                            <Link href="/parrainage"
+                                className="inline-flex items-center gap-2 rounded-full border border-emerald-500 text-emerald-700 hover:bg-emerald-50 text-sm font-semibold px-4 py-2">
+                                <Gift className="w-4 h-4" /> Parrainage
+                            </Link>
                         </div>
                     </div>
 

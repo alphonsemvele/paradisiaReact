@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Gift } from 'lucide-react';
 import type { User } from '@/types';
 
 interface Props {
@@ -46,6 +46,14 @@ export default function ProfileCard({ user }: Props) {
                     className="mt-4 flex items-center justify-between w-full px-3 py-2.5 bg-zinc-50 hover:bg-zinc-100 rounded-lg text-sm font-medium text-zinc-700 transition-colors"
                 >
                     Voir mon profil
+                    <ChevronRight className="w-4 h-4" />
+                </Link>
+
+                <Link
+                    href="/parrainage"
+                    className="mt-2 flex items-center justify-between w-full px-3 py-2.5 bg-emerald-50 hover:bg-emerald-100 rounded-lg text-sm font-semibold text-emerald-700 transition-colors"
+                >
+                    <span className="flex items-center gap-2"><Gift className="w-4 h-4" /> Mon parrainage</span>
                     <ChevronRight className="w-4 h-4" />
                 </Link>
             </div>
