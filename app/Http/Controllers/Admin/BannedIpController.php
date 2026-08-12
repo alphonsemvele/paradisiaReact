@@ -36,6 +36,7 @@ class BannedIpController extends Controller
     public function connexions(Request $request): Response
     {
         $recherche = trim((string) $request->get('q', ''));
+        $tri = $request->get('tri', 'recent'); // recent | ancien | comptes
         $depuis = Carbon::now()->subDays(90);
 
         $base = DB::table('visits')
@@ -49,8 +50,9 @@ class BannedIpController extends Controller
         $ips = (clone $base)
             ->selectRaw('ip_address, COUNT(*) as visites, COUNT(DISTINCT id_user) as comptes, MAX(created_at) as derniere')
             ->groupBy('ip_address')
-            ->orderByDesc('comptes')
-            ->orderByDesc('derniere')
+            ->when($tri === 'comptes', fn ($q) => $q->orderByDesc('comptes')->orderByDesc('derniere'))
+            ->when($tri === 'ancien', fn ($q) => $q->orderBy('derniere'))
+            ->when(! in_array($tri, ['comptes', 'ancien'], true), fn ($q) => $q->orderByDesc('derniere'))
             ->limit(200)
             ->get();
 
@@ -87,6 +89,7 @@ class BannedIpController extends Controller
         return Inertia::render('admin/securite/connexions', [
             'connexions' => $connexions,
             'recherche' => $recherche,
+            'tri' => $tri,
         ]);
     }
 

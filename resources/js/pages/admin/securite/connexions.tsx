@@ -5,14 +5,21 @@ import { History, Ban, Search, ChevronDown, ChevronRight, Users, AlertTriangle }
 
 interface Utilisateur { id: number; nom: string; email: string; bloque: boolean }
 interface Connexion { ip: string; visites: number; comptes: number; derniere: string; bannie: boolean; utilisateurs: Utilisateur[] }
-interface Props { connexions: Connexion[]; recherche: string }
+interface Props { connexions: Connexion[]; recherche: string; tri: string }
 
-export default function Connexions({ connexions, recherche }: Props) {
+export default function Connexions({ connexions, recherche, tri }: Props) {
     const flash = (usePage().props as any).flash?.success as string | undefined;
     const [q, setQ] = useState(recherche);
     const [ouvert, setOuvert] = useState<string | null>(null);
 
-    const chercher = () => router.get('/admin/securite/connexions', q ? { q } : {}, { preserveScroll: true, preserveState: true });
+    const naviguer = (params: Record<string, string>) => {
+        const base: Record<string, string> = {};
+        if (q) base.q = q;
+        if (tri) base.tri = tri;
+        router.get('/admin/securite/connexions', { ...base, ...params }, { preserveScroll: true, preserveState: true });
+    };
+    const chercher = () => naviguer({});
+    const trier = (t: string) => naviguer({ tri: t });
 
     const bannir = (ip: string) => {
         if (!confirm(`Bannir l'adresse IP ${ip} ? Elle ne pourra plus accéder au site (sauf les administrateurs).`)) return;
@@ -34,13 +41,29 @@ export default function Connexions({ connexions, recherche }: Props) {
             {flash && <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 text-sm">{flash}</div>}
 
             {/* Recherche */}
-            <div className="flex gap-2 mb-4 max-w-md">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-400" />
-                    <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && chercher()}
-                        placeholder="Filtrer par IP…" className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="flex gap-2 flex-1 min-w-[240px] max-w-md">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-400" />
+                        <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && chercher()}
+                            placeholder="Filtrer par IP…" className="w-full pl-9 pr-3 py-2 bg-white border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                    </div>
+                    <button onClick={chercher} className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-semibold">Filtrer</button>
                 </div>
-                <button onClick={chercher} className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-semibold">Filtrer</button>
+
+                {/* Tri */}
+                <div className="flex items-center gap-1 bg-white border border-zinc-200 rounded-lg p-1">
+                    {[
+                        { k: 'recent', label: 'Plus récentes' },
+                        { k: 'ancien', label: 'Plus anciennes' },
+                        { k: 'comptes', label: 'Plus de comptes' },
+                    ].map((o) => (
+                        <button key={o.k} onClick={() => trier(o.k)}
+                            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${tri === o.k ? 'bg-indigo-600 text-white' : 'text-zinc-600 hover:bg-zinc-50'}`}>
+                            {o.label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             <div className="bg-white rounded-2xl border border-zinc-200 overflow-hidden">
