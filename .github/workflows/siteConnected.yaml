@@ -46,6 +46,7 @@ jobs:
 
       # Backup de la version en ligne AVANT le rsync
       - name: Backup version actuelle
+        continue-on-error: true   # le backup est optionnel : ne doit pas bloquer le déploiement
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
