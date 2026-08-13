@@ -154,6 +154,31 @@ class UserController extends Controller
                 'created_at_human' => $p->created_at->diffForHumans(),
             ]);
 
+        // Commentaires de l'utilisateur + la publication concernée.
+        $pubIds = Comment::where('id_user', $user->id)->orderByDesc('created_at')->limit(30)->pluck('id_publication')->all();
+        $pubsCommentees = Publication::whereIn('id', $pubIds)->get(['id', 'text', 'id_user'])->keyBy('id');
+        $auteurs = \App\Models\User::whereIn('id', $pubsCommentees->pluck('id_user'))->pluck('name', 'id');
+
+        $commentaires = Comment::where('id_user', $user->id)
+            ->orderByDesc('created_at')
+            ->limit(30)
+            ->get()
+            ->map(function ($c) use ($pubsCommentees, $auteurs) {
+                $pub = $pubsCommentees[$c->id_publication] ?? null;
+
+                return [
+                    'id' => $c->id,
+                    'body' => \Illuminate\Support\Str::limit($c->body, 220),
+                    'date' => $c->created_at?->diffForHumans(),
+                    'publication' => $pub ? [
+                        'id' => $pub->id,
+                        'lien' => '/p/'.$pub->id,
+                        'auteur' => $auteurs[$pub->id_user] ?? 'Utilisateur',
+                        'extrait' => $pub->text ? \Illuminate\Support\Str::limit($pub->text, 70) : '(publication sans texte)',
+                    ] : null,
+                ];
+            });
+
         // Activité 30 derniers jours
         $activityChart = [];
         for ($i = 29; $i >= 0; $i--) {
@@ -255,6 +280,7 @@ class UserController extends Controller
             ],
             'userStats' => $userStats,
             'recentPublications' => $recentPublications,
+            'commentaires' => $commentaires,
             'activityChart' => $activityChart,
         ]);
     }

@@ -71,6 +71,12 @@ interface Props {
         text: string;
         created_at_human: string;
     }>;
+    commentaires: Array<{
+        id: number;
+        body: string;
+        date: string | null;
+        publication: { id: number; lien: string; auteur: string; extrait: string } | null;
+    }>;
     activityChart: Array<{ label: string; visits: number }>;
     connexions: Array<{ ip: string; nombre: number; derniere: string; bannie: boolean }>;
     comptesLies: Array<{ id: number; nom: string; email: string; phone: string | null; bloque: boolean; meme_phone: boolean; meme_email: boolean }>;
@@ -99,6 +105,7 @@ export default function UserShow({
     user,
     userStats,
     recentPublications,
+    commentaires,
     activityChart,
     connexions,
     comptesLies,
@@ -588,7 +595,7 @@ export default function UserShow({
                                     </p>
                                 )}
                                 {recentPublications.map((pub) => (
-                                    <div key={pub.id} className="px-5 py-3">
+                                    <Link key={pub.id} href={`/p/${pub.id}`} className="block px-5 py-3 hover:bg-zinc-50">
                                         <p className="text-sm text-zinc-700">
                                             {pub.text || (
                                                 <span className="italic text-zinc-400">
@@ -599,6 +606,35 @@ export default function UserShow({
                                         <p className="text-xs text-zinc-400 mt-1">
                                             {pub.created_at_human}
                                         </p>
+                                    </Link>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Commentaires de l'utilisateur */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200">
+                            <div className="px-5 py-4 border-b border-zinc-100 flex items-center gap-2">
+                                <MessageSquare className="w-4 h-4 text-zinc-400" />
+                                <h3 className="font-semibold text-zinc-900">Commentaires de l'utilisateur</h3>
+                            </div>
+                            <div className="divide-y divide-zinc-100 max-h-[28rem] overflow-y-auto">
+                                {commentaires.length === 0 && (
+                                    <p className="px-5 py-6 text-sm text-zinc-500 text-center">Aucun commentaire</p>
+                                )}
+                                {commentaires.map((c) => (
+                                    <div key={c.id} className="px-5 py-3">
+                                        <p className="text-sm text-zinc-800">« {c.body} »</p>
+                                        <div className="mt-1.5 flex items-center gap-2 text-xs text-zinc-400">
+                                            <span>{c.date}</span>
+                                            {c.publication && (
+                                                <>
+                                                    <span>·</span>
+                                                    <Link href={c.publication.lien} className="inline-flex items-center gap-1 text-emerald-600 hover:underline truncate max-w-[60%]">
+                                                        sur la publication de {c.publication.auteur} : “{c.publication.extrait}”
+                                                    </Link>
+                                                </>
+                                            )}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
