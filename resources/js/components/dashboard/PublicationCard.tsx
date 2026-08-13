@@ -12,10 +12,21 @@ interface Props {
     publication: Publication;
     currentUser: User | null;
     onShare: () => void;
+    /** Dans le fil : ouvre la publication en modale (façon Facebook) au clic « Commenter ». */
+    onComment?: () => void;
+    /** Dans la modale : commentaires ouverts par défaut. */
+    defaultShowComments?: boolean;
 }
 
-export default function PublicationCard({ publication, currentUser, onShare }: Props) {
-    const [showComments, setShowComments] = useState(false);
+export default function PublicationCard({ publication, currentUser, onShare, onComment, defaultShowComments = false }: Props) {
+    const [showComments, setShowComments] = useState(defaultShowComments);
+
+    // « Commenter » : dans le fil → ouvre la modale ; dans la modale → affiche
+    // la section commentaires.
+    const ouvrirCommentaires = () => {
+        if (onComment) onComment();
+        else setShowComments(true);
+    };
     const [showMenu, setShowMenu] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [showStats, setShowStats] = useState(false);
@@ -225,7 +236,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                 <div className="flex items-center gap-3">
                     {commentsCount > 0 && (
                         <span
-                            onClick={() => setShowComments(!showComments)}
+                            onClick={ouvrirCommentaires}
                             className="hover:underline cursor-pointer"
                         >
                             {commentsCount} commentaire
@@ -266,7 +277,7 @@ export default function PublicationCard({ publication, currentUser, onShare }: P
                 </button>
 
                 <button
-                    onClick={() => setShowComments(!showComments)}
+                    onClick={ouvrirCommentaires}
                     className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-gray-600 hover:bg-sky-50 hover:text-sky-600 transition-all"
                 >
                     <MessageCircle className="w-5 h-5" />

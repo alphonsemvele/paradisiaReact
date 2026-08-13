@@ -241,6 +241,9 @@ Route::get('/u/{user}', [\App\Http\Controllers\PublicProfileController::class, '
 // Tous les commentaires d'une publication (le fil n'en charge que les récents)
 Route::get('/publications/{id}/comments', [HomeController::class, 'commentsForPublication'])->name('publication.comments');
 
+// Fil : lot suivant de publications (« Voir plus »)
+Route::get('/feed/plus', [HomeController::class, 'feedMore'])->name('feed.more');
+
 // Boutique et panier : accessibles aux visiteurs (panier en session) ;
 // la connexion n'est exigée qu'au moment de passer commande (/checkout).
 Route::get('/shop', [ShopController::class, 'index'])->name('shop');

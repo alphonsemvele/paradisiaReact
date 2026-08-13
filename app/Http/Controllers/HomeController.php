@@ -551,6 +551,63 @@ class HomeController extends Controller
     }
 
     /**
+     * Pagination du fil : renvoie le lot suivant de publications (les plus
+     * récentes d'abord). Permet d'afficher toutes les publications via
+     * « Voir plus », sans tout charger d'un coup.
+     */
+    public function feedMore(Request $request): JsonResponse
+    {
+        $offset = max(0, (int) $request->query('offset', 0));
+
+        // Même graine que le fil initial : l'ordre aléatoire reste stable,
+        // donc « Voir plus » enchaîne sans doublon ni saut.
+        $seed = $request->session()->get('feed_seed') ?: 1;
+
+        $publications = Publication::with('user')
+            ->withCount([
+                'likes',
+                'shares',
+                'comments as comments_success_count' => fn ($q) => $q->where('status', 'Success'),
+            ])
+            ->where('status', 'Success')
+            ->inRandomOrder($seed)
+            ->offset($offset)
+            ->limit(10)
+            ->get();
+
+        return response()->json([
+            'publications' => $this->preparerFil($publications),
+            'encore' => $publications->count() === 10,
+        ]);
+    }
+
+    /** Prépare une collection de publications au format du fil (likes, commentaires). */
+    private function preparerFil($publications): array
+    {
+        $this->attachRecentComments($publications);
+
+        $likedPublicationIds = Auth::check()
+            ? Like::where('id_user', Auth::id())->whereIn('id_publication', $publications->pluck('id'))->pluck('id_publication')->all()
+            : [];
+
+        $allCommentIds = $publications->flatMap(fn ($p) => $p->comments->pluck('id'))->toArray();
+
+        $userCommentLikes = Auth::check()
+            ? CommentLike::where('id_user', Auth::id())->whereIn('id_comment', $allCommentIds)->pluck('id_comment')->toArray()
+            : [];
+
+        $commentLikesCounts = CommentLike::whereIn('id_comment', $allCommentIds)
+            ->selectRaw('id_comment, count(*) as count')
+            ->groupBy('id_comment')
+            ->pluck('count', 'id_comment')
+            ->toArray();
+
+        return $publications->map(
+            fn ($pub) => $this->formatPublication($pub, $userCommentLikes, $commentLikesCounts, $likedPublicationIds)
+        )->all();
+    }
+
+    /**
      * Tous les commentaires d'une publication (racines + réponses), au format
      * du fil. Appelé par « Voir tous les commentaires » puisque l'accueil n'en
      * charge que les plus récents.

@@ -65,11 +65,12 @@ export default function PublicationModal({
                         </button>
                     </div>
 
-                    {/* Publication card */}
+                    {/* Publication card (commentaires ouverts, façon Facebook) */}
                     <PublicationCard
                         publication={publication}
                         currentUser={currentUser}
                         onShare={onShare}
+                        defaultShowComments
                     />
                 </motion.div>
             </motion.div>

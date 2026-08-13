@@ -59,6 +59,37 @@ export default function DashboardIndex() {
     const [highlightModalPub, setHighlightModalPub] = useState<Publication | null>(
         highlightedPublication
     );
+    const [postModalPub, setPostModalPub] = useState<Publication | null>(null);
+
+    // Liste locale du fil : on peut charger toutes les publications (« Voir plus »).
+    const [posts, setPosts] = useState<Publication[]>(publications);
+    const [encore, setEncore] = useState(publications.length >= 10);
+    const [chargement, setChargement] = useState(false);
+
+    // Nouvelles publications du serveur (sans écraser celles déjà chargées).
+    useEffect(() => {
+        setPosts((prev) => {
+            const ids = new Set(prev.map((p) => p.id));
+            const nouveaux = publications.filter((p) => !ids.has(p.id));
+            return nouveaux.length ? [...nouveaux, ...prev] : prev;
+        });
+    }, [publications]);
+
+    const chargerPlus = async () => {
+        setChargement(true);
+        try {
+            const r = await fetch(`/feed/plus?offset=${posts.length}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+            if (r.ok) {
+                const d = await r.json();
+                setPosts((prev) => {
+                    const ids = new Set(prev.map((p) => p.id));
+                    return [...prev, ...(d.publications ?? []).filter((p: Publication) => !ids.has(p.id))];
+                });
+                setEncore(!!d.encore);
+            }
+        } catch { /* silencieux */ }
+        finally { setChargement(false); }
+    };
 
     // Si l'URL change et contient un highlight, afficher le modal
     useEffect(() => {
@@ -116,22 +147,37 @@ export default function DashboardIndex() {
                             onAdded={() => setShowCart(true)}
                         />
 
-                        {publications.length > 0 ? (
-                            publications.map((pub) => (
-                                <motion.div
-                                    key={pub.id}
-                                    initial={{ opacity: 0, y: 28, scale: 0.97 }}
-                                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                                    viewport={{ once: true, margin: '-40px' }}
-                                    transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                                >
-                                    <PublicationCard
-                                        publication={pub}
-                                        currentUser={auth.user}
-                                        onShare={() => setShareModalPub(pub)}
-                                    />
-                                </motion.div>
-                            ))
+                        {posts.length > 0 ? (
+                            <>
+                                {posts.map((pub) => (
+                                    <motion.div
+                                        key={pub.id}
+                                        initial={{ opacity: 0, y: 28, scale: 0.97 }}
+                                        whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                                        viewport={{ once: true, margin: '-40px' }}
+                                        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                                    >
+                                        <PublicationCard
+                                            publication={pub}
+                                            currentUser={auth.user}
+                                            onShare={() => setShareModalPub(pub)}
+                                            onComment={() => setPostModalPub(pub)}
+                                        />
+                                    </motion.div>
+                                ))}
+
+                                {encore && (
+                                    <div className="flex justify-center pt-2">
+                                        <button
+                                            onClick={chargerPlus}
+                                            disabled={chargement}
+                                            className="px-6 py-2.5 rounded-full bg-white border border-zinc-200 shadow-sm hover:shadow-md text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-all disabled:opacity-60"
+                                        >
+                                            {chargement ? 'Chargement…' : 'Voir plus de publications'}
+                                        </button>
+                                    </div>
+                                )}
+                            </>
                         ) : (
                             <EmptyPublications onCreate={() => setShowCreateModal(true)} />
                         )}
@@ -160,6 +206,16 @@ export default function DashboardIndex() {
                     currentUser={auth.user}
                     onClose={handleCloseHighlight}
                     onShare={() => setShareModalPub(highlightModalPub)}
+                />
+            )}
+
+            {/* Modal de publication ouvert au clic « Commenter » (façon Facebook) */}
+            {postModalPub && (
+                <PublicationModal
+                    publication={postModalPub}
+                    currentUser={auth.user}
+                    onClose={() => setPostModalPub(null)}
+                    onShare={() => setShareModalPub(postModalPub)}
                 />
             )}
 
