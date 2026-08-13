@@ -24,6 +24,8 @@ import MessagesButton from '@/components/MessagesButton';
 
 interface Props {
     children: ReactNode;
+    /** Masque le footer sur mobile tant que tout le contenu n'est pas chargé (fil infini). */
+    masquerFooterMobile?: boolean;
 }
 
 const navLinks = [
@@ -35,7 +37,7 @@ const navLinks = [
     { label: 'Festy', href: '/festy', icon: PartyPopper },
 ];
 
-export default function AppLayout({ children }: Props) {
+export default function AppLayout({ children, masquerFooterMobile = false }: Props) {
     const { auth } = usePage<PageProps>().props as any;
     const currentPath = usePage().url;
 
@@ -399,7 +401,7 @@ export default function AppLayout({ children }: Props) {
             {auth?.user && <MessagesButton />}
 
             {/* ============== FOOTER ============== */}
-            <footer className="bg-zinc-900 text-zinc-400 mt-16">
+            <footer className={`bg-zinc-900 text-zinc-400 mt-16 ${masquerFooterMobile ? 'hidden md:block' : ''}`}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                         <div>
