@@ -1,5 +1,5 @@
 import { Head, usePage } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import AppLayout from '@/components/layouts/AppLayout';
 import HeroSection from '@/components/dashboard/HeroSection';
@@ -75,7 +75,10 @@ export default function DashboardIndex() {
         });
     }, [publications]);
 
+    const chargementRef = useRef(false);
     const chargerPlus = async () => {
+        if (chargementRef.current) return;
+        chargementRef.current = true;
         setChargement(true);
         try {
             const r = await fetch(`/feed/plus?offset=${posts.length}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
@@ -88,8 +91,24 @@ export default function DashboardIndex() {
                 setEncore(!!d.encore);
             }
         } catch { /* silencieux */ }
-        finally { setChargement(false); }
+        finally { setChargement(false); chargementRef.current = false; }
     };
+
+    // Chargement automatique au défilement (infinite scroll) : la suite se
+    // charge toute seule quand on approche du bas, sans ralentir l'ouverture.
+    const sentinelle = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!encore) return;
+        const el = sentinelle.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(
+            (entries) => { if (entries[0]?.isIntersecting) chargerPlus(); },
+            { rootMargin: '800px' },
+        );
+        obs.observe(el);
+        return () => obs.disconnect();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [encore, posts.length]);
 
     // Si l'URL change et contient un highlight, afficher le modal
     useEffect(() => {
@@ -167,14 +186,17 @@ export default function DashboardIndex() {
                                 ))}
 
                                 {encore && (
-                                    <div className="flex justify-center pt-2">
-                                        <button
-                                            onClick={chargerPlus}
-                                            disabled={chargement}
-                                            className="px-6 py-2.5 rounded-full bg-white border border-zinc-200 shadow-sm hover:shadow-md text-sm font-semibold text-emerald-700 hover:bg-emerald-50 transition-all disabled:opacity-60"
-                                        >
-                                            {chargement ? 'Chargement…' : 'Voir plus de publications'}
-                                        </button>
+                                    <div ref={sentinelle} className="flex justify-center pt-2 pb-4">
+                                        {chargement ? (
+                                            <div className="flex items-center gap-2 text-sm text-zinc-500 py-2">
+                                                <span className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                                Chargement…
+                                            </div>
+                                        ) : (
+                                            <button onClick={chargerPlus} className="text-sm font-medium text-zinc-400 hover:text-emerald-600 transition-colors">
+                                                Charger la suite
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </>
