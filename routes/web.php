@@ -130,6 +130,12 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/festy/export', [\App\Http\Controllers\Admin\FestyController::class, 'export'])->name('festy.export');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 
+        // ── Résultats DERNIÈRE PHASE (barème 5 pts/réponse + likes + commentaires) ──
+        Route::get('/concours-final', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'index'])->name('concours-final.index');
+        Route::post('/concours-final/score', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'saveScore'])->name('concours-final.score');
+        Route::get('/concours-final/export', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'export'])->name('concours-final.export');
+        Route::get('/concours-final/participant/{user}', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'participant'])->name('concours-final.participant');
+
         // ── Sécurité : IP bannies ──────────────────────────────────────────
         Route::get('/securite/connexions', [\App\Http\Controllers\Admin\BannedIpController::class, 'connexions'])->name('securite.connexions');
         Route::get('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'index'])->name('securite.ips');
