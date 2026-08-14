@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Trophy, Download, Heart, MessageCircle, Calendar, Medal, Eye, X, ExternalLink, Check } from 'lucide-react';
+import { Trophy, Download, Heart, MessageCircle, Calendar, Medal, Eye, X, ExternalLink, Check, ChevronDown, Sparkles, ListChecks } from 'lucide-react';
 
 interface Ligne {
     rang: number;
@@ -9,6 +9,8 @@ interface Ligne {
     email: string | null;
     publications: number;
     reponses_justes: number;
+    reponses_auto: number;
+    note_manuelle: boolean;
     points_reponses: number;
     likes: number;
     commentaires: number;
@@ -16,8 +18,10 @@ interface Ligne {
     user_id: number;
     qualifie: boolean;
 }
+interface Corr { q: string; r: string }
 interface Props {
     classement: Ligne[];
+    corrige: Corr[];
     debut: string;
     fin: string;
     debut_label: string;
@@ -26,7 +30,7 @@ interface Props {
 
 const medaille = (r: number) => (r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `${r}`);
 
-export default function ConcoursFinal({ classement, debut, fin, debut_label, fin_label }: Props) {
+export default function ConcoursFinal({ classement, corrige, debut, fin, debut_label, fin_label }: Props) {
     const [d, setD] = useState(debut.slice(0, 16));
     const [f, setF] = useState(fin.slice(0, 16));
     const [notes, setNotes] = useState<Record<number, number>>(
@@ -34,6 +38,12 @@ export default function ConcoursFinal({ classement, debut, fin, debut_label, fin
     );
     const [detail, setDetail] = useState<any>(null);
     const [chargement, setChargement] = useState(false);
+    const [corrOuvert, setCorrOuvert] = useState(false);
+    const [corr, setCorr] = useState<Corr[]>(corrige ?? []);
+
+    const enregistrerCorrige = () => {
+        router.post('/admin/concours-final/corrige', { corrige: corr, debut: d, fin: f } as any, { preserveScroll: true });
+    };
 
     const appliquer = () => router.get('/admin/concours-final', { debut: d, fin: f }, { preserveState: false });
     const exportUrl = `/admin/concours-final/export?debut=${encodeURIComponent(d)}&fin=${encodeURIComponent(f)}`;
@@ -95,7 +105,38 @@ export default function ConcoursFinal({ classement, debut, fin, debut_label, fin
                 </div>
 
                 <div style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 12, padding: '12px 16px', fontSize: 13, color: '#9a3412' }}>
-                    <strong>Barème :</strong> 5 pts par réponse juste (à saisir après avoir lu la publication via « Détails ») + 1 pt/like + 1 pt/commentaire unique (auto). Le total et le classement se recalculent à chaque enregistrement.
+                    <strong>Barème :</strong> 5 pts par réponse juste + 1 pt/like + 1 pt/commentaire unique. Les points quiz sont <strong>notés automatiquement</strong> : le système lit chaque publication et compte les bonnes réponses du corrigé (tu peux corriger à la main). Total et classement recalculés en direct.
+                </div>
+
+                {/* Corrigé du quiz (référence pour la notation auto) */}
+                <div style={carte}>
+                    <button onClick={() => setCorrOuvert((v) => !v)}
+                        style={{ width: '100%', padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 0, cursor: 'pointer' }}>
+                        <ListChecks size={18} color="#0d7a4f" />
+                        <span style={{ fontWeight: 800, color: '#14532d' }}>Corrigé du quiz (10 réponses)</span>
+                        <span style={{ marginLeft: 'auto', color: '#9db8a4', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            Sert à la note auto <ChevronDown size={16} style={{ transform: corrOuvert ? 'rotate(180deg)' : 'none', transition: '.2s' }} />
+                        </span>
+                    </button>
+                    {corrOuvert && (
+                        <div style={{ padding: '0 20px 18px' }}>
+                            <p style={{ fontSize: 12, color: '#9db8a4', margin: '0 0 12px' }}>
+                                Définis la bonne réponse de chaque question. Le système détecte ces mots dans les publications pour attribuer les 5 pts.
+                            </p>
+                            {corr.map((c, i) => (
+                                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 200px', gap: 10, marginBottom: 8, alignItems: 'center' }}>
+                                    <div style={{ fontSize: 13, color: '#334155' }}><strong style={{ color: '#0d7a4f' }}>{i + 1}.</strong> {c.q}</div>
+                                    <input value={c.r} onChange={(e) => setCorr((arr) => arr.map((x, j) => (j === i ? { ...x, r: e.target.value } : x)))}
+                                        placeholder="Bonne réponse"
+                                        style={{ padding: '8px 10px', border: '1px solid #d7e5dc', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#14532d' }} />
+                                </div>
+                            ))}
+                            <button onClick={enregistrerCorrige}
+                                style={{ marginTop: 6, padding: '9px 16px', borderRadius: 9, border: 0, background: '#0d7a4f', color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                                <Check size={15} /> Enregistrer le corrigé et recalculer
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 <div style={carte}>
@@ -129,11 +170,20 @@ export default function ConcoursFinal({ classement, debut, fin, debut_label, fin
                                                         onChange={(e) => setNotes((n) => ({ ...n, [l.user_id]: Number(e.target.value) }))}
                                                         onKeyDown={(e) => e.key === 'Enter' && enregistrer(l.user_id)}
                                                         style={{ width: 56, padding: '6px 8px', border: '1px solid #d7e5dc', borderRadius: 8, fontSize: 13, textAlign: 'center' }} />
-                                                    <button onClick={() => enregistrer(l.user_id)} title="Enregistrer"
+                                                    <button onClick={() => enregistrer(l.user_id)} title="Enregistrer la note manuelle"
                                                         style={{ border: 0, background: '#dcfce7', color: '#166534', borderRadius: 8, padding: 6, cursor: 'pointer', display: 'inline-flex' }}>
                                                         <Check size={14} />
                                                     </button>
                                                 </span>
+                                                <div style={{ marginTop: 3, fontSize: 10.5 }}>
+                                                    {l.note_manuelle ? (
+                                                        <span style={{ color: '#a16207', fontWeight: 700 }}>corrigé à la main</span>
+                                                    ) : (
+                                                        <span style={{ color: '#0d7a4f', display: 'inline-flex', alignItems: 'center', gap: 2, justifyContent: 'flex-end', width: '100%' }}>
+                                                            <Sparkles size={11} /> auto : {l.reponses_auto}/10
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td style={{ padding: '11px 14px', textAlign: 'right', color: '#ca8a04', fontWeight: 700 }}>{l.points_reponses}</td>
                                             <td style={{ padding: '11px 14px', textAlign: 'right' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#dc2626' }}><Heart size={13} />{l.likes}</span></td>

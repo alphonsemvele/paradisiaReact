@@ -133,6 +133,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         // ── Résultats DERNIÈRE PHASE (barème 5 pts/réponse + likes + commentaires) ──
         Route::get('/concours-final', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'index'])->name('concours-final.index');
         Route::post('/concours-final/score', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'saveScore'])->name('concours-final.score');
+        Route::post('/concours-final/corrige', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'saveCorrige'])->name('concours-final.corrige');
         Route::get('/concours-final/export', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'export'])->name('concours-final.export');
         Route::get('/concours-final/participant/{user}', [\App\Http\Controllers\Admin\ConcoursFinalController::class, 'participant'])->name('concours-final.participant');
 

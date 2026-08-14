@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ConcoursFinalScore;
+use App\Models\ConcoursFinalSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,11 +32,26 @@ class ConcoursFinalController extends Controller
 
         return Inertia::render('admin/concours-final/index', [
             'classement' => $this->classement($debut, $fin),
+            'corrige' => ConcoursFinalSetting::actuel()->corrige,
             'debut' => $debut->toIso8601String(),
             'fin' => $fin->toIso8601String(),
             'debut_label' => $debut->isoFormat('D MMMM YYYY [à] HH:mm'),
             'fin_label' => $fin->isoFormat('D MMMM YYYY [à] HH:mm'),
         ]);
+    }
+
+    /** Enregistre le corrigé du quiz (10 questions + bonnes réponses). */
+    public function saveCorrige(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'corrige' => ['required', 'array'],
+            'corrige.*.q' => ['nullable', 'string', 'max:300'],
+            'corrige.*.r' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        ConcoursFinalSetting::actuel()->update(['corrige' => array_values($data['corrige'])]);
+
+        return back()->with('success', 'Corrigé enregistré.');
     }
 
     /** Enregistre le nombre de réponses justes (0..10) d'un participant. */
@@ -127,6 +143,42 @@ class ConcoursFinalController extends Controller
 
     /* ═══════════════════════ Interne ═══════════════════════ */
 
+    /** Minuscule + sans accents, pour comparer le texte des publications. */
+    private function normaliser(string $s): string
+    {
+        return (string) Str::of($s)->lower()->ascii();
+    }
+
+    /**
+     * Note automatique : compte combien de bonnes réponses du corrigé
+     * apparaissent dans le texte (déjà normalisé) des publications d'un
+     * participant. Une réponse compte si l'un de ses mots-clés y figure.
+     */
+    private function noterAuto(string $texteNormalise, array $corrige): int
+    {
+        if (trim($texteNormalise) === '') {
+            return 0;
+        }
+
+        $n = 0;
+        foreach ($corrige as $item) {
+            $reponse = $this->normaliser($item['r'] ?? '');
+            // Mots-clés : chaque mot de la réponse (≥ 2 lettres ou un nombre).
+            $mots = collect(preg_split('/[^a-z0-9]+/', $reponse))
+                ->filter(fn ($m) => strlen($m) >= 2 || is_numeric($m))
+                ->values();
+
+            foreach ($mots as $mot) {
+                if (str_contains($texteNormalise, $mot)) {
+                    $n++;
+                    break; // une réponse = un point max
+                }
+            }
+        }
+
+        return min($n, 10);
+    }
+
     private function fenetre(Request $request): array
     {
         $debut = $request->filled('debut')
@@ -147,7 +199,7 @@ class ConcoursFinalController extends Controller
         $publications = DB::table('publications')
             ->where('status', 'Success')
             ->whereBetween('created_at', [$debut, $fin])
-            ->get(['id', 'id_user', 'created_at']);
+            ->get(['id', 'id_user', 'text', 'created_at']);
 
         if ($publications->isEmpty()) {
             return [];
@@ -155,6 +207,13 @@ class ConcoursFinalController extends Controller
 
         $pubIds = $publications->pluck('id')->all();
         $auteurParPub = $publications->pluck('id_user', 'id');
+
+        // Texte concaténé des publications par auteur (pour la notation auto).
+        $texteParUser = [];
+        foreach ($publications as $p) {
+            $texteParUser[$p->id_user] = ($texteParUser[$p->id_user] ?? '').' '.$this->normaliser($p->text ?? '');
+        }
+        $corrige = ConcoursFinalSetting::actuel()->corrige ?? [];
 
         $likes = DB::table('likes')
             ->whereIn('id_publication', $pubIds)->where('status', 'Success')
@@ -205,8 +264,12 @@ class ConcoursFinalController extends Controller
         $users = DB::table('users')->whereIn('id', array_keys($parUser))->get(['id', 'name', 'email'])->keyBy('id');
         $scores = ConcoursFinalScore::whereIn('id_user', array_keys($parUser))->pluck('reponses_justes', 'id_user');
 
-        $lignes = collect($parUser)->map(function ($d, $uid) use ($users, $scores) {
-            $reponses = (int) ($scores[$uid] ?? 0);
+        $lignes = collect($parUser)->map(function ($d, $uid) use ($users, $scores, $texteParUser, $corrige) {
+            // Note auto : nombre de bonnes réponses détectées dans le texte.
+            $auto = $this->noterAuto($texteParUser[$uid] ?? '', $corrige);
+            // La note manuelle (si l'admin l'a saisie) prime sur l'auto.
+            $manuelle = isset($scores[$uid]);
+            $reponses = $manuelle ? (int) $scores[$uid] : $auto;
             $ptsReponses = $reponses * 5;
             $total = $ptsReponses + $d['likes'] + $d['comments'];
 
@@ -216,6 +279,8 @@ class ConcoursFinalController extends Controller
                 'email' => $users[$uid]->email ?? null,
                 'publications' => $d['pubs'],
                 'reponses_justes' => $reponses,
+                'reponses_auto' => $auto,
+                'note_manuelle' => $manuelle,
                 'points_reponses' => $ptsReponses,
                 'likes' => $d['likes'],
                 'commentaires' => $d['comments'],
