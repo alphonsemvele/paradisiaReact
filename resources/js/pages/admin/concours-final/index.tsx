@@ -224,6 +224,28 @@ export default function ConcoursFinal({ classement, corrige, debut, fin, debut_l
                         </div>
 
                         <div style={{ padding: 18 }}>
+                            {/* Corrigé : réponses trouvées ✓ / ✗ (aide à la notation) */}
+                            {!chargement && detail.quiz && (
+                                <div style={{ border: '1px solid #e8f0eb', borderRadius: 12, padding: 14, marginBottom: 14, background: '#f8fdfa' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <span style={{ fontWeight: 800, color: '#14532d', fontSize: 13 }}>Réponses détectées</span>
+                                        <span style={{ fontWeight: 800, color: '#0d7a4f' }}>{detail.score_auto}/10 → {detail.score_auto * 5} pts</span>
+                                    </div>
+                                    {detail.quiz.map((q: any) => (
+                                        <div key={q.numero} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '4px 0', fontSize: 12.5, borderTop: q.numero > 1 ? '1px solid #eef5f0' : 0 }}>
+                                            <span style={{ flexShrink: 0, marginTop: 1, width: 18, height: 18, borderRadius: 6, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: q.trouve ? '#dcfce7' : '#fee2e2', color: q.trouve ? '#166534' : '#b91c1c' }}>
+                                                {q.trouve ? <Check size={12} /> : <X size={12} />}
+                                            </span>
+                                            <span style={{ flex: 1, color: '#334155' }}>
+                                                <strong style={{ color: '#0d7a4f' }}>{q.numero}.</strong> {q.question}
+                                            </span>
+                                            <span style={{ flexShrink: 0, fontWeight: 700, color: q.trouve ? '#166534' : '#9ca3af' }}>{q.reponse}</span>
+                                        </div>
+                                    ))}
+                                    <p style={{ margin: '8px 0 0', fontSize: 11, color: '#9db8a4' }}>✓ = bonne réponse trouvée dans la publication · ✗ = absente ou fausse. Ajuste la note manuellement dans le tableau si besoin.</p>
+                                </div>
+                            )}
+
                             {chargement ? (
                                 <p style={{ textAlign: 'center', color: '#9db8a4', padding: 20 }}>…</p>
                             ) : (detail.publications ?? []).length === 0 ? (

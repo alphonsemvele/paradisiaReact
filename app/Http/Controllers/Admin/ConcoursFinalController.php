@@ -115,10 +115,22 @@ class ConcoursFinalController extends Controller
             ];
         });
 
+        // Corrigé : ✓ trouvé / ✗ absent dans le texte du participant.
+        $texte = $this->normaliser($publications->pluck('text')->implode(' '));
+        $corrige = ConcoursFinalSetting::actuel()->corrige ?? [];
+        $quiz = collect($corrige)->map(fn ($c, $i) => [
+            'numero' => $i + 1,
+            'question' => $c['q'] ?? '',
+            'reponse' => $c['r'] ?? '',
+            'trouve' => $this->reponseTrouvee($texte, $c['r'] ?? ''),
+        ])->values();
+
         return response()->json([
             'nom' => $auteur->name ?? 'Utilisateur #'.$user,
             'email' => $auteur->email ?? null,
             'publications' => $detail,
+            'quiz' => $quiz,
+            'score_auto' => $quiz->where('trouve', true)->count(),
         ]);
     }
 
@@ -162,21 +174,28 @@ class ConcoursFinalController extends Controller
 
         $n = 0;
         foreach ($corrige as $item) {
-            $reponse = $this->normaliser($item['r'] ?? '');
-            // Mots-clés : chaque mot de la réponse (≥ 2 lettres ou un nombre).
-            $mots = collect(preg_split('/[^a-z0-9]+/', $reponse))
-                ->filter(fn ($m) => strlen($m) >= 2 || is_numeric($m))
-                ->values();
-
-            foreach ($mots as $mot) {
-                if (str_contains($texteNormalise, $mot)) {
-                    $n++;
-                    break; // une réponse = un point max
-                }
+            if ($this->reponseTrouvee($texteNormalise, $item['r'] ?? '')) {
+                $n++;
             }
         }
 
         return min($n, 10);
+    }
+
+    /** Une bonne réponse est trouvée si l'un de ses mots-clés figure dans le texte. */
+    private function reponseTrouvee(string $texteNormalise, string $reponse): bool
+    {
+        $reponse = $this->normaliser($reponse);
+        $mots = collect(preg_split('/[^a-z0-9]+/', $reponse))
+            ->filter(fn ($m) => strlen($m) >= 2 || is_numeric($m));
+
+        foreach ($mots as $mot) {
+            if (str_contains($texteNormalise, $mot)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function fenetre(Request $request): array
