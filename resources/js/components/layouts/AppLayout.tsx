@@ -21,6 +21,7 @@ import type { PageProps } from '@/types';
 import SupportButton from '@/components/SupportButton';
 import NotificationBell from '@/components/NotificationBell';
 import MessagesButton from '@/components/MessagesButton';
+import InstallBanner from '@/components/InstallBanner';
 
 interface Props {
     children: ReactNode;
@@ -395,6 +396,8 @@ export default function AppLayout({ children, masquerFooterMobile = false }: Pro
             </AnimatePresence>
 
             {/* ============== CONTENT ============== */}
+            <InstallBanner />
+
             <main className="flex-1">{children}</main>
 
             {/* Bouton messagerie flottant (au-dessus du bouton boutique) */}

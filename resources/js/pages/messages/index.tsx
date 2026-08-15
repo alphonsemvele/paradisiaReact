@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/components/layouts/AppLayout';
+import { usePwaInstall } from '@/lib/pwa';
 import { Send, ArrowLeft, MessageCircle, Search, Smile, Check, CheckCheck, Download } from 'lucide-react';
 
 interface Autre { id: number; name: string; photo: string | null; ville?: string | null }
@@ -35,44 +36,14 @@ export default function Messages({ conversations, active }: Props) {
     const filEnd = useRef<HTMLDivElement>(null);
     const zoneSaisie = useRef<HTMLTextAreaElement>(null);
 
-    // PWA : installation du « tchat » sur l'écran d'accueil.
-    const [promptInstall, setPromptInstall] = useState<any>(null);
-    const [installe, setInstalle] = useState(false);
-    const [iOS, setIOS] = useState(false);
+    // PWA : installation du « tchat » (logique partagée).
+    const { installe, peutProposer, iOS, installer } = usePwaInstall();
     const [aideIOS, setAideIOS] = useState(false);
-
-    useEffect(() => {
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').catch(() => {});
-        }
-        const capter = (e: any) => { e.preventDefault(); setPromptInstall(e); };
-        const installee = () => { setInstalle(true); setPromptInstall(null); };
-        window.addEventListener('beforeinstallprompt', capter);
-        window.addEventListener('appinstalled', installee);
-
-        const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
-        setInstalle(standalone);
-        setIOS(/iphone|ipad|ipod/i.test(navigator.userAgent) && !(navigator as any).standalone);
-
-        return () => {
-            window.removeEventListener('beforeinstallprompt', capter);
-            window.removeEventListener('appinstalled', installee);
-        };
-    }, []);
-
-    const installer = async () => {
-        if (promptInstall) {
-            promptInstall.prompt();
-            const { outcome } = await promptInstall.userChoice;
-            if (outcome === 'accepted') setInstalle(true);
-            setPromptInstall(null);
-        } else if (iOS) {
-            setAideIOS(true);
-        } else {
-            setAideIOS(true);
-        }
+    const peutInstaller = !installe && peutProposer;
+    const lancerInstall = async () => {
+        const r = await installer();
+        if (r === 'ios' || r === 'manuel') setAideIOS(true);
     };
-    const peutInstaller = !installe;
 
     // Recherche de personnes à qui écrire (debounce).
     useEffect(() => {
@@ -160,15 +131,7 @@ export default function Messages({ conversations, active }: Props) {
 
     return (
         <AppLayout>
-            <Head title="Messagerie — Paradisia">
-                <link rel="manifest" href="/manifest-chat.json" />
-                <meta name="theme-color" content="#10b981" />
-                <meta name="mobile-web-app-capable" content="yes" />
-                <meta name="apple-mobile-web-app-capable" content="yes" />
-                <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-                <meta name="apple-mobile-web-app-title" content="Paradisia Chat" />
-                <link rel="apple-touch-icon" href="/pwa-icon.png" />
-            </Head>
+            <Head title="Messagerie — Paradisia" />
 
             <div className="messagerie-app max-w-5xl mx-auto md:px-4 md:py-6">
                 <div className="bg-white md:rounded-2xl md:border border-zinc-200 md:shadow-sm overflow-hidden flex" style={{ height: 'calc(100vh - 8rem)' }}>
@@ -178,7 +141,7 @@ export default function Messages({ conversations, active }: Props) {
                             <div className="flex items-center justify-between px-1 mb-2">
                                 <h1 className="font-bold text-zinc-900">Messages</h1>
                                 {peutInstaller && (
-                                    <button onClick={installer}
+                                    <button onClick={lancerInstall}
                                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-full px-3 py-1.5 transition-colors">
                                         <Download className="w-3.5 h-3.5" /> Installer le tchat
                                     </button>

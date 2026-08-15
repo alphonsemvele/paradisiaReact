@@ -1,5 +1,6 @@
 import './bootstrap';
 import '../css/app.css';
+import './lib/pwa'; // enregistre le service worker + capture l'installation PWA
 
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
