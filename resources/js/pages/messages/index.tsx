@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/components/layouts/AppLayout';
-import { Send, ArrowLeft, MessageCircle, Search, Smile, Check, CheckCheck } from 'lucide-react';
+import { Send, ArrowLeft, MessageCircle, Search, Smile, Check, CheckCheck, Download } from 'lucide-react';
 
 interface Autre { id: number; name: string; photo: string | null; ville?: string | null }
 interface Msg { id: number; de_moi: boolean; body: string; date: string; jour: string; lu: boolean }
@@ -34,6 +34,45 @@ export default function Messages({ conversations, active }: Props) {
     const [emojisOuvert, setEmojisOuvert] = useState(false);
     const filEnd = useRef<HTMLDivElement>(null);
     const zoneSaisie = useRef<HTMLTextAreaElement>(null);
+
+    // PWA : installation du « tchat » sur l'écran d'accueil.
+    const [promptInstall, setPromptInstall] = useState<any>(null);
+    const [installe, setInstalle] = useState(false);
+    const [iOS, setIOS] = useState(false);
+    const [aideIOS, setAideIOS] = useState(false);
+
+    useEffect(() => {
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+        const capter = (e: any) => { e.preventDefault(); setPromptInstall(e); };
+        const installee = () => { setInstalle(true); setPromptInstall(null); };
+        window.addEventListener('beforeinstallprompt', capter);
+        window.addEventListener('appinstalled', installee);
+
+        const standalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone === true;
+        setInstalle(standalone);
+        setIOS(/iphone|ipad|ipod/i.test(navigator.userAgent) && !(navigator as any).standalone);
+
+        return () => {
+            window.removeEventListener('beforeinstallprompt', capter);
+            window.removeEventListener('appinstalled', installee);
+        };
+    }, []);
+
+    const installer = async () => {
+        if (promptInstall) {
+            promptInstall.prompt();
+            const { outcome } = await promptInstall.userChoice;
+            if (outcome === 'accepted') setInstalle(true);
+            setPromptInstall(null);
+        } else if (iOS) {
+            setAideIOS(true);
+        } else {
+            setAideIOS(true);
+        }
+    };
+    const peutInstaller = !installe;
 
     // Recherche de personnes à qui écrire (debounce).
     useEffect(() => {
@@ -121,14 +160,30 @@ export default function Messages({ conversations, active }: Props) {
 
     return (
         <AppLayout>
-            <Head title="Messagerie — Paradisia" />
+            <Head title="Messagerie — Paradisia">
+                <link rel="manifest" href="/manifest-chat.json" />
+                <meta name="theme-color" content="#10b981" />
+                <meta name="mobile-web-app-capable" content="yes" />
+                <meta name="apple-mobile-web-app-capable" content="yes" />
+                <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+                <meta name="apple-mobile-web-app-title" content="Paradisia Chat" />
+                <link rel="apple-touch-icon" href="/pwa-icon.png" />
+            </Head>
 
-            <div className="max-w-5xl mx-auto md:px-4 md:py-6">
+            <div className="messagerie-app max-w-5xl mx-auto md:px-4 md:py-6">
                 <div className="bg-white md:rounded-2xl md:border border-zinc-200 md:shadow-sm overflow-hidden flex" style={{ height: 'calc(100vh - 8rem)' }}>
                     {/* Liste des conversations */}
                     <div className={`w-full md:w-80 md:border-r border-zinc-200 flex-col ${active ? 'hidden md:flex' : 'flex'}`}>
                         <div className="p-3 border-b border-zinc-100">
-                            <h1 className="font-bold text-zinc-900 px-1 mb-2">Messages</h1>
+                            <div className="flex items-center justify-between px-1 mb-2">
+                                <h1 className="font-bold text-zinc-900">Messages</h1>
+                                {peutInstaller && (
+                                    <button onClick={installer}
+                                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-full px-3 py-1.5 transition-colors">
+                                        <Download className="w-3.5 h-3.5" /> Installer le tchat
+                                    </button>
+                                )}
+                            </div>
                             <div className="relative">
                                 <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-400" />
                                 <input value={recherche} onChange={(e) => setRecherche(e.target.value)} placeholder="Rechercher…"
@@ -219,7 +274,8 @@ export default function Messages({ conversations, active }: Props) {
                                     <div ref={filEnd} />
                                 </div>
 
-                                <form onSubmit={envoyer} className="relative flex items-end gap-1.5 p-2.5 border-t border-zinc-100 bg-white">
+                                <form onSubmit={envoyer} className="relative flex items-end gap-1.5 p-2.5 border-t border-zinc-100 bg-white"
+                                    style={{ paddingBottom: 'calc(0.625rem + env(safe-area-inset-bottom))' }}>
                                     {emojisOuvert && (
                                         <div className="absolute bottom-16 left-2.5 w-72 max-w-[90%] bg-white border border-zinc-200 rounded-2xl shadow-xl p-2 grid grid-cols-8 gap-0.5 max-h-52 overflow-y-auto z-10">
                                             {EMOJIS.map((em) => (
@@ -233,7 +289,8 @@ export default function Messages({ conversations, active }: Props) {
                                     </button>
                                     <textarea ref={zoneSaisie} value={body} rows={1} placeholder="Écris un message…" autoFocus
                                         onChange={(e) => { setBody(e.target.value); autoGrow(); }} onKeyDown={surTouche}
-                                        className="flex-1 px-4 py-2.5 bg-zinc-100 rounded-2xl text-sm resize-none max-h-32 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                        className="flex-1 px-4 py-2.5 bg-zinc-100 rounded-2xl resize-none max-h-32 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        style={{ fontSize: 16 }} />
                                     <button type="submit" disabled={!body.trim() || envoi}
                                         className="w-11 h-11 rounded-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white flex items-center justify-center flex-shrink-0">
                                         <Send className="w-5 h-5" />
@@ -249,6 +306,33 @@ export default function Messages({ conversations, active }: Props) {
                     </div>
                 </div>
             </div>
+
+            {/* Aide installation iOS (pas de prompt natif sur iPhone) */}
+            {aideIOS && (
+                <div className="fixed inset-0 z-[60] bg-black/50 flex items-end sm:items-center justify-center p-4" onClick={() => setAideIOS(false)}>
+                    <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+                            <Download className="w-7 h-7 text-emerald-600" />
+                        </div>
+                        <h3 className="font-bold text-zinc-900 text-lg">Installer le tchat</h3>
+                        {iOS ? (
+                            <p className="mt-2 text-sm text-zinc-600">
+                                Sur iPhone : appuie sur le bouton <b>Partager</b> <span className="inline-block">⬆️</span> de Safari,
+                                puis choisis <b>« Sur l'écran d'accueil »</b>. Le tchat s'ouvrira en plein écran comme une vraie app.
+                            </p>
+                        ) : (
+                            <p className="mt-2 text-sm text-zinc-600">
+                                Ouvre le menu de ton navigateur (⋮) puis <b>« Installer l'application »</b> / <b>« Ajouter à l'écran d'accueil »</b>.
+                            </p>
+                        )}
+                        <button onClick={() => setAideIOS(false)} className="mt-5 w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm">
+                            J'ai compris
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <style>{`.messagerie-app, .messagerie-app *{ -webkit-tap-highlight-color: transparent; } .messagerie-app button, .messagerie-app h1{ user-select: none; }`}</style>
         </AppLayout>
     );
 }

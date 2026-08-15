@@ -22,6 +22,66 @@ use App\Http\Controllers\FormationController;
 use App\Http\Controllers\Admin\FormationController as AdminFormationController;
 use App\Http\Controllers\Admin\InscriptionController as AdminInscriptionController;
 
+// ── PWA « Paradisia Chat » (messagerie installable) ───────────────────────────
+Route::get('/manifest-chat.json', function () {
+    return response()->json([
+        'name' => 'Paradisia Chat',
+        'short_name' => 'Chat',
+        'description' => 'La messagerie de Paradisia',
+        'start_url' => '/messages',
+        'scope' => '/',
+        'display' => 'standalone',
+        'orientation' => 'portrait',
+        'background_color' => '#ffffff',
+        'theme_color' => '#10b981',
+        'icons' => [
+            ['src' => '/pwa-icon.png', 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => '/pwa-icon.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+            ['src' => '/pwa-icon.png', 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+        ],
+    ], 200, ['Content-Type' => 'application/manifest+json; charset=utf-8']);
+})->name('pwa.manifest');
+
+Route::get('/pwa-icon.png', function () {
+    $path = base_path('public/logo.png');
+    abort_unless(is_file($path), 404);
+
+    return response()->file($path, ['Content-Type' => 'image/png', 'Cache-Control' => 'public, max-age=604800']);
+})->name('pwa.icon');
+
+Route::get('/sw.js', function () {
+    $js = <<<'JS'
+const CACHE = 'paradisia-chat-v1';
+self.addEventListener('install', (e) => {
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['/messages']).catch(() => {})));
+});
+self.addEventListener('activate', (e) => { e.waitUntil(self.clients.claim()); });
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  // Navigations : réseau d'abord, repli cache/hors-ligne.
+  if (req.mode === 'navigate') {
+    e.respondWith(fetch(req).catch(() => caches.match(req).then((r) => r || caches.match('/messages'))));
+    return;
+  }
+  // Assets (JS/CSS/images à noms hachés) : cache d'abord.
+  e.respondWith(
+    caches.match(req).then((r) => r || fetch(req).then((resp) => {
+      if (resp.ok) { const copy = resp.clone(); caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {}); }
+      return resp;
+    }).catch(() => r))
+  );
+});
+JS;
+
+    return response($js, 200, [
+        'Content-Type' => 'application/javascript; charset=utf-8',
+        'Service-Worker-Allowed' => '/',
+        'Cache-Control' => 'no-cache',
+    ]);
+})->name('pwa.sw');
+
 // Route::view('/', 'welcome');
 
 // Route::view('dashboard', 'dashboard')
