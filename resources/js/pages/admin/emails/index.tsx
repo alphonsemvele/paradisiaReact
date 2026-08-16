@@ -32,8 +32,12 @@ const post = (url: string, body?: unknown) =>
 export default function EmailsIndex({ campagnes, nb_destinataires }: Props) {
     const [sujet, setSujet] = useState('');
     const [contenu, setContenu] = useState('');
+    const [cible, setCible] = useState<'tous' | 'liste'>('tous');
+    const [emails, setEmails] = useState('');
     const [enCours, setEnCours] = useState<Campagne | null>(null);
     const [erreur, setErreur] = useState('');
+
+    const nbListe = emails.split(/[\s,;]+/).filter((e) => /.+@.+\..+/.test(e)).length;
 
     // Envoie les lots en boucle jusqu'à épuisement (progression visible).
     const boucleEnvoi = async (id: number) => {
@@ -49,11 +53,14 @@ export default function EmailsIndex({ campagnes, nb_destinataires }: Props) {
     const lancer = async () => {
         setErreur('');
         if (!sujet.trim() || !contenu.trim()) { setErreur('Sujet et message requis.'); return; }
-        if (!confirm(`Envoyer cet e-mail à ${nb_destinataires} utilisateur(s) ?`)) return;
+        if (cible === 'liste' && nbListe === 0) { setErreur('Saisis au moins une adresse e-mail valide.'); return; }
 
-        const d = await post('/admin/emails', { sujet, contenu });
+        const combien = cible === 'liste' ? `${nbListe} adresse(s)` : `${nb_destinataires} utilisateur(s)`;
+        if (!confirm(`Envoyer cet e-mail à ${combien} ?`)) return;
+
+        const d = await post('/admin/emails', { sujet, contenu, cible, emails });
         if (!d.ok) { setErreur(d.message ?? 'Erreur'); return; }
-        setSujet(''); setContenu('');
+        setSujet(''); setContenu(''); setEmails('');
         setEnCours(d.campagne);
         boucleEnvoi(d.campagne.id);
     };
@@ -77,6 +84,25 @@ export default function EmailsIndex({ campagnes, nb_destinataires }: Props) {
                         </div>
                     </div>
                     <div style={{ padding: 20, display: 'grid', gap: 14 }}>
+                        {/* Cible */}
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {([['tous', `Tout le monde (${new Intl.NumberFormat('fr-FR').format(nb_destinataires)})`], ['liste', 'Adresses précises']] as const).map(([k, label]) => (
+                                <button key={k} onClick={() => setCible(k)}
+                                    style={{ padding: '8px 14px', borderRadius: 9, border: `1.5px solid ${cible === k ? '#14532d' : '#d7e5dc'}`, background: cible === k ? '#14532d' : '#fff', color: cible === k ? '#fff' : '#4b6355', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {cible === 'liste' && (
+                            <div>
+                                <textarea value={emails} onChange={(e) => setEmails(e.target.value)} rows={3}
+                                    placeholder="Adresses séparées par une virgule ou un retour à la ligne&#10;ex : alphonsemvele95@gmail.com, autre@mail.com"
+                                    style={{ width: '100%', padding: '11px 13px', border: '1px solid #d7e5dc', borderRadius: 10, fontSize: 14, resize: 'vertical', fontFamily: 'inherit' }} />
+                                <p style={{ fontSize: 12, color: '#059669', margin: '4px 0 0' }}>{nbListe} adresse(s) valide(s) détectée(s)</p>
+                            </div>
+                        )}
+
                         <input value={sujet} onChange={(e) => setSujet(e.target.value)} placeholder="Sujet de l'e-mail"
                             style={{ width: '100%', padding: '11px 13px', border: '1px solid #d7e5dc', borderRadius: 10, fontSize: 14 }} />
                         <textarea value={contenu} onChange={(e) => setContenu(e.target.value)} rows={9}
@@ -85,7 +111,7 @@ export default function EmailsIndex({ campagnes, nb_destinataires }: Props) {
                         {erreur && <p style={{ color: '#dc2626', fontSize: 13, margin: 0 }}>{erreur}</p>}
                         <button onClick={lancer} disabled={!!enCours && enCours.restant > 0}
                             style={{ padding: '12px', borderRadius: 10, border: 0, background: '#14532d', color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                            <Send size={16} /> Envoyer à tous
+                            <Send size={16} /> {cible === 'liste' ? `Envoyer à ${nbListe} adresse(s)` : 'Envoyer à tous'}
                         </button>
                     </div>
                 </div>

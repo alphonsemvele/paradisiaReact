@@ -47,35 +47,65 @@ class EmailCampaignController extends Controller
         $validated = $request->validate([
             'sujet' => ['required', 'string', 'max:255'],
             'contenu' => ['required', 'string', 'max:20000'],
+            'cible' => ['nullable', 'in:tous,liste'],
+            'emails' => ['nullable', 'string', 'max:20000'],
         ]);
+
+        $cible = $validated['cible'] ?? 'tous';
 
         $campagne = EmailCampaign::create([
             'sujet' => $validated['sujet'],
             'contenu' => $validated['contenu'],
-            'cible' => 'avec_email',
+            'cible' => $cible === 'liste' ? 'liste' : 'avec_email',
             'statut' => 'en_cours',
             'id_admin' => Auth::id(),
         ]);
 
-        // Destinataires figés au lancement : insertion en masse, dédupliquée.
         $now = now();
-        User::whereNotNull('email')->where('email', '<>', '')
-            ->select('id', 'email')
-            ->distinct()
-            ->chunkById(500, function ($users) use ($campagne, $now) {
-                $lignes = $users->map(fn ($u) => [
+
+        if ($cible === 'liste') {
+            // Adresses précises saisies par l'admin (séparées par virgule, ';'
+            // ou retour à la ligne). On ne garde que les e-mails valides.
+            $emails = collect(preg_split('/[\s,;]+/', (string) ($validated['emails'] ?? '')))
+                ->map(fn ($e) => strtolower(trim($e)))
+                ->filter(fn ($e) => $e !== '' && filter_var($e, FILTER_VALIDATE_EMAIL))
+                ->unique()
+                ->values();
+
+            if ($emails->isEmpty()) {
+                $campagne->delete();
+
+                return response()->json(['ok' => false, 'message' => 'Aucune adresse e-mail valide fournie.'], 422);
+            }
+
+            $emails->chunk(500)->each(function ($chunk) use ($campagne, $now) {
+                $lignes = $chunk->map(fn ($e) => [
                     'campaign_id' => $campagne->id,
-                    'user_id' => $u->id,
-                    'email' => $u->email,
+                    'user_id' => null,
+                    'email' => $e,
                     'statut' => 'en_attente',
                     'created_at' => $now,
                     'updated_at' => $now,
                 ])->all();
-
-                // insertOrIgnore : la contrainte unique (campagne,email) évite
-                // les doublons si deux comptes partagent une adresse.
                 EmailCampaignRecipient::insertOrIgnore($lignes);
             });
+        } else {
+            // Tous les comptes ayant une adresse e-mail.
+            User::whereNotNull('email')->where('email', '<>', '')
+                ->select('id', 'email')
+                ->distinct()
+                ->chunkById(500, function ($users) use ($campagne, $now) {
+                    $lignes = $users->map(fn ($u) => [
+                        'campaign_id' => $campagne->id,
+                        'user_id' => $u->id,
+                        'email' => $u->email,
+                        'statut' => 'en_attente',
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ])->all();
+                    EmailCampaignRecipient::insertOrIgnore($lignes);
+                });
+        }
 
         $campagne->update(['total' => $campagne->recipients()->count()]);
 
