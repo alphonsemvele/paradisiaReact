@@ -218,6 +218,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/events/{event}/inscrits', [\App\Http\Controllers\Admin\EventController::class, 'registrations'])->name('events.registrations');
         Route::match(['post', 'patch'], '/events/{event}/inscrits/{registration}', [\App\Http\Controllers\Admin\EventController::class, 'updateRegistration'])->name('events.registrations.update');
         Route::delete('/events/{event}/inscrits/{registration}', [\App\Http\Controllers\Admin\EventController::class, 'destroyRegistration'])->name('events.registrations.destroy');
+        Route::post('/events/{event}/lien', [\App\Http\Controllers\Admin\EventController::class, 'updateLien'])->name('events.lien');
         Route::post('/events/{event}/envoyer-lien', [\App\Http\Controllers\Admin\EventController::class, 'envoyerLien'])->name('events.envoyer-lien');
 Route::delete('/formations/{formation}', [AdminFormationController::class, 'destroy'])->name('formations.destroy');
 

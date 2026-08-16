@@ -27,6 +27,10 @@ export default function Registrations({ event, inscrits, filtre, compteurs }: Pr
     const [edition, setEdition] = useState<Inscrit | null>(null);
     const [busy, setBusy] = useState(false);
 
+    // Lien de réunion réglable directement ici.
+    const lienForm = useForm({ lien_reunion: event.lien_reunion ?? '' });
+    const enregistrerLien = () => lienForm.post(`/admin/events/${event.id}/lien`, { preserveScroll: true });
+
     const filtrer = (profil: string | null) => {
         router.get(`/admin/events/${event.id}/inscrits`, profil ? { profil } : {}, { preserveState: true, preserveScroll: true });
     };
@@ -102,9 +106,22 @@ export default function Registrations({ event, inscrits, filtre, compteurs }: Pr
                         </div>
                     </div>
 
-                    {!event.lien_reunion && (
-                        <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                            Aucun lien de réunion renseigné. Ajoutez-le via « Modifier » avant l'envoi.
+                    {/* Lien de réunion : réglable directement ici (raccourci) */}
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center">
+                        <input
+                            value={lienForm.data.lien_reunion}
+                            onChange={(e) => lienForm.setData('lien_reunion', e.target.value)}
+                            placeholder="Lien de la réunion (Zoom, Google Meet, …)"
+                            className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <button onClick={enregistrerLien} disabled={lienForm.processing}
+                            className="px-4 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 disabled:opacity-60 text-white text-sm font-semibold whitespace-nowrap">
+                            {lienForm.processing ? 'Enregistrement…' : 'Enregistrer le lien'}
+                        </button>
+                    </div>
+                    {!event.lien_reunion && !lienForm.data.lien_reunion && (
+                        <p className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            ⚠️ Aucun lien de réunion enregistré. Colle-le ci-dessus et « Enregistrer » avant l'envoi.
                         </p>
                     )}
 

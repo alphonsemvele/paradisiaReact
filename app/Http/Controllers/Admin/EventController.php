@@ -138,6 +138,18 @@ class EventController extends Controller
         return redirect()->route('admin.events.index')->with('success', 'Événement mis à jour.');
     }
 
+    /** Met à jour uniquement le lien de réunion (raccourci depuis les inscrits). */
+    public function updateLien(Request $request, Event $event): RedirectResponse
+    {
+        $data = $request->validate([
+            'lien_reunion' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $event->update(['lien_reunion' => $data['lien_reunion'] ?: null]);
+
+        return back()->with('success', 'Lien de réunion enregistré.');
+    }
+
     public function destroy(Event $event): RedirectResponse
     {
         $this->deletePublicFile($event->image);
