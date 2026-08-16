@@ -20,11 +20,13 @@ interface Props {
     nb_destinataires: number;
 }
 
-const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+// CSRF fiable : on lit le cookie XSRF-TOKEN (toujours frais) plutôt que le token
+// du <meta> qui devient périmé en production (→ « CSRF token mismatch »).
+const xsrf = () => decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
 const post = (url: string, body?: unknown) =>
     fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf(), 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': xsrf(), 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin',
         body: body ? JSON.stringify(body) : undefined,
     }).then((r) => r.json());

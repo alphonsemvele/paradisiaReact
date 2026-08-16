@@ -17,7 +17,7 @@ interface Produit {
 
 const FRAIS_LIVRAISON = 1000;
 const nf = (n: number) => new Intl.NumberFormat('fr-FR').format(n);
-const csrf = () => document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '';
+const csrf = () => decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? '');
 
 export default function OrderLinkPage({ produits }: { produits: Produit[] }) {
     const [panier, setPanier] = useState<Record<number, number>>({});
@@ -65,7 +65,7 @@ export default function OrderLinkPage({ produits }: { produits: Produit[] }) {
         try {
             const res = await fetch('/commander', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', 'X-XSRF-TOKEN': csrf() },
                 body: JSON.stringify({
                     ...form,
                     items: lignes.map((l) => ({ id: l.id, quantity: l.qte })),

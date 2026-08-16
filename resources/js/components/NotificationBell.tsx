@@ -57,7 +57,7 @@ export default function NotificationBell() {
                 method: 'POST',
                 headers: {
                     Accept: 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content ?? '',
+                    'X-XSRF-TOKEN': decodeURIComponent(document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))?.split('=')[1] ?? ''),
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 credentials: 'same-origin',
