@@ -272,6 +272,7 @@ class UserController extends Controller
                 'confirmed' => (bool) $user->confirmed,
                 'status' => $user->status,
                 'is_blocked' => (bool) $user->is_blocked,
+                'email_verifie' => $user->email_verified_at !== null,
                 'referral_code' => $user->referral_code,
                 'last_active' => $user->last_active?->format('d/m/Y H:i'),
                 'last_active_human' => $user->last_active?->diffForHumans(),
@@ -320,6 +321,20 @@ class UserController extends Controller
     /**
      * Bloquer / débloquer un utilisateur
      */
+    /** Marque / retire la vérification de l'e-mail (soupape : mail non reçu). */
+    public function toggleEmailVerified(User $user): RedirectResponse
+    {
+        if ($user->email_verified_at !== null) {
+            $user->forceFill(['email_verified_at' => null])->save();
+
+            return back()->with('success', 'E-mail marqué comme NON vérifié.');
+        }
+
+        $user->forceFill(['email_verified_at' => now()])->save();
+
+        return back()->with('success', 'E-mail marqué comme vérifié (l\'utilisateur peut se connecter).');
+    }
+
     public function toggleStatus(User $user): RedirectResponse
     {
         if ($user->id === Auth::id()) {

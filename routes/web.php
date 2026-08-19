@@ -117,6 +117,7 @@ Route::prefix('admin')
         Route::patch('/users/{user}', ["App\Http\Controllers\Admin\UserController", 'update'])->name('users.update');
         Route::patch('/users/{user}/toggle-status', ["App\Http\Controllers\Admin\UserController", 'toggleStatus'])->name('users.toggle-status');
         Route::patch('/users/{user}/toggle-validation', ["App\Http\Controllers\Admin\UserController", 'toggleValidation'])->name('users.toggle-validation');
+        Route::patch('/users/{user}/toggle-email-verified', ["App\Http\Controllers\Admin\UserController", 'toggleEmailVerified'])->name('users.toggle-email-verified');
         Route::delete('/users/{user}', ["App\Http\Controllers\Admin\UserController", 'destroy'])->name('users.destroy');
 
 
@@ -246,6 +247,11 @@ Route::get('/', [HomeController::class, 'index'])->name('accueil');
 
 Route::post('/logout', [UserController::class, 'logout'])->name('logout')->middleware('auth');
 
+// Confirmation d'e-mail via lien signé (accessible connecté OU non).
+Route::get('/verify-email/{id}/{hash}', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'verify'])
+    ->middleware('signed')
+    ->name('verification.verify');
+
 Route::middleware('guest')->group(function () {
     // Login
     Route::get('/login', [AuthenticatedSessionController::class, 'create'])
@@ -256,6 +262,10 @@ Route::middleware('guest')->group(function () {
     Route::get('/register', [RegisteredUserController::class, 'create'])
         ->name('register');
     Route::post('/register', [RegisteredUserController::class, 'store']);
+
+    // Renvoi de l'e-mail de confirmation (si non reçu / en spam)
+    Route::post('/renvoyer-confirmation', [\App\Http\Controllers\Auth\EmailVerificationController::class, 'renvoyerPublic'])
+        ->name('verification.resend');
 
     // Mot de passe oublié / réinitialisation
     Route::get('/forgot-password', [\App\Http\Controllers\Auth\PasswordResetLinkController::class, 'create'])

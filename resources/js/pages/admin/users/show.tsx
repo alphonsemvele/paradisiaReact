@@ -48,6 +48,7 @@ interface UserDetail {
     birth: string | null;
     description: string | null;
     valid: boolean;
+    email_verifie: boolean;
     confirmed: boolean;
     status: string | null;
     is_blocked: boolean;
@@ -154,6 +155,10 @@ export default function UserShow({
         );
     };
 
+    const handleToggleEmailVerified = () => {
+        router.patch(`/admin/users/${user.id}/toggle-email-verified`, {}, { preserveScroll: true });
+    };
+
     const handleDelete = () => {
         router.delete(`/admin/users/${user.id}`);
     };
@@ -206,6 +211,18 @@ export default function UserShow({
                             >
                                 <Ban className="w-4 h-4" />
                                 {user.is_blocked ? 'Débloquer' : 'Bloquer'}
+                            </button>
+                            <button
+                                onClick={handleToggleEmailVerified}
+                                title="Confirmer / retirer la vérification de l'e-mail"
+                                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                                    user.email_verifie
+                                        ? 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                                        : 'bg-sky-500 text-white hover:bg-sky-600'
+                                }`}
+                            >
+                                <Mail className="w-4 h-4" />
+                                {user.email_verifie ? 'E-mail vérifié' : 'Confirmer l\'e-mail'}
                             </button>
                             <button
                                 onClick={() => setConfirmDelete(true)}

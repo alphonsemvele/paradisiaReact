@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Notifications\VerifierEmail;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,9 +12,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    use HasFactory, MustVerifyEmailTrait, Notifiable;
+
+    /** E-mail de confirmation en français. */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifierEmail());
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -75,6 +84,7 @@ class User extends Authenticatable
             'birth' => 'date',
             'id_country' => 'integer',
             'is_blocked' => 'boolean',
+            'email_verified_at' => 'datetime',
         ];
     }
 public function categories(): HasMany

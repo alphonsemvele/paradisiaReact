@@ -45,6 +45,15 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        // Confirmation d'e-mail obligatoire avant de se connecter.
+        if (Auth::user() && ! Auth::user()->hasVerifiedEmail()) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => "Confirme d'abord ton compte via le lien envoyé par e-mail (pense à vérifier tes spams). Tu peux te faire renvoyer le lien depuis la page de connexion.",
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

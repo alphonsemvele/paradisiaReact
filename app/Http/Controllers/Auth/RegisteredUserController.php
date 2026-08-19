@@ -82,11 +82,16 @@ class RegisteredUserController extends Controller
             'referral_code' => $parrain?->ref,           // code du parrain utilisé
         ]);
 
-        event(new Registered($user));
-        Auth::login($user);
+        // E-mail de confirmation (le compte n'est pas connectable tant qu'il
+        // n'est pas confirmé). Un échec d'envoi ne bloque pas l'inscription.
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $e) {
+            logger()->error('Mail de vérification non envoyé : '.$e->getMessage());
+        }
 
-        // Honore la destination mémorisée (ex. /festy) pour « suivre » l'utilisateur.
-        return redirect()->intended('/');
+        // Pas de connexion automatique : confirmation e-mail requise d'abord.
+        return redirect()->route('login')->with('status', 'Compte créé ! Confirme ton adresse e-mail (pense à vérifier tes spams) pour pouvoir te connecter.');
     }
 
     /**

@@ -17,6 +17,8 @@ interface LoginData {
 
 export default function Login({ status, canResetPassword }: Props) {
     const [showPassword, setShowPassword] = useState(false);
+    const [showResend, setShowResend] = useState(false);
+    const resend = useForm({ email: '' });
 
     const { data, setData, post, processing, errors } = useForm<LoginData>({
         email: '',
@@ -174,6 +176,26 @@ export default function Login({ status, canResetPassword }: Props) {
                                 {processing ? 'Connexion...' : 'Se connecter'}
                             </button>
                         </form>
+
+                        {/* Renvoyer l'e-mail de confirmation */}
+                        <div className="mt-4 text-center">
+                            <button type="button" onClick={() => setShowResend((v) => !v)}
+                                className="text-xs text-zinc-500 hover:text-emerald-600">
+                                Je n'ai pas reçu l'e-mail de confirmation
+                            </button>
+                            {showResend && (
+                                <form onSubmit={(e) => { e.preventDefault(); resend.post('/renvoyer-confirmation', { onSuccess: () => resend.reset('email') }); }}
+                                    className="mt-2 flex gap-2">
+                                    <input type="email" value={resend.data.email} onChange={(e) => resend.setData('email', e.target.value)}
+                                        placeholder="Ton e-mail" required
+                                        className="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                                    <button type="submit" disabled={resend.processing}
+                                        className="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg disabled:opacity-60">
+                                        Renvoyer
+                                    </button>
+                                </form>
+                            )}
+                        </div>
 
                         {/* Lien vers register */}
                         <p className="mt-6 text-center text-sm text-zinc-600">
