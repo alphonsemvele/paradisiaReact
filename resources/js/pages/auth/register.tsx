@@ -180,6 +180,14 @@ export default function Register({ countries, parrain }: Props) {
                         </div>
 
                         <form onSubmit={submit} className="space-y-4">
+                            {Object.keys(errors).length > 0 && (
+                                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                                    <p className="text-sm font-semibold text-red-700 mb-1">Impossible de créer le compte :</p>
+                                    <ul className="text-xs text-red-600 list-disc pl-4 space-y-0.5">
+                                        {Object.values(errors).map((msg, i) => <li key={i}>{msg as string}</li>)}
+                                    </ul>
+                                </div>
+                            )}
                             {/* Nom */}
                             <div>
                                 <label className="block text-sm font-medium text-zinc-700 mb-1.5">
@@ -215,8 +223,12 @@ export default function Register({ countries, parrain }: Props) {
                                     <input
                                         type="email"
                                         value={data.email}
-                                        onChange={(e) => setData('email', e.target.value)}
+                                        onChange={(e) => setData('email', e.target.value.toLowerCase())}
                                         autoComplete="username"
+                                        autoCapitalize="none"
+                                        autoCorrect="off"
+                                        spellCheck={false}
+                                        inputMode="email"
                                         required
                                         className={`w-full pl-10 pr-4 py-2.5 bg-zinc-50 border ${
                                             errors.email ? 'border-red-300' : 'border-zinc-200'

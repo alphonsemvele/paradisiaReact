@@ -34,7 +34,9 @@ class RegisteredUserController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
+            // Pas de règle « lowercase » : les claviers mobiles mettent une
+            // majuscule au 1er caractère → on normalise nous-mêmes en minuscules.
+            'email' => 'required|string|email|max:255|unique:'.User::class,
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'sexe' => 'required|in:H,F',
             'id_country' => 'required|exists:countries,id',
@@ -70,7 +72,7 @@ class RegisteredUserController extends Controller
 
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => strtolower(trim($validated['email'])),
             'password' => Hash::make($validated['password']),
             'sexe' => $validated['sexe'],
             'phone' => $telephone,
