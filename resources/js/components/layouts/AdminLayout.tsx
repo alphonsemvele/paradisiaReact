@@ -86,6 +86,7 @@ const menuSections: MenuSection[] = [
             { label: 'Résultats concours', href: '/admin/concours', icon: Trophy },
             { label: 'Résultats — dernière phase', href: '/admin/concours-final', icon: Trophy },
             { label: 'E-mailing', href: '/admin/emails', icon: Mail },
+            { label: 'Réglages e-mail', href: '/admin/reglages/email', icon: Mail },
         ],
     },
     {

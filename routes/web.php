@@ -204,6 +204,11 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::post('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'store'])->name('securite.ips.store');
         Route::delete('/securite/ips/{bannedIp}', [\App\Http\Controllers\Admin\BannedIpController::class, 'destroy'])->name('securite.ips.destroy');
 
+        // Réglages e-mail (SMTP) sans toucher au .env
+        Route::get('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'index'])->name('reglages.email');
+        Route::post('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'update'])->name('reglages.email.update');
+        Route::post('/reglages/email/test', [\App\Http\Controllers\Admin\MailSettingController::class, 'test'])->name('reglages.email.test');
+
         Route::get('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'index'])->name('emails.index');
         Route::post('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'store'])->name('emails.store');
         Route::post('/emails/{campagne}/lot', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'envoyerLot'])->name('emails.lot');
