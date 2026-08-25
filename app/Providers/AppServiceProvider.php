@@ -21,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Interface et messages en français (le .env peut être resté sur « en »).
+        app()->setLocale('fr');
+
         // Réglages e-mail saisis dans l'admin (SMTP) : ils priment sur le .env.
         $this->appliquerReglagesMail();
 
