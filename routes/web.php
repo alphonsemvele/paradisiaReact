@@ -232,6 +232,20 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::post('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'update'])->name('reglages.email.update');
         Route::post('/reglages/email/test', [\App\Http\Controllers\Admin\MailSettingController::class, 'test'])->name('reglages.email.test');
 
+        // ── Stock & matériel ────────────────────────────────────────────────
+        Route::get('/stock', [\App\Http\Controllers\Admin\StockController::class, 'index'])->name('stock.index');
+        Route::post('/stock', [\App\Http\Controllers\Admin\StockController::class, 'store'])->name('stock.store');
+        Route::match(['post', 'patch'], '/stock/{material}', [\App\Http\Controllers\Admin\StockController::class, 'update'])->name('stock.update');
+        Route::delete('/stock/{material}', [\App\Http\Controllers\Admin\StockController::class, 'destroy'])->name('stock.destroy');
+        Route::post('/stock/{material}/ajuster', [\App\Http\Controllers\Admin\StockController::class, 'ajuster'])->name('stock.ajuster');
+        Route::get('/stock/{material}/historique', [\App\Http\Controllers\Admin\StockController::class, 'historique'])->name('stock.historique');
+
+        // ── Achats ──────────────────────────────────────────────────────────
+        Route::get('/achats', [\App\Http\Controllers\Admin\PurchaseController::class, 'index'])->name('achats.index');
+        Route::post('/achats', [\App\Http\Controllers\Admin\PurchaseController::class, 'store'])->name('achats.store');
+        Route::get('/achats/{purchase}', [\App\Http\Controllers\Admin\PurchaseController::class, 'show'])->name('achats.show');
+        Route::delete('/achats/{purchase}', [\App\Http\Controllers\Admin\PurchaseController::class, 'destroy'])->name('achats.destroy');
+
         Route::get('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'index'])->name('emails.index');
         Route::post('/emails', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'store'])->name('emails.store');
         Route::post('/emails/{campagne}/lot', [\App\Http\Controllers\Admin\EmailCampaignController::class, 'envoyerLot'])->name('emails.lot');

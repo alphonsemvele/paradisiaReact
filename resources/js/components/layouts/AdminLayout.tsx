@@ -28,6 +28,8 @@ import {
     PartyPopper,
     ShieldBan,
     History,
+    Boxes,
+    ShoppingCart,
 } from 'lucide-react';
 import type { PageProps } from '@/types';
 
@@ -94,6 +96,13 @@ const menuSections: MenuSection[] = [
         items: [
             { label: 'Configuration', href: '/admin/festy', icon: PartyPopper },
             { label: 'Inscrits', href: '/admin/festy/inscrits', icon: Users },
+        ],
+    },
+    {
+        title: 'Stock & matériel',
+        items: [
+            { label: 'Matériel & stock', href: '/admin/stock', icon: Boxes },
+            { label: 'Achats', href: '/admin/achats', icon: ShoppingCart },
         ],
     },
     {
