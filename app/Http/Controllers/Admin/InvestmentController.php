@@ -19,17 +19,20 @@ class InvestmentController extends Controller
 {
     public function index(): Response
     {
-        $base = fn () => Payment::where('services', 'invest')->where('status', 'Success')->whereNotNull('id_round');
+        // Un investissement = un paiement Success rattaché à un round.
+        $totalShares = (float) Payment::where('status', 'Success')->whereNotNull('id_round')->sum('share');
+        $totalInvestors = (int) Payment::where('status', 'Success')->whereNotNull('id_round')
+            ->distinct('id_user')->count('id_user');
 
-        $totalShares = (float) $base()->sum('share');
-        $totalInvested = (float) $base()
+        // Avec jointure rounds : on QUALIFIE « status » (présent des deux côtés).
+        $totalInvested = (float) Payment::where('payments.status', 'Success')
+            ->whereNotNull('payments.id_round')
             ->join('rounds', 'payments.id_round', '=', 'rounds.id')
             ->sum(DB::raw('payments.share * rounds.amount'));
-        $totalInvestors = (int) $base()->distinct('id_user')->count('id_user');
 
         // Rounds (tous, actifs ou non) avec parts vendues.
         $rounds = Round::orderByDesc('id')->get()->map(function (Round $r) {
-            $parts = (float) Payment::where('services', 'invest')->where('status', 'Success')->where('id_round', $r->id)->sum('share');
+            $parts = (float) Payment::where('status', 'Success')->where('id_round', $r->id)->sum('share');
 
             return [
                 'id' => $r->id,
@@ -48,7 +51,6 @@ class InvestmentController extends Controller
         $derniers = DB::table('payments')
             ->join('users', 'users.id', '=', 'payments.id_user')
             ->join('rounds', 'rounds.id', '=', 'payments.id_round')
-            ->where('payments.services', 'invest')
             ->whereNotNull('payments.id_round')
             ->orderByDesc('payments.id')
             ->limit(40)
