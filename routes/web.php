@@ -232,6 +232,11 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::post('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'update'])->name('reglages.email.update');
         Route::post('/reglages/email/test', [\App\Http\Controllers\Admin\MailSettingController::class, 'test'])->name('reglages.email.test');
 
+        // ── Investissements ─────────────────────────────────────────────────
+        Route::get('/investments', [\App\Http\Controllers\Admin\InvestmentController::class, 'index'])->name('investments.index');
+        Route::get('/investments/users', [\App\Http\Controllers\Admin\InvestmentController::class, 'rechercheUsers'])->name('investments.users');
+        Route::post('/investments/crediter', [\App\Http\Controllers\Admin\InvestmentController::class, 'crediter'])->name('investments.crediter');
+
         // ── Stock & matériel ────────────────────────────────────────────────
         Route::get('/stock', [\App\Http\Controllers\Admin\StockController::class, 'index'])->name('stock.index');
         Route::post('/stock', [\App\Http\Controllers\Admin\StockController::class, 'store'])->name('stock.store');
