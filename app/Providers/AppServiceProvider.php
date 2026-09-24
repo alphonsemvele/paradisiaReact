@@ -28,11 +28,13 @@ class AppServiceProvider extends ServiceProvider
         $this->appliquerReglagesMail();
 
         // Délivrabilité : l'expéditeur DOIT être sur le domaine (sinon Gmail
-        // classe en spam pour cause d'alignement SPF/DKIM). Si le .env est resté
-        // sur le placeholder, on force un expéditeur du domaine.
+        // classe en spam pour cause d'alignement SPF/DKIM). Une adresse « no-reply »
+        // bâtit aussi moins de réputation qu'une vraie boîte surveillée : on
+        // privilégie donc contact@ dès que le .env est resté sur un placeholder
+        // ou un no-reply. Une adresse perso explicite reste, elle, respectée.
         $from = (string) config('mail.from.address');
-        if ($from === '' || str_contains($from, 'example.com')) {
-            Mail::alwaysFrom('no-reply@paradisia-africa.com', config('mail.from.name') ?: 'Paradisia');
+        if ($from === '' || str_contains($from, 'example.com') || str_starts_with($from, 'no-reply@')) {
+            Mail::alwaysFrom('contact@paradisia-africa.com', config('mail.from.name') ?: 'Paradisia');
         }
     }
 
