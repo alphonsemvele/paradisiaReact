@@ -19,7 +19,7 @@ class FestyTicketMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Votre ticket PARADISIA FESTY 🎟️',
+            subject: 'Votre ticket Paradisia Festy est confirmé',
         );
     }
 

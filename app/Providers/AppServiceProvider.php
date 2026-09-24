@@ -52,6 +52,8 @@ class AppServiceProvider extends ServiceProvider
                 'mail.mailers.smtp.username' => $s->username,
                 'mail.mailers.smtp.password' => $s->password,
                 'mail.mailers.smtp.encryption' => $s->encryption ?: null,
+                // Laravel 11+ porte le chiffrement par le "scheme" (ssl → smtps).
+                'mail.mailers.smtp.scheme' => $s->encryption === 'ssl' ? 'smtps' : null,
                 'mail.from.address' => $s->from_address ?: config('mail.from.address'),
                 'mail.from.name' => $s->from_name ?: config('mail.from.name'),
             ]);

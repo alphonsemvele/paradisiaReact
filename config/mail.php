@@ -39,7 +39,12 @@ return [
 
         'smtp' => [
             'transport' => 'smtp',
-            'scheme' => env('MAIL_SCHEME'),
+            // Laravel 11+ ne lit plus MAIL_ENCRYPTION : le chiffrement est porté
+            // par le "scheme". Sur le port 465 (SSL implicite), il faut « smtps »,
+            // sinon la connexion se fait en clair et la poignée TLS échoue. On
+            // dérive donc le scheme depuis MAIL_ENCRYPTION pour rester compatible
+            // avec les .env existants (ssl → smtps).
+            'scheme' => env('MAIL_SCHEME', env('MAIL_ENCRYPTION') === 'ssl' ? 'smtps' : null),
             'url' => env('MAIL_URL'),
             'host' => env('MAIL_HOST', '127.0.0.1'),
             'port' => env('MAIL_PORT', 2525),
