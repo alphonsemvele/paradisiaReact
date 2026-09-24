@@ -382,6 +382,8 @@ class InvestPaymentController extends Controller
             'commission' => (float) ($donnees['commission'] ?? 0),
             'commission_a_charge' => $donnees['commission_a_charge'] ?? 'projet',
             'url_paiement' => $donnees['url_paiement'] ?? null,
+            // Recours si l'invite ne s'affiche pas seule sur le téléphone.
+            'code_ussd' => $donnees['code_ussd'] ?? null,
             'operateur_libelle' => $donnees['operateur_libelle'] ?? null,
             'message' => $donnees['instruction'] ?? 'Finalisez votre paiement mobile money pour valider votre investissement.',
         ], 202);
