@@ -6,6 +6,7 @@ use App\Mail\InvestissementConfirmeMail;
 use App\Models\Payment;
 use App\Models\Round;
 use App\Services\MalaPay;
+use App\Services\WhatsAppNotifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -550,6 +551,17 @@ class InvestPaymentController extends Controller
         } catch (\Throwable $e) {
             Log::error("Confirmation d'investissement {$payment->ref} non envoyée : ".$e->getMessage());
         }
+
+        // Alerte superadmin/admins : tout paiement doit être notifié.
+        WhatsAppNotifier::send(sprintf(
+            "💰 INVESTISSEMENT confirmé\nInvestisseur : %s\nParts : %s\nMontant : %s %s\nMoyen : %s\nRéf : %s",
+            $payment->customer_name ?? '—',
+            $payment->share,
+            number_format((float) $payment->total_amount, 0, ',', ' '),
+            $payment->currency,
+            $payment->type_paiement,
+            $payment->ref,
+        ));
     }
 
     /* ═══════════════════════ Interne ═══════════════════════ */

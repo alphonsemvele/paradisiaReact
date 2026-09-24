@@ -4,39 +4,65 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
- * Envoie une alerte à chaque inscription.
- * Le fournisseur est choisi via WHATSAPP_DRIVER (greenapi | telegram | callmebot).
- * En cas d'absence de config ou d'erreur, on logue sans bloquer la requête.
+ * Alerte à chaque paiement / événement : envoyée sur WhatsApp/Telegram (selon
+ * WHATSAPP_DRIVER) ET par e-mail au superadmin (services.superadmin_email).
+ * Toute absence de config ou erreur est loguée sans jamais bloquer la requête.
  */
 class WhatsAppNotifier
 {
     public static function send(string $message): void
     {
-        // Différé après l'envoi de la réponse HTTP : l'appel réseau vers le
-        // fournisseur ne ralentit jamais la requête de l'utilisateur.
+        // Différé après l'envoi de la réponse HTTP : les appels réseau ne
+        // ralentissent jamais la requête de l'utilisateur.
         app()->terminating(function () use ($message) {
-            $driver = config('services.whatsapp.driver', 'greenapi');
-
-            if ($missing = self::missingConfig($driver)) {
-                Log::warning("Alerte WhatsApp NON envoyée : driver \"{$driver}\", config manquante dans .env : {$missing}. Message :\n{$message}");
-
-                return;
-            }
-
-            try {
-                match ($driver) {
-                    'greenapi'  => self::greenApi($message),
-                    'telegram'  => self::telegram($message),
-                    'callmebot' => self::callMeBot($message),
-                    default     => Log::warning("Alerte WhatsApp : driver inconnu \"{$driver}\""),
-                };
-                Log::info("Alerte WhatsApp envoyée via {$driver}.");
-            } catch (\Throwable $e) {
-                Log::warning('Alerte WhatsApp échouée : ' . $e->getMessage());
-            }
+            self::envoyerWhatsApp($message);
+            self::notifierSuperadmin($message);
         });
+    }
+
+    /** Alerte WhatsApp/Telegram selon le driver configuré. */
+    private static function envoyerWhatsApp(string $message): void
+    {
+        $driver = config('services.whatsapp.driver', 'greenapi');
+
+        if ($missing = self::missingConfig($driver)) {
+            Log::warning("Alerte WhatsApp NON envoyée : driver \"{$driver}\", config manquante dans .env : {$missing}. Message :\n{$message}");
+
+            return;
+        }
+
+        try {
+            match ($driver) {
+                'greenapi'  => self::greenApi($message),
+                'telegram'  => self::telegram($message),
+                'callmebot' => self::callMeBot($message),
+                default     => Log::warning("Alerte WhatsApp : driver inconnu \"{$driver}\""),
+            };
+            Log::info("Alerte WhatsApp envoyée via {$driver}.");
+        } catch (\Throwable $e) {
+            Log::warning('Alerte WhatsApp échouée : ' . $e->getMessage());
+        }
+    }
+
+    /** Notifie le superadmin par e-mail (tout paiement / événement). */
+    private static function notifierSuperadmin(string $message): void
+    {
+        $email = config('services.superadmin_email');
+
+        if (! $email) {
+            return;
+        }
+
+        try {
+            $sujet = strtok($message, "\n") ?: 'Notification Paradisia';
+            Mail::raw($message, fn ($m) => $m->to($email)->subject('[Paradisia] '.$sujet));
+            Log::info("Notification superadmin envoyée à {$email}.");
+        } catch (\Throwable $e) {
+            Log::warning('Notification superadmin échouée : '.$e->getMessage());
+        }
     }
 
     /**

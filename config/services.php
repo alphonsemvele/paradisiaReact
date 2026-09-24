@@ -82,4 +82,7 @@ return [
         'whatsapp' => env('FESTY_WHATSAPP', '237687984282'),
     ],
 
+    // Superadmin notifié par e-mail de tout paiement / événement.
+    'superadmin_email' => env('SUPERADMIN_EMAIL', 'alphonsemveleloic@gmail.com'),
+
 ];
