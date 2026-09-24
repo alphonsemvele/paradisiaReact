@@ -14,10 +14,10 @@ Votre paiement est confirmé. Voici votre ticket officiel :
 CODE DU TICKET : {{ $ticket->code_ticket }}
 
 Présentez ce code le jour de l'événement.
-@if($ticket->team)
+@if($ticket->team?->whatsapp_group)
 
-Retrouvez le groupe WhatsApp de votre équipe depuis votre espace Paradisia.
+Rejoignez le groupe de votre équipe : {{ $ticket->team->whatsapp_group }}
 @endif
 
-Une question ? Contactez-nous au +237 687 98 42 82
-PARADISIA Africa
+Une question ? WhatsApp : +237 687 98 42 82
+PARADISIA Africa — https://paradisia-africa.com

@@ -89,16 +89,16 @@
         <div class="code">{{ $ticket->code_ticket }}</div>
       </div>
 
-      @if($ticket->team)
-        <p style="margin-top:16px;font-size:13px;color:#5b6b60;text-align:center">Retrouve le groupe WhatsApp de l'équipe {{ $equipe }} depuis ton espace Paradisia.</p>
+      @if($ticket->team?->whatsapp_group)
+        <a class="cta" href="{{ $ticket->team->whatsapp_group }}">💬 Rejoindre le groupe de l'équipe {{ $equipe }}</a>
       @endif
     </div>
   </div>
 
   <div class="foot">
     <p>
-      Une question ? Contacte-nous au <strong>+237 687 98 42 82</strong>.<br/>
-      PARADISIA Africa
+      Une question ? Écris-nous sur WhatsApp au <strong>+237 687 98 42 82</strong>.<br/>
+      PARADISIA Africa — <a href="https://paradisia-africa.com">paradisia-africa.com</a>
     </p>
   </div>
 </div>
