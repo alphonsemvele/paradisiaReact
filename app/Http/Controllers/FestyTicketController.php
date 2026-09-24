@@ -6,6 +6,7 @@ use App\Models\FestyRegistration;
 use App\Models\FestySetting;
 use App\Models\FestyTeam;
 use App\Models\FestyTicket;
+use App\Models\User;
 use App\Services\FestyTickets;
 use App\Services\MalaPay;
 use App\Services\WhatsAppNotifier;
@@ -63,22 +64,31 @@ class FestyTicketController extends Controller
         if ($user) {
             $equipe = $this->tickets->equipeUtilisateur($user);
             if ($equipe) {
+                $places = $this->tickets->placesParticipant($equipe->id);
                 $equipeActuelle = [
                     'id' => $equipe->id,
                     'nom' => $equipe->nom,
                     'couleur' => $equipe->couleur,
                     'whatsapp' => $equipe->whatsapp_group,
+                    'places_restantes' => $places['restantes'],
+                    'complet' => $places['complet'],
                 ];
             }
         }
 
         $equipes = FestyTeam::where('actif', true)->orderBy('position')->get()
-            ->map(fn (FestyTeam $t) => [
-                'id' => $t->id,
-                'nom' => $t->nom,
-                'trait' => $t->trait,
-                'couleur' => $t->couleur,
-            ]);
+            ->map(function (FestyTeam $t) {
+                $places = $this->tickets->placesParticipant($t->id);
+
+                return [
+                    'id' => $t->id,
+                    'nom' => $t->nom,
+                    'trait' => $t->trait,
+                    'couleur' => $t->couleur,
+                    'places_restantes' => $places['restantes'],
+                    'complet' => $places['complet'],
+                ];
+            });
 
         $tickets = $user
             ? FestyTicket::with('team')->where('user_id', $user->id)->where('statut', 'paye')
@@ -100,6 +110,7 @@ class FestyTicketController extends Controller
                 'fan' => $settings->prixTicket('fan'),
             ],
             'promo_fin' => $settings->enPromo() ? $settings->promo_fin?->format('d/m/Y') : null,
+            'places_limite' => (int) ($settings->places_participant_equipe ?? 20),
             'moi' => $user ? [
                 'nom' => trim($user->name.' '.($user->last_name ?? '')),
                 'telephone' => $user->phone,
@@ -128,9 +139,17 @@ class FestyTicketController extends Controller
         $validated = $request->validate([
             'type' => ['required', 'string', 'in:participant,fan'],
             'telephone' => ['required', 'string', 'max:20'],
+            'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
         ]);
 
         $user = Auth::user();
+
+        // Participant : équipe requise et place disponible (20 par équipe).
+        $equipe = $this->equipePourTicket($user, $validated['type'], $validated['festy_team_id'] ?? null);
+        if (! $equipe['ok']) {
+            return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
+        }
+
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
         $montant = $prix['montant'];
         $reference = 'FST_'.strtoupper(Str::random(12));
@@ -139,7 +158,7 @@ class FestyTicketController extends Controller
             'reference' => $reference,
             'code_ticket' => $this->genererCode(),
             'user_id' => $user->id,
-            'festy_team_id' => $this->tickets->equipeUtilisateur($user)?->id,
+            'festy_team_id' => $equipe['teamId'],
             'type' => $prix['type'],
             'montant' => $montant,
             'devise' => self::DEVISE,
@@ -201,9 +220,16 @@ class FestyTicketController extends Controller
 
         $validated = $request->validate([
             'type' => ['required', 'string', 'in:participant,fan'],
+            'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
         ]);
 
         $user = Auth::user();
+
+        $equipe = $this->equipePourTicket($user, $validated['type'], $validated['festy_team_id'] ?? null);
+        if (! $equipe['ok']) {
+            return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
+        }
+
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
         $reference = 'FST_'.strtoupper(Str::random(12));
 
@@ -211,7 +237,7 @@ class FestyTicketController extends Controller
             'reference' => $reference,
             'code_ticket' => $this->genererCode(),
             'user_id' => $user->id,
-            'festy_team_id' => $this->tickets->equipeUtilisateur($user)?->id,
+            'festy_team_id' => $equipe['teamId'],
             'type' => $prix['type'],
             'montant' => $prix['montant'],
             'devise' => self::DEVISE,
@@ -362,6 +388,34 @@ class FestyTicketController extends Controller
     }
 
     /* ═══════════════════════ Interne ═══════════════════════ */
+
+    /**
+     * Résout l'équipe d'un ticket et vérifie la disponibilité pour un
+     * participant (20 places par équipe). Un fan n'est pas limité.
+     *
+     * @return array{ok:bool, teamId?:int|null, message?:string}
+     */
+    private function equipePourTicket(User $user, string $type, ?int $festyTeamId): array
+    {
+        // Équipe visée : celle demandée, sinon celle déjà rejointe.
+        $teamId = $festyTeamId ?: $this->tickets->equipeUtilisateur($user)?->id;
+
+        if ($type !== 'participant') {
+            return ['ok' => true, 'teamId' => $teamId];
+        }
+
+        if (! $teamId) {
+            return ['ok' => false, 'message' => 'Choisis ton équipe pour un ticket participant.'];
+        }
+
+        if ($this->tickets->placesParticipant($teamId)['complet']) {
+            $nom = FestyTeam::find($teamId)?->nom;
+
+            return ['ok' => false, 'message' => "L'équipe {$nom} est complète (places participants épuisées). Choisis une autre équipe."];
+        }
+
+        return ['ok' => true, 'teamId' => $teamId];
+    }
 
     /** @return array<string, mixed> */
     private function presenter(FestyTicket $t): array

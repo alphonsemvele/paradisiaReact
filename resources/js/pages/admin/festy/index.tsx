@@ -25,6 +25,7 @@ interface Settings {
     prix_participant_promo: number | null;
     prix_fan_promo: number | null;
     promo_fin: string | null;
+    places_participant_equipe: number | null;
 }
 interface Props {
     settings: Settings;
@@ -108,8 +109,11 @@ export default function AdminFesty({ settings, equipes, stats }: Props) {
                                 <L label="Participant (promo)"><input type="number" className="ipt" value={form.prix_participant_promo ?? ''} onChange={(e) => setForm({ ...form, prix_participant_promo: e.target.value === '' ? null : parseInt(e.target.value, 10) })} placeholder="5000" /></L>
                                 <L label="Fan (promo)"><input type="number" className="ipt" value={form.prix_fan_promo ?? ''} onChange={(e) => setForm({ ...form, prix_fan_promo: e.target.value === '' ? null : parseInt(e.target.value, 10) })} placeholder="3000" /></L>
                             </div>
-                            <L label="Fin de la promo" className="mt-2"><input type="date" className="ipt" value={form.promo_fin ?? ''} onChange={(e) => setForm({ ...form, promo_fin: e.target.value || null })} /></L>
-                            <p className="text-[11px] text-zinc-400 mt-1.5">Tant que la date n'est pas dépassée, le prix promo s'applique. Laisse vide pour désactiver la promo.</p>
+                            <div className="grid grid-cols-2 gap-3 mt-2">
+                                <L label="Fin de la promo"><input type="date" className="ipt" value={form.promo_fin ?? ''} onChange={(e) => setForm({ ...form, promo_fin: e.target.value || null })} /></L>
+                                <L label="Places participant / équipe"><input type="number" className="ipt" value={form.places_participant_equipe ?? ''} onChange={(e) => setForm({ ...form, places_participant_equipe: e.target.value === '' ? null : parseInt(e.target.value, 10) })} placeholder="20" /></L>
+                            </div>
+                            <p className="text-[11px] text-zinc-400 mt-1.5">Prix promo appliqué tant que la date n'est pas dépassée. Places : nombre de tickets <b>participant</b> par équipe (les fans sont illimités).</p>
                         </div>
 
                         <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">

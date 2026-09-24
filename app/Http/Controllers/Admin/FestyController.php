@@ -45,6 +45,7 @@ class FestyController extends Controller
             'settings' => $settings->only([
                 'titre', 'sous_titre', 'date_label', 'prix', 'description', 'inscriptions_ouvertes',
                 'prix_participant', 'prix_fan', 'prix_participant_promo', 'prix_fan_promo', 'promo_fin',
+                'places_participant_equipe',
             ]),
             'equipes' => $equipes,
             'stats' => [
@@ -70,6 +71,7 @@ class FestyController extends Controller
             'prix_participant_promo' => ['nullable', 'integer', 'min:0', 'max:10000000'],
             'prix_fan_promo' => ['nullable', 'integer', 'min:0', 'max:10000000'],
             'promo_fin' => ['nullable', 'date'],
+            'places_participant_equipe' => ['nullable', 'integer', 'min:0', 'max:100000'],
         ]);
 
         FestySetting::actuel()->update($validated);
@@ -78,7 +80,7 @@ class FestyController extends Controller
     }
 
     /** Liste des tickets vendus, filtrable par statut. */
-    public function tickets(Request $request): Response
+    public function tickets(Request $request, FestyTickets $service): Response
     {
         $statut = $request->string('statut')->toString() ?: null;
 
@@ -112,7 +114,15 @@ class FestyController extends Controller
             'tickets' => $tickets,
             'filtre' => $statut,
             'equipes' => FestyTeam::where('actif', true)->orderBy('position')->get(['id', 'nom', 'couleur'])
-                ->map(fn (FestyTeam $t) => ['id' => $t->id, 'nom' => $t->nom, 'couleur' => $t->couleur]),
+                ->map(function (FestyTeam $t) use ($service) {
+                    $p = $service->placesParticipant($t->id);
+
+                    return [
+                        'id' => $t->id, 'nom' => $t->nom, 'couleur' => $t->couleur,
+                        'places_restantes' => $p['restantes'], 'occupees' => $p['occupees'],
+                        'limite' => $p['limite'], 'complet' => $p['complet'],
+                    ];
+                }),
             'prix' => [
                 'participant' => $settings->prixTicket('participant'),
                 'fan' => $settings->prixTicket('fan'),

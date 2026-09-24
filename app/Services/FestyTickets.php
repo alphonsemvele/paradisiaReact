@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\FestyTicketMail;
 use App\Models\FestyRegistration;
+use App\Models\FestySetting;
 use App\Models\FestyTeam;
 use App\Models\FestyTicket;
 use App\Models\User;
@@ -32,13 +33,23 @@ class FestyTickets
 
         $ticket->loadMissing('user');
 
+        // Équipe du ticket : celle déjà portée, sinon celle rejointe par l'acheteur.
+        $teamId = $ticket->festy_team_id ?? $this->equipeUtilisateur($ticket->user)?->id;
+
         $ticket->update([
             'statut' => 'paye',
             'paid_at' => now(),
-            // Rattache l'équipe déjà choisie par l'utilisateur, s'il en a une.
-            'festy_team_id' => $ticket->festy_team_id ?? $this->equipeUtilisateur($ticket->user)?->id,
+            'festy_team_id' => $teamId,
             'valide_par' => $validePar,
         ]);
+
+        // Inscrit l'acheteur à l'équipe du ticket (groupe WhatsApp + page Festy).
+        if ($teamId && $ticket->user) {
+            $team = FestyTeam::find($teamId);
+            if ($team) {
+                $this->inscrireEquipe($ticket->user, $team);
+            }
+        }
 
         $frais = $ticket->fresh(['team', 'user']);
         $envoye = $this->envoyerTicket($frais);
@@ -90,6 +101,29 @@ class FestyTickets
         }
 
         return FestyRegistration::with('team')->where('user_id', $user->id)->first()?->team;
+    }
+
+    /**
+     * Places « participant » d'une équipe : limite, occupées (payées + réservées
+     * en attente) et restantes. Les tickets « fan » ne sont pas limités.
+     *
+     * @return array{limite:int, occupees:int, restantes:int, complet:bool}
+     */
+    public function placesParticipant(int $teamId): array
+    {
+        $limite = (int) (FestySetting::actuel()->places_participant_equipe ?? 20);
+
+        $occupees = FestyTicket::where('type', 'participant')
+            ->where('festy_team_id', $teamId)
+            ->whereIn('statut', ['paye', 'en_attente'])
+            ->count();
+
+        return [
+            'limite' => $limite,
+            'occupees' => $occupees,
+            'restantes' => max(0, $limite - $occupees),
+            'complet' => $occupees >= $limite,
+        ];
     }
 
     /** Code lisible et unique imprimé sur le ticket. */

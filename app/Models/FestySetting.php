@@ -9,6 +9,7 @@ class FestySetting extends Model
     protected $fillable = [
         'titre', 'sous_titre', 'date_label', 'prix', 'description', 'inscriptions_ouvertes',
         'prix_participant', 'prix_fan', 'prix_participant_promo', 'prix_fan_promo', 'promo_fin',
+        'places_participant_equipe',
     ];
 
     protected $casts = [

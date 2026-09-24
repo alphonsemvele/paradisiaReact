@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 
 interface Prix { type: string; montant: number; normal: number; promo: boolean }
-interface Equipe { id: number; nom: string; trait: string | null; couleur: string }
+interface Equipe { id: number; nom: string; trait: string | null; couleur: string; places_restantes: number; complet: boolean }
 interface TicketData {
     id: number; reference: string; code: string; type: string; type_libelle: string;
     montant: number; promo: boolean; statut: string; moyen: string;
@@ -18,8 +18,9 @@ interface Props {
     festy: { titre: string; date_label: string | null };
     prix: { participant: Prix; fan: Prix };
     promo_fin: string | null;
+    places_limite: number;
     moi: { nom: string; telephone: string | null; email: string } | null;
-    equipe: { id: number; nom: string; couleur: string; whatsapp: string | null } | null;
+    equipe: { id: number; nom: string; couleur: string; whatsapp: string | null; places_restantes: number; complet: boolean } | null;
     equipes: Equipe[];
     tickets: TicketData[];
     en_attente: TicketData | null;
@@ -47,13 +48,14 @@ async function postJSON(url: string, body: Record<string, unknown>) {
     return { ok: r.ok, status: r.status, data } as { ok: boolean; status: number; data: any };
 }
 
-export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equipes, tickets, en_attente, om, mtn_disponible }: Props) {
+export default function FestyTicket({ festy, prix, promo_fin, places_limite, moi, equipe, equipes, tickets, en_attente, om, mtn_disponible }: Props) {
     const page = usePage();
     const { auth } = page.props as any;
     const connecte = !!auth?.user && !!moi;
     const flash = (page.props as any).flash?.success as string | undefined;
 
     const [type, setType] = useState<'participant' | 'fan'>('participant');
+    const [teamChoisie, setTeamChoisie] = useState<number | ''>('');
     const [moyen, setMoyen] = useState<'mtn' | 'om' | null>(null);
     const [tel, setTel] = useState(moi?.telephone ?? '');
     const [busy, setBusy] = useState(false);
@@ -67,6 +69,12 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
     const pollRef = useRef<number | null>(null);
 
     const p = prix[type];
+
+    // Équipe pour un ticket participant : celle de l'utilisateur, sinon celle choisie.
+    const equipeChoisie = teamChoisie ? equipes.find((e) => e.id === teamChoisie) : undefined;
+    const teamParticipant: number | null = type === 'participant' ? (equipe?.id ?? (teamChoisie || null)) : null;
+    const equipeComplet = type === 'participant' && (equipe ? equipe.complet : !!equipeChoisie?.complet);
+    const participantPret = type !== 'participant' || (!!teamParticipant && !equipeComplet);
 
     // Reprise du paiement MTN après retour de redirection (?ref=...).
     useEffect(() => {
@@ -92,9 +100,10 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
 
     const payerMtn = async () => {
         setErreur(null);
+        if (type === 'participant' && !participantPret) { setErreur('Choisis une équipe avec des places disponibles.'); return; }
         if (!tel.trim() || tel.replace(/\D/g, '').length < 8) { setErreur('Entre un numéro MTN valide.'); return; }
         setBusy(true); setTraitement(true);
-        const { ok, data } = await postJSON('/festy/ticket/mobile', { type, telephone: tel });
+        const { ok, data } = await postJSON('/festy/ticket/mobile', { type, telephone: tel, festy_team_id: teamParticipant });
         if (!ok) { setBusy(false); setTraitement(false); setErreur(data?.message ?? 'Paiement impossible pour le moment.'); return; }
         // Redirection : on garde le voile affiché jusqu'au chargement de la page Malapay.
         if (data.url_paiement) { window.location.href = data.url_paiement; return; }
@@ -106,8 +115,9 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
 
     const commanderOm = async () => {
         setErreur(null);
+        if (type === 'participant' && !participantPret) { setErreur('Choisis une équipe avec des places disponibles.'); return; }
         setBusy(true); setTraitement(true);
-        const { ok, data } = await postJSON('/festy/ticket/manuel', { type });
+        const { ok, data } = await postJSON('/festy/ticket/manuel', { type, festy_team_id: teamParticipant });
         setBusy(false); setTraitement(false);
         if (!ok) { setErreur(data?.message ?? 'Réservation impossible pour le moment.'); return; }
         setOmMontant(data.montant ?? p.montant);
@@ -225,6 +235,40 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
                                         titre="Fan" sous="Je soutiens mon équipe" prix={prix.fan} />
                                 </div>
 
+                                {/* Équipe + compteur de places (participant uniquement) */}
+                                {type === 'participant' && (
+                                    <div className="mb-4">
+                                        {equipe ? (
+                                            <div className={`rounded-xl border p-3 ${equipe.complet ? 'border-red-200 bg-red-50' : 'border-emerald-100 bg-emerald-50'}`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center" style={{ background: equipe.couleur }}>{equipe.nom[0]}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold text-zinc-900">Équipe {equipe.nom}</p>
+                                                        <p className={`text-xs ${equipe.complet ? 'text-red-600 font-semibold' : 'text-emerald-700'}`}>
+                                                            {equipe.complet ? 'Complète — plus de place participant' : `${equipe.places_restantes} / ${places_limite} place${equipe.places_restantes > 1 ? 's' : ''} restante${equipe.places_restantes > 1 ? 's' : ''}`}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <label className="block text-xs font-medium text-zinc-500 mb-1">Ton équipe <span className="text-zinc-400">(20 participants max / équipe)</span></label>
+                                                <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={teamChoisie} onChange={(e) => setTeamChoisie(e.target.value ? Number(e.target.value) : '')}>
+                                                    <option value="">Choisis ton équipe…</option>
+                                                    {equipes.map((e) => (
+                                                        <option key={e.id} value={e.id} disabled={e.complet}>
+                                                            {e.nom} — {e.complet ? 'complet' : `${e.places_restantes} place${e.places_restantes > 1 ? 's' : ''}`}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                                {equipeChoisie && !equipeChoisie.complet && (
+                                                    <p className="text-xs text-emerald-700 mt-1.5 flex items-center gap-1"><Users className="w-3.5 h-3.5" /> {equipeChoisie.places_restantes} / {places_limite} places restantes dans l'équipe {equipeChoisie.nom}.</p>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
                                 {/* Moyen de paiement */}
                                 <p className="text-xs font-medium text-zinc-500 mb-2">Moyen de paiement</p>
                                 <div className="space-y-2.5">
@@ -247,7 +291,7 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
                                             <input value={tel} onChange={(e) => setTel(e.target.value)} inputMode="tel" placeholder="6XX XX XX XX"
                                                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                         </div>
-                                        <button onClick={payerMtn} disabled={busy}
+                                        <button onClick={payerMtn} disabled={busy || !participantPret}
                                             className="mt-4 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60">
                                             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Payer {fcfa(p.montant)} <ChevronRight className="w-4 h-4" /></>}
                                         </button>
@@ -256,7 +300,7 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
 
                                 {/* Orange : réserver puis instructions */}
                                 {moyen === 'om' && (
-                                    <button onClick={commanderOm} disabled={busy}
+                                    <button onClick={commanderOm} disabled={busy || !participantPret}
                                         className="mt-4 w-full py-3 rounded-xl text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60" style={{ background: '#ff7900' }}>
                                         {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Payer {fcfa(p.montant)} par Orange Money <ChevronRight className="w-4 h-4" /></>}
                                     </button>

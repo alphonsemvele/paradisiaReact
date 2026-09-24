@@ -10,7 +10,7 @@ interface T {
     equipe: string | null; couleur: string | null; date: string; paye_le: string | null;
 }
 interface Prix { type: string; montant: number; normal: number; promo: boolean }
-interface Equipe { id: number; nom: string; couleur: string }
+interface Equipe { id: number; nom: string; couleur: string; places_restantes: number; occupees: number; limite: number; complet: boolean }
 interface U { id: number; name: string; email: string; phone: string | null }
 interface Props {
     tickets: T[];
@@ -61,6 +61,26 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
                 <Stat icon={CheckCircle2} label="Tickets payés" value={String(stats.payes)} color="#0d9488" />
                 <Stat icon={Clock} label="En attente" value={String(stats.en_attente)} color={stats.en_attente ? '#d97706' : '#16a34a'} />
                 <Stat icon={Ticket} label="Part. / Fans" value={`${stats.participants} / ${stats.fans}`} color="#E8792B" />
+            </div>
+
+            {/* Places participants par équipe */}
+            <div className="bg-white rounded-2xl border border-zinc-200 p-4 mb-5">
+                <p className="text-xs font-bold text-zinc-700 mb-3">Places participants par équipe</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {equipes.map((e) => (
+                        <div key={e.id} className="rounded-xl border border-zinc-100 p-3">
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ background: e.couleur }} />
+                                <span className="text-sm font-semibold text-zinc-800 truncate">{e.nom}</span>
+                            </div>
+                            <p className="text-lg font-extrabold" style={{ color: e.complet ? '#dc2626' : '#14532d' }}>{e.places_restantes}<span className="text-xs font-medium text-zinc-400"> / {e.limite}</span></p>
+                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (e.occupees / Math.max(1, e.limite)) * 100)}%`, background: e.complet ? '#dc2626' : e.couleur }} />
+                            </div>
+                            <p className="text-[10px] text-zinc-400 mt-1">{e.complet ? 'Complet' : `${e.occupees} pris`}</p>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Activer un ticket pour un utilisateur */}
