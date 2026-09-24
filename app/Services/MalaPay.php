@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -209,11 +210,43 @@ class MalaPay
             return ['ok' => true, 'data' => $corps['data'] ?? []];
         }
 
+        // Quota dépassé. Malapay limite les routes de paiement à 20 appels par
+        // minute ; le corps de la réponse est celui du limiteur, pas le nôtre,
+        // d'où un message formulé ici.
+        if ($reponse->status() === 429) {
+            $secondes = (int) $reponse->header('Retry-After');
+
+            Log::warning('Malapay : quota d\'appels dépassé', ['chemin' => $chemin, 'retry_after' => $secondes]);
+
+            return [
+                'ok' => false,
+                'code' => 'MALAPAY_RATE_LIMITED',
+                'message' => $secondes > 0
+                    ? "Trop de tentatives de paiement. Patientez {$secondes} seconde".($secondes > 1 ? 's' : '').' avant de réessayer.'
+                    : 'Trop de tentatives de paiement. Patientez une minute avant de réessayer.',
+                'retry_after' => $secondes ?: 60,
+            ];
+        }
+
         $erreur = $corps['error'] ?? [];
+        $code = $erreur['code'] ?? 'MALAPAY_ERROR';
+
+        // Le projet Paradisia a été suspendu, archivé ou rejeté côté Malapay :
+        // la clé est valide mais n'encaisse plus. Cas administratif, pas une
+        // erreur de l'investisseur — il ne sert à rien de lui dire de réessayer.
+        if ($code === 'PROJECT_INACTIVE') {
+            Log::error('Malapay : le projet Paradisia n\'est plus actif, encaissement suspendu.');
+
+            return [
+                'ok' => false,
+                'code' => $code,
+                'message' => 'Les paiements sont momentanément suspendus. Nos équipes sont prévenues, réessayez plus tard.',
+            ];
+        }
 
         return [
             'ok' => false,
-            'code' => $erreur['code'] ?? 'MALAPAY_ERROR',
+            'code' => $code,
             'message' => $erreur['message'] ?? 'Le paiement a échoué. Réessayez ou contactez un représentant.',
             'representants' => $erreur['representants'] ?? [],
         ];
@@ -224,7 +257,26 @@ class MalaPay
         return Http::withToken($this->clef())
             ->acceptJson()
             ->timeout(config('services.malapay.timeout', 15))
-            ->retry(2, 200, throw: false);
+            ->retry(2, 200, when: $this->reprisePertinente(...), throw: false);
+    }
+
+    /**
+     * Sans callback, Laravel rejoue TOUTE réponse non-2xx. Un « solde
+     * insuffisant » (422) partait donc en deux appels identiques, et un 429 en
+     * deux également — de quoi épuiser deux fois plus vite le quota que Malapay
+     * applique désormais (20 appels/minute sur les routes de paiement).
+     *
+     * On ne rejoue que ce qui a une chance d'aboutir au second essai : une
+     * coupure réseau ou une panne passagère côté Malapay. Un refus métier, une
+     * clé invalide ou un dépassement de quota sont définitifs à cette échelle.
+     */
+    private function reprisePertinente(\Throwable $e): bool
+    {
+        if ($e instanceof ConnectionException) {
+            return true;
+        }
+
+        return $e instanceof RequestException && $e->response->serverError();
     }
 
     private function url(): ?string

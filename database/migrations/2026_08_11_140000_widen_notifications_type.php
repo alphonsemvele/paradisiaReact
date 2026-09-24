@@ -12,11 +12,29 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement("ALTER TABLE `notifications` MODIFY `type` VARCHAR(40) NOT NULL");
+        // Ces instructions sont du SQL MySQL/MariaDB (MODIFY COLUMN, ENUM,
+        // LEFT, CHAR_LENGTH). Sous SQLite — la suite de tests — elles
+        // échouent et bloquent toutes les migrations suivantes. Le type y
+        // reste un varchar sans contrainte : le comportement applicatif est
+        // identique, seule la contrainte SGBD manque.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        DB::statement('ALTER TABLE `notifications` MODIFY `type` VARCHAR(40) NOT NULL');
     }
 
     public function down(): void
     {
+        // Ces instructions sont du SQL MySQL/MariaDB (MODIFY COLUMN, ENUM,
+        // LEFT, CHAR_LENGTH). Sous SQLite — la suite de tests — elles
+        // échouent et bloquent toutes les migrations suivantes. Le type y
+        // reste un varchar sans contrainte : le comportement applicatif est
+        // identique, seule la contrainte SGBD manque.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE `notifications` MODIFY `type` ENUM('project','publication','payment') NOT NULL");
     }
 };

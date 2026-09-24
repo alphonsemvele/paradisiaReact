@@ -15,6 +15,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Ces instructions sont du SQL MySQL/MariaDB (MODIFY COLUMN, ENUM,
+        // LEFT, CHAR_LENGTH). Sous SQLite — la suite de tests — elles
+        // échouent et bloquent toutes les migrations suivantes. Le type y
+        // reste un varchar sans contrainte : le comportement applicatif est
+        // identique, seule la contrainte SGBD manque.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE publications MODIFY img_1 TEXT NULL');
         DB::statement('UPDATE publications SET nbr_vews = 0 WHERE nbr_vews IS NULL');
         DB::statement('ALTER TABLE publications MODIFY nbr_vews INT UNSIGNED NOT NULL DEFAULT 0');
@@ -22,6 +31,15 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Ces instructions sont du SQL MySQL/MariaDB (MODIFY COLUMN, ENUM,
+        // LEFT, CHAR_LENGTH). Sous SQLite — la suite de tests — elles
+        // échouent et bloquent toutes les migrations suivantes. Le type y
+        // reste un varchar sans contrainte : le comportement applicatif est
+        // identique, seule la contrainte SGBD manque.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE publications MODIFY nbr_vews INT(10) NULL');
         // img_1 est laissée nullable : la remettre NOT NULL casserait les
         // publications sans image créées entre-temps.

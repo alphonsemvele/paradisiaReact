@@ -18,6 +18,15 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Ces instructions sont du SQL MySQL/MariaDB (MODIFY COLUMN, ENUM,
+        // LEFT, CHAR_LENGTH). Sous SQLite — la suite de tests — elles
+        // échouent et bloquent toutes les migrations suivantes. Le type y
+        // reste un varchar sans contrainte : le comportement applicatif est
+        // identique, seule la contrainte SGBD manque.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         // Tronque les éventuelles valeurs trop longues avant de réduire le type
         DB::statement('UPDATE views SET ip_address = LEFT(ip_address, 45) WHERE CHAR_LENGTH(ip_address) > 45');
 
@@ -32,6 +41,15 @@ return new class extends Migration
 
     public function down(): void
     {
+        // Ces instructions sont du SQL MySQL/MariaDB (MODIFY COLUMN, ENUM,
+        // LEFT, CHAR_LENGTH). Sous SQLite — la suite de tests — elles
+        // échouent et bloquent toutes les migrations suivantes. Le type y
+        // reste un varchar sans contrainte : le comportement applicatif est
+        // identique, seule la contrainte SGBD manque.
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
         Schema::table('views', function (Blueprint $table) {
             $table->dropIndex('views_publication_date_idx');
             $table->dropIndex('views_publication_ip_idx');

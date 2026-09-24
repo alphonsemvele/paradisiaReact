@@ -184,17 +184,14 @@ class InvestPaymentController extends Controller
         );
 
         if (! $resultat['ok']) {
-            $payment->update([
-                'status' => 'Failed',
-                'error_code' => $resultat['code'],
-            ]);
+            $this->conclureEchec($payment, $resultat['code']);
 
             return response()->json([
                 'ok' => false,
                 'code' => $resultat['code'],
                 'message' => $resultat['message'],
                 'representants' => $resultat['representants'] ?? [],
-            ], 422);
+            ], $this->statutHttp($resultat['code']));
         }
 
         // Malapay n'exécute plus le débit immédiatement : le titulaire du
@@ -297,13 +294,13 @@ class InvestPaymentController extends Controller
         );
 
         if (! $resultat['ok']) {
-            $payment->update(['status' => 'Failed', 'error_code' => $resultat['code']]);
+            $this->conclureEchec($payment, $resultat['code']);
 
             return response()->json([
                 'ok' => false,
                 'code' => $resultat['code'],
                 'message' => $resultat['message'],
-            ], 422);
+            ], $this->statutHttp($resultat['code']));
         }
 
         $donnees = $resultat['data'] ?? [];
@@ -466,5 +463,51 @@ class InvestPaymentController extends Controller
     private function montant(Round $round, int $parts): float
     {
         return round((float) $round->amount * $parts, 2);
+    }
+
+    /**
+     * Causes où Malapay n'a rien enregistré : l'appel n'a pas abouti, aucun
+     * paiement n'existe de leur côté.
+     *
+     * @var list<string>
+     */
+    private const ECHECS_SANS_TENTATIVE = [
+        'MALAPAY_UNREACHABLE',
+        'MALAPAY_RATE_LIMITED',
+        'MALAPAY_NOT_CONFIGURED',
+    ];
+
+    /**
+     * Clôt un paiement qui n'a pas abouti.
+     *
+     * Un quota dépassé ou un service injoignable ne sont pas des échecs de
+     * paiement : rien n'a été tenté chez Malapay. Les marquer « Failed »
+     * remplirait l'historique de l'investisseur de refus qui n'ont jamais eu
+     * lieu. La référence étant régénérée à chaque tentative, supprimer
+     * l'ébauche ne bloque aucune reprise.
+     */
+    private function conclureEchec(Payment $payment, string $code): void
+    {
+        if (in_array($code, self::ECHECS_SANS_TENTATIVE, true)) {
+            $payment->delete();
+
+            return;
+        }
+
+        $payment->update(['status' => 'Failed', 'error_code' => $code]);
+    }
+
+    /**
+     * 503 pour une indisponibilité passagère, 429 pour un quota dépassé : le
+     * client sait ainsi qu'il peut réessayer, là où un 422 signale un refus
+     * définitif sur lequel il est inutile d'insister.
+     */
+    private function statutHttp(string $code): int
+    {
+        return match ($code) {
+            'MALAPAY_RATE_LIMITED' => 429,
+            'MALAPAY_UNREACHABLE', 'MALAPAY_NOT_CONFIGURED', 'PROJECT_INACTIVE' => 503,
+            default => 422,
+        };
     }
 }

@@ -11,6 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Définition remplacée le lendemain par
+        // 2026_06_27_125332_create_formations_catalog_table, plus complète.
+        // Fichier conservé car déjà présent dans l'historique des bases
+        // existantes ; il ne recrée plus la table.
+        if (Schema::hasTable('formations')) {
+            return;
+        }
+
         Schema::create('formations', function (Blueprint $table) {
             $table->id();
             $table->string('nom', 120);
