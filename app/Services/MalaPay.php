@@ -137,6 +137,20 @@ class MalaPay
     }
 
     /**
+     * Simule la répartition de la commission Malapay sur un montant.
+     *
+     * Sert à afficher à l'investisseur le total exact qu'il réglera : si la
+     * commission est à sa charge, elle s'ajoute au prix des parts et il doit le
+     * savoir AVANT de valider, pas en découvrant le débit.
+     *
+     * @return array{ok:bool, data?:array, code?:string, message?:string}
+     */
+    public function commission(float $montant): array
+    {
+        return $this->appeler('get', '/v1/commission', ['montant' => $montant]);
+    }
+
+    /**
      * Initie un paiement mobile money (Orange/MTN). Renvoie notamment l'URL de
      * paiement (`url_paiement`) vers laquelle rediriger le client.
      *

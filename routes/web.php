@@ -422,6 +422,7 @@ Route::middleware('auth')->group(function () {
     // Paiement d'un investissement par portefeuille Malapay
     Route::get('/invest/paiement/pays', [InvestPaymentController::class, 'pays'])->name('invest.pays');
     Route::get('/invest/paiement/operateurs', [InvestPaymentController::class, 'operateurs'])->name('invest.operateurs');
+    Route::get('/invest/paiement/commission', [InvestPaymentController::class, 'commission'])->name('invest.commission');
     Route::post('/invest/paiement/verifier', [InvestPaymentController::class, 'verifier'])->name('invest.verifier');
     Route::post('/invest/paiement', [InvestPaymentController::class, 'payer'])->name('invest.payer');
     // Paiement par mobile money (Orange/MTN)

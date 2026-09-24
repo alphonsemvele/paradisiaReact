@@ -100,6 +100,64 @@ class MalaPayTest extends TestCase
     }
 
     #[Test]
+    public function la_simulation_de_commission_remonte_le_total_a_payer(): void
+    {
+        Http::fake([
+            '*' => Http::response([
+                'success' => true,
+                'data' => [
+                    'montant' => 10_000,
+                    'commission' => 250,
+                    'commission_a_charge' => 'client',
+                    'montant_a_payer' => 10_250,
+                    'montant_recu' => 10_000,
+                    'mention' => 'Frais de service : 250 XAF. Total à payer : 10 250 XAF.',
+                ],
+            ], 200),
+        ]);
+
+        $resultat = $this->client()->commission(10_000);
+
+        $this->assertTrue($resultat['ok']);
+        $this->assertSame(10_250, $resultat['data']['montant_a_payer']);
+        $this->assertStringContainsString('10 250', $resultat['data']['mention']);
+    }
+
+    /**
+     * Le paiement mobile renvoie désormais trois montants distincts. Paradisia
+     * doit enregistrer celui que l'investisseur règle et celui qui lui revient,
+     * faute de quoi la comptabilité ne retombe pas sur le relevé Malapay.
+     */
+    #[Test]
+    public function un_paiement_mobile_expose_les_trois_montants(): void
+    {
+        Http::fake([
+            '*' => Http::response([
+                'success' => true,
+                'data' => [
+                    'reference' => 'INV-1',
+                    'statut' => 'en_attente',
+                    'montant' => 10_000,
+                    'commission' => 250,
+                    'commission_a_charge' => 'projet',
+                    'montant_a_payer' => 10_000,
+                    'montant_recu' => 9_750,
+                    'instruction' => 'Une demande de paiement a été envoyée au 677000000.',
+                ],
+            ], 202),
+        ]);
+
+        $resultat = $this->client()->payerMobile(
+            reference: 'INV-1', montant: 10_000, devise: 'XAF', pays: 'CM',
+            operateur: 'mtn', telephone: '677000000',
+        );
+
+        $this->assertTrue($resultat['ok']);
+        $this->assertSame(10_000, $resultat['data']['montant_a_payer']);
+        $this->assertSame(9_750, $resultat['data']['montant_recu']);
+    }
+
+    #[Test]
     public function un_paiement_abouti_ressort_sous_forme_exploitable(): void
     {
         Http::fake([

@@ -237,6 +237,56 @@ class InvestPaymentController extends Controller
      * URL de paiement vers laquelle rediriger l'investisseur ; le paiement est
      * confirmé ensuite (notification MalaPay), suivi par polling de statut().
      */
+    /**
+     * GET /invest/paiement/commission — total exact pour un nombre de parts.
+     *
+     * Appelé par le formulaire avant validation : l'investisseur voit ce qu'il
+     * va réellement régler, frais compris le cas échéant.
+     */
+    public function commission(Request $request): JsonResponse
+    {
+        if (! Auth::check()) {
+            return response()->json(['ok' => false, 'message' => 'Connectez-vous pour investir.'], 401);
+        }
+
+        $validated = $request->validate([
+            'parts' => ['required', 'integer', 'min:1'],
+        ]);
+
+        $round = $this->roundOuvert();
+
+        if (! $round) {
+            return response()->json(['ok' => false, 'message' => 'Aucun round d\'investissement n\'est ouvert.'], 422);
+        }
+
+        $montant = round($validated['parts'] * (float) $round->share_price, 2);
+        $resultat = $this->malapay->commission($montant);
+
+        // Malapay indisponible : on affiche le prix sec plutôt que de bloquer
+        // le formulaire. Le total exact sera de toute façon confirmé à l'étape
+        // de paiement.
+        if (! $resultat['ok']) {
+            return response()->json([
+                'ok' => true,
+                'montant' => $montant,
+                'montant_a_payer' => $montant,
+                'commission' => 0,
+                'mention' => null,
+            ]);
+        }
+
+        $d = $resultat['data'] ?? [];
+
+        return response()->json([
+            'ok' => true,
+            'montant' => (float) ($d['montant'] ?? $montant),
+            'montant_a_payer' => (float) ($d['montant_a_payer'] ?? $montant),
+            'commission' => (float) ($d['commission'] ?? 0),
+            'commission_a_charge' => $d['commission_a_charge'] ?? 'projet',
+            'mention' => $d['mention'] ?? null,
+        ]);
+    }
+
     public function payerMobile(Request $request): JsonResponse
     {
         if (! Auth::check()) {
@@ -305,12 +355,27 @@ class InvestPaymentController extends Controller
 
         $donnees = $resultat['data'] ?? [];
 
+        // Malapay renvoie trois montants distincts : le prix des parts, ce que
+        // l'investisseur règle (commission comprise si elle est à sa charge) et
+        // ce qui nous revient. On enregistre les deux qui nous concernent,
+        // sinon la comptabilité ne retomberait pas sur le relevé.
+        $aPayer = (float) ($donnees['montant_a_payer'] ?? $montant);
+        $recu = (float) ($donnees['montant_recu'] ?? $montant);
+
+        $payment->update([
+            'total_amount' => $aPayer,
+            'amount' => $recu,
+        ]);
+
         return response()->json([
             'ok' => true,
             'en_attente' => true,
             'reference' => $reference,
             'parts' => $validated['parts'],
-            'montant_formate' => number_format($montant, 0, ',', ' ').' '.$devise,
+            'montant_formate' => number_format($aPayer, 0, ',', ' ').' '.$devise,
+            'montant_a_payer' => $aPayer,
+            'commission' => (float) ($donnees['commission'] ?? 0),
+            'commission_a_charge' => $donnees['commission_a_charge'] ?? 'projet',
             'url_paiement' => $donnees['url_paiement'] ?? null,
             'operateur_libelle' => $donnees['operateur_libelle'] ?? null,
             'message' => $donnees['instruction'] ?? 'Finalisez votre paiement mobile money pour valider votre investissement.',
