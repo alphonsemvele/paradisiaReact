@@ -172,6 +172,15 @@ class FestyController extends Controller
         return back()->with('success', "Ticket {$ticket->code_ticket} annulé.");
     }
 
+    /** Supprime définitivement une ligne de ticket (quel que soit son statut). */
+    public function destroyTicket(FestyTicket $ticket): RedirectResponse
+    {
+        $code = $ticket->code_ticket;
+        $ticket->delete();
+
+        return back()->with('success', "Ticket {$code} supprimé définitivement.");
+    }
+
     /** Recherche d'utilisateurs pour l'activation manuelle d'un ticket. */
     public function rechercheUsers(Request $request): JsonResponse
     {

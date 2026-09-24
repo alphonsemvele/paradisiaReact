@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { router, Head, usePage } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone, Gift, Search, UserCheck, Sparkles, Mail } from 'lucide-react';
+import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone, Gift, Search, UserCheck, Sparkles, Mail, Trash2 } from 'lucide-react';
 
 interface T {
     id: number; reference: string; code: string; type: string; type_libelle: string;
@@ -46,6 +46,10 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
     const refuser = (t: T) => {
         if (!confirm(`Annuler le ticket ${t.code} de ${t.client ?? ''} ?${t.statut === 'paye' ? ' Ce ticket est déjà payé.' : ''}`)) return;
         router.post(`/admin/festy/tickets/${t.id}/refuser`, {}, { preserveScroll: true });
+    };
+    const supprimer = (t: T) => {
+        if (!confirm(`Supprimer DÉFINITIVEMENT le ticket ${t.code} de ${t.client ?? ''} ? Cette action est irréversible.`)) return;
+        router.delete(`/admin/festy/tickets/${t.id}`, { preserveScroll: true });
     };
 
     return (
@@ -151,8 +155,9 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
                                                 <button onClick={() => renvoyer(t)} title="Renvoyer l'e-mail" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-emerald-50 hover:text-emerald-700"><Mail className="w-4 h-4" /></button>
                                             )}
                                             {t.statut !== 'annule' && (
-                                                <button onClick={() => refuser(t)} title="Annuler le ticket" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-500 hover:bg-red-50 hover:text-red-600"><X className="w-4 h-4" /></button>
+                                                <button onClick={() => refuser(t)} title="Annuler le ticket" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-500 hover:bg-amber-50 hover:text-amber-600"><X className="w-4 h-4" /></button>
                                             )}
+                                            <button onClick={() => supprimer(t)} title="Supprimer définitivement" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-500 hover:bg-red-50 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                                         </div>
                                     </td>
                                 </tr>

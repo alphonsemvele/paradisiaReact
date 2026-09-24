@@ -218,6 +218,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::post('/festy/tickets/{ticket}/valider', [\App\Http\Controllers\Admin\FestyController::class, 'validerTicket'])->name('festy.tickets.valider');
         Route::post('/festy/tickets/{ticket}/renvoyer', [\App\Http\Controllers\Admin\FestyController::class, 'renvoyerTicket'])->name('festy.tickets.renvoyer');
         Route::post('/festy/tickets/{ticket}/refuser', [\App\Http\Controllers\Admin\FestyController::class, 'refuserTicket'])->name('festy.tickets.refuser');
+        Route::delete('/festy/tickets/{ticket}', [\App\Http\Controllers\Admin\FestyController::class, 'destroyTicket'])->name('festy.tickets.destroy');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 
         // ── Résultats DERNIÈRE PHASE (barème 5 pts/réponse + likes + commentaires) ──
