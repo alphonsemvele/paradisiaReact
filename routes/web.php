@@ -213,6 +213,8 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::post('/festy/inscrits/{registration}/bannir-ip', [\App\Http\Controllers\Admin\FestyController::class, 'bannirIp'])->name('festy.inscrits.bannir-ip');
         Route::get('/festy/export', [\App\Http\Controllers\Admin\FestyController::class, 'export'])->name('festy.export');
         Route::get('/festy/tickets', [\App\Http\Controllers\Admin\FestyController::class, 'tickets'])->name('festy.tickets');
+        Route::get('/festy/tickets/users', [\App\Http\Controllers\Admin\FestyController::class, 'rechercheUsers'])->name('festy.tickets.users');
+        Route::post('/festy/tickets/activer', [\App\Http\Controllers\Admin\FestyController::class, 'activerTicket'])->name('festy.tickets.activer');
         Route::post('/festy/tickets/{ticket}/valider', [\App\Http\Controllers\Admin\FestyController::class, 'validerTicket'])->name('festy.tickets.valider');
         Route::post('/festy/tickets/{ticket}/refuser', [\App\Http\Controllers\Admin\FestyController::class, 'refuserTicket'])->name('festy.tickets.refuser');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');

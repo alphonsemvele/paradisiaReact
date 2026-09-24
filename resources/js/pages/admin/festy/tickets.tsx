@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { router, Head, usePage } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone } from 'lucide-react';
+import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone, Gift, Search, UserCheck, Sparkles } from 'lucide-react';
 
 interface T {
     id: number; reference: string; code: string; type: string; type_libelle: string;
@@ -8,9 +9,14 @@ interface T {
     client: string | null; email: string | null; telephone: string | null;
     equipe: string | null; couleur: string | null; date: string; paye_le: string | null;
 }
+interface Prix { type: string; montant: number; normal: number; promo: boolean }
+interface Equipe { id: number; nom: string; couleur: string }
+interface U { id: number; name: string; email: string; phone: string | null }
 interface Props {
     tickets: T[];
     filtre: string | null;
+    equipes: Equipe[];
+    prix: { participant: Prix; fan: Prix };
     stats: { total: number; payes: number; en_attente: number; recette: number; participants: number; fans: number };
 }
 
@@ -23,7 +29,7 @@ const STATUTS: Record<string, { label: string; cls: string }> = {
     annule: { label: 'Annulé', cls: 'bg-zinc-100 text-zinc-500' },
 };
 
-export default function AdminFestyTickets({ tickets, filtre, stats }: Props) {
+export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stats }: Props) {
     const flash = (usePage().props as any).flash?.success as string | undefined;
 
     const filtrer = (s: string | null) => router.get('/admin/festy/tickets', s ? { statut: s } : {}, { preserveScroll: true, preserveState: true });
@@ -50,6 +56,9 @@ export default function AdminFestyTickets({ tickets, filtre, stats }: Props) {
                 <Stat icon={Clock} label="En attente" value={String(stats.en_attente)} color={stats.en_attente ? '#d97706' : '#16a34a'} />
                 <Stat icon={Ticket} label="Part. / Fans" value={`${stats.participants} / ${stats.fans}`} color="#E8792B" />
             </div>
+
+            {/* Activer un ticket pour un utilisateur */}
+            <ActiverTicket equipes={equipes} prix={prix} />
 
             {/* Filtres */}
             <div className="flex flex-wrap gap-2 mb-4">
@@ -98,7 +107,9 @@ export default function AdminFestyTickets({ tickets, filtre, stats }: Props) {
                                     <td className="px-4 py-3 text-right font-semibold text-zinc-900">{fcfa(t.montant)}{t.promo && <span className="ml-1 text-[10px] text-orange-500">promo</span>}</td>
                                     <td className="px-4 py-3">
                                         <span className="inline-flex items-center gap-1 text-xs text-zinc-600">
-                                            {t.moyen === 'mtn' ? <><Smartphone className="w-3.5 h-3.5 text-amber-500" /> MTN</> : <>🟠 Orange</>}
+                                            {t.moyen === 'mtn' ? <><Smartphone className="w-3.5 h-3.5 text-amber-500" /> MTN</>
+                                                : t.moyen === 'offert' ? <><Gift className="w-3.5 h-3.5 text-violet-500" /> Admin</>
+                                                : <>🟠 Orange</>}
                                         </span>
                                     </td>
                                     <td className="px-4 py-3 text-center">
@@ -129,6 +140,115 @@ function Stat({ icon: Icon, label, value, color }: { icon: any; label: string; v
         <div className="bg-white rounded-2xl border border-zinc-200 p-4 flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}18` }}><Icon className="w-5 h-5" style={{ color }} /></div>
             <div className="min-w-0"><p className="text-lg font-bold text-zinc-900 leading-tight truncate">{value}</p><p className="text-xs text-zinc-500">{label}</p></div>
+        </div>
+    );
+}
+
+function ActiverTicket({ equipes, prix }: { equipes: Equipe[]; prix: { participant: Prix; fan: Prix } }) {
+    const [ouvert, setOuvert] = useState(false);
+    const [q, setQ] = useState('');
+    const [resultats, setResultats] = useState<U[]>([]);
+    const [user, setUser] = useState<U | null>(null);
+    const [type, setType] = useState<'participant' | 'fan'>('participant');
+    const [teamId, setTeamId] = useState<number | ''>('');
+    const [montant, setMontant] = useState<string>('');
+    const [busy, setBusy] = useState(false);
+
+    // Prix par défaut quand on change de formule (montant reste modifiable).
+    useEffect(() => { setMontant(String(prix[type].montant)); }, [type, prix]);
+
+    useEffect(() => {
+        if (user || !ouvert) return;
+        const t = setTimeout(async () => {
+            try {
+                const r = await fetch(`/admin/festy/tickets/users?q=${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+                if (r.ok) { const d = await r.json(); setResultats(d.users ?? []); }
+            } catch { /* silencieux */ }
+        }, 250);
+        return () => clearTimeout(t);
+    }, [q, user, ouvert]);
+
+    const activer = () => {
+        if (!user) return;
+        setBusy(true);
+        router.post('/admin/festy/tickets/activer', {
+            user_id: user.id, type, festy_team_id: teamId || null, montant: montant ? Number(montant) : null,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => { setUser(null); setQ(''); setTeamId(''); setResultats([]); setOuvert(false); },
+            onFinish: () => setBusy(false),
+        });
+    };
+
+    if (!ouvert) {
+        return (
+            <div className="mb-5">
+                <button onClick={() => setOuvert(true)} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 hover:bg-violet-700 text-white text-sm font-semibold px-4 py-2.5">
+                    <Gift className="w-4 h-4" /> Activer un ticket pour un utilisateur
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mb-5 bg-white rounded-2xl border-2 border-violet-200 p-5">
+            <div className="flex items-center justify-between mb-1">
+                <h2 className="font-bold text-zinc-900 flex items-center gap-2"><Gift className="w-5 h-5 text-violet-600" /> Activer un ticket</h2>
+                <button onClick={() => setOuvert(false)} className="text-zinc-400 hover:text-zinc-700"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-xs text-zinc-500 mb-4">Recherche l'utilisateur, choisis la formule, puis active — le ticket lui est envoyé par e-mail aussitôt.</p>
+
+            {/* Recherche utilisateur */}
+            <label className="block text-xs font-medium text-zinc-500 mb-1">Utilisateur</label>
+            {user ? (
+                <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 mb-3">
+                    <UserCheck className="w-4 h-4 text-violet-600" />
+                    <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-zinc-900 truncate">{user.name}</p><p className="text-xs text-zinc-500 truncate">{user.email}{user.phone ? ' · ' + user.phone : ''}</p></div>
+                    <button onClick={() => { setUser(null); setQ(''); }} className="text-xs text-zinc-500 hover:text-red-600">changer</button>
+                </div>
+            ) : (
+                <div className="relative mb-3">
+                    <Search className="absolute left-3 top-2.5 w-4 h-4 text-zinc-400" />
+                    <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nom, e-mail ou téléphone…" autoFocus
+                        className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+                    {resultats.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-zinc-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+                            {resultats.map((u) => (
+                                <button key={u.id} onClick={() => { setUser(u); setResultats([]); }} className="w-full text-left px-3 py-2 hover:bg-zinc-50">
+                                    <p className="text-sm font-medium text-zinc-900">{u.name}</p><p className="text-xs text-zinc-400">{u.email}{u.phone ? ' · ' + u.phone : ''}</p>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Formule</label>
+                    <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={type} onChange={(e) => setType(e.target.value as 'participant' | 'fan')}>
+                        <option value="participant">Participant — {fcfa(prix.participant.montant)}</option>
+                        <option value="fan">Fan — {fcfa(prix.fan.montant)}</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Équipe (optionnel)</label>
+                    <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={teamId} onChange={(e) => setTeamId(e.target.value ? Number(e.target.value) : '')}>
+                        <option value="">— équipe actuelle —</option>
+                        {equipes.map((e) => <option key={e.id} value={e.id}>{e.nom}</option>)}
+                    </select>
+                </div>
+            </div>
+
+            <div className="mt-3">
+                <label className="block text-xs font-medium text-zinc-500 mb-1">Montant payé (FCFA)</label>
+                <input type="number" className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm" value={montant} onChange={(e) => setMontant(e.target.value)} />
+            </div>
+
+            <button onClick={activer} disabled={busy || !user}
+                className="mt-4 w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-60">
+                <Sparkles className="w-4 h-4" /> Activer et envoyer le ticket
+            </button>
         </div>
     );
 }

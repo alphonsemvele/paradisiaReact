@@ -57,6 +57,7 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
     const [moyen, setMoyen] = useState<'mtn' | 'om' | null>(null);
     const [tel, setTel] = useState(moi?.telephone ?? '');
     const [busy, setBusy] = useState(false);
+    const [traitement, setTraitement] = useState(false); // voile plein écran avant redirection
     const [erreur, setErreur] = useState<string | null>(null);
 
     // Écran d'attente MTN (polling) + confirmation.
@@ -92,11 +93,12 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
     const payerMtn = async () => {
         setErreur(null);
         if (!tel.trim() || tel.replace(/\D/g, '').length < 8) { setErreur('Entre un numéro MTN valide.'); return; }
-        setBusy(true);
+        setBusy(true); setTraitement(true);
         const { ok, data } = await postJSON('/festy/ticket/mobile', { type, telephone: tel });
-        setBusy(false);
-        if (!ok) { setErreur(data?.message ?? 'Paiement impossible pour le moment.'); return; }
+        if (!ok) { setBusy(false); setTraitement(false); setErreur(data?.message ?? 'Paiement impossible pour le moment.'); return; }
+        // Redirection : on garde le voile affiché jusqu'au chargement de la page Malapay.
         if (data.url_paiement) { window.location.href = data.url_paiement; return; }
+        setBusy(false); setTraitement(false);
         setUssd(data.code_ussd ?? null);
         setVue('mtn_attente');
         suivre(data.reference);
@@ -104,9 +106,9 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
 
     const commanderOm = async () => {
         setErreur(null);
-        setBusy(true);
+        setBusy(true); setTraitement(true);
         const { ok, data } = await postJSON('/festy/ticket/manuel', { type });
-        setBusy(false);
+        setBusy(false); setTraitement(false);
         if (!ok) { setErreur(data?.message ?? 'Réservation impossible pour le moment.'); return; }
         setOmMontant(data.montant ?? p.montant);
         setVue('om_ok');
@@ -120,6 +122,22 @@ export default function FestyTicket({ festy, prix, promo_fin, moi, equipe, equip
     return (
         <AppLayout>
             <Head title={`Ticket — ${festy.titre}`} />
+
+            {/* Voile « traitement en cours » (latence avant redirection) */}
+            {traitement && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 text-center text-white"
+                    style={{ background: 'radial-gradient(circle at 50% 30%, #10b981 0%, #06281a 72%)' }} role="dialog" aria-modal="true">
+                    <div className="w-full max-w-xs">
+                        <Loader2 className="w-12 h-12 animate-spin mx-auto mb-5" strokeWidth={1.6} />
+                        <h3 className="text-lg font-extrabold">Traitement en cours…</h3>
+                        <p className="mt-2 text-sm text-emerald-50/85">Nous préparons votre paiement sécurisé. Merci de patienter et de ne pas fermer cette page.</p>
+                        <div className="mt-5 h-1 w-full overflow-hidden rounded-full bg-white/20">
+                            <div className="h-full w-1/3 rounded-full bg-white/80" style={{ animation: 'ftGlisse 1.1s ease-in-out infinite' }} />
+                        </div>
+                    </div>
+                    <style>{`@keyframes ftGlisse { 0% { margin-left: -35% } 100% { margin-left: 100% } }`}</style>
+                </div>
+            )}
 
             {/* Héro */}
             <div style={{ background: 'linear-gradient(135deg,#0b2e1a,#14532d)', color: '#fff' }}>

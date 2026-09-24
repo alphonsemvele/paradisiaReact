@@ -9,6 +9,7 @@ use App\Models\FestyTicket;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 /**
  * Cycle de vie d'un ticket Festy, partagé entre le paiement public (MTN) et la
@@ -81,6 +82,42 @@ class FestyTickets
         return FestyRegistration::with('team')->where('user_id', $user->id)->first()?->team;
     }
 
+    /** Code lisible et unique imprimé sur le ticket. */
+    public function genererCode(): string
+    {
+        do {
+            $code = 'FST-'.strtoupper(Str::random(6));
+        } while (FestyTicket::where('code_ticket', $code)->exists());
+
+        return $code;
+    }
+
+    /** Inscrit (ou rebascule) un utilisateur dans une équipe. */
+    public function inscrireEquipe(User $user, FestyTeam $team): void
+    {
+        $inscription = FestyRegistration::where('user_id', $user->id)->first();
+
+        if ($inscription) {
+            $inscription->update(['festy_team_id' => $team->id]);
+
+            return;
+        }
+
+        try {
+            FestyRegistration::create([
+                'festy_team_id' => $team->id,
+                'user_id' => $user->id,
+                'nom' => $user->name,
+                'prenom' => $user->last_name,
+                'telephone' => $user->phone,
+                'email' => $user->email,
+                'ville' => $user->ville,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Doublon de téléphone : sans importance ici, le ticket porte l'équipe.
+        }
+    }
+
     /** Envoie le ticket par e-mail. Un échec d'envoi ne remet jamais en cause le paiement. */
     private function envoyerTicket(FestyTicket $ticket): void
     {
@@ -98,13 +135,20 @@ class FestyTickets
     /** Alerte les administrateurs qu'un ticket a été payé. */
     private function notifierAdmins(FestyTicket $ticket): void
     {
+        $moyen = match ($ticket->moyen) {
+            'mtn' => 'MTN Mobile Money',
+            'om_manuel' => 'Orange Money',
+            'offert' => 'Activé par un admin',
+            default => $ticket->moyen,
+        };
+
         WhatsAppNotifier::send(sprintf(
             "🎟️ FESTY — Ticket %s PAYÉ\nClient : %s\nÉquipe : %s\nMontant : %s FCFA\nMoyen : %s\nCode : %s",
             $ticket->typeLibelle(),
             $ticket->user?->name ?? '—',
             $ticket->team?->nom ?? 'à choisir',
             number_format($ticket->montant, 0, ',', ' '),
-            $ticket->moyen === 'mtn' ? 'MTN Mobile Money' : 'Orange Money',
+            $moyen,
             $ticket->code_ticket,
         ));
     }

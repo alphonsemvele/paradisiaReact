@@ -10,8 +10,10 @@ use App\Models\FestyTeam;
 use App\Models\FestyTicket;
 use App\Models\User;
 use App\Services\FestyTickets;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -104,9 +106,17 @@ class FestyController extends Controller
             'paye_le' => $t->paid_at?->isoFormat('D MMM YYYY [à] HH:mm'),
         ]);
 
+        $settings = FestySetting::actuel();
+
         return Inertia::render('admin/festy/tickets', [
             'tickets' => $tickets,
             'filtre' => $statut,
+            'equipes' => FestyTeam::where('actif', true)->orderBy('position')->get(['id', 'nom', 'couleur'])
+                ->map(fn (FestyTeam $t) => ['id' => $t->id, 'nom' => $t->nom, 'couleur' => $t->couleur]),
+            'prix' => [
+                'participant' => $settings->prixTicket('participant'),
+                'fan' => $settings->prixTicket('fan'),
+            ],
             'stats' => [
                 'total' => FestyTicket::count(),
                 'payes' => FestyTicket::where('statut', 'paye')->count(),
@@ -136,6 +146,73 @@ class FestyController extends Controller
         $ticket->update(['statut' => 'annule']);
 
         return back()->with('success', "Ticket {$ticket->code_ticket} annulé.");
+    }
+
+    /** Recherche d'utilisateurs pour l'activation manuelle d'un ticket. */
+    public function rechercheUsers(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->get('q', ''));
+
+        $users = User::query()
+            ->when($q !== '', fn ($x) => $x->where(fn ($w) => $w
+                ->where('name', 'like', "%{$q}%")
+                ->orWhere('last_name', 'like', "%{$q}%")
+                ->orWhere('email', 'like', "%{$q}%")
+                ->orWhere('phone', 'like', "%{$q}%")))
+            ->orderBy('name')
+            ->limit(15)
+            ->get(['id', 'name', 'last_name', 'email', 'phone'])
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => trim($u->name.' '.($u->last_name ?? '')),
+                'email' => $u->email,
+                'phone' => $u->phone,
+            ]);
+
+        return response()->json(['users' => $users]);
+    }
+
+    /**
+     * Active un ticket pour un utilisateur (paiement reçu hors ligne) : le ticket
+     * est marqué payé, envoyé par e-mail au client et les admins sont notifiés.
+     */
+    public function activerTicket(Request $request, FestyTickets $service): RedirectResponse
+    {
+        $validated = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'type' => ['required', 'string', 'in:participant,fan'],
+            'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
+            'montant' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+        ]);
+
+        $prix = FestySetting::actuel()->prixTicket($validated['type']);
+        $user = User::findOrFail($validated['user_id']);
+
+        // Équipe imposée : on y inscrit aussi l'utilisateur (groupe WhatsApp, page Festy).
+        if (! empty($validated['festy_team_id'])) {
+            $team = FestyTeam::find($validated['festy_team_id']);
+            if ($team) {
+                $service->inscrireEquipe($user, $team);
+            }
+        }
+
+        $ticket = FestyTicket::create([
+            'reference' => 'FST_'.strtoupper(Str::random(12)),
+            'code_ticket' => $service->genererCode(),
+            'user_id' => $user->id,
+            'festy_team_id' => $validated['festy_team_id'] ?? null,
+            'type' => $prix['type'],
+            'montant' => $validated['montant'] ?? $prix['montant'],
+            'devise' => 'XAF',
+            'promo' => $prix['promo'],
+            'moyen' => 'offert',
+            'statut' => 'en_attente',
+            'payment_country' => 'CM',
+        ]);
+
+        $service->finaliser($ticket, auth()->id());
+
+        return back()->with('success', "Ticket {$ticket->code_ticket} activé pour {$user->name} — envoyé par e-mail.");
     }
 
     public function storeTeam(Request $request): RedirectResponse

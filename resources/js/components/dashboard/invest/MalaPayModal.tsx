@@ -91,6 +91,9 @@ const poster = async (url: string, corps: unknown) => {
  */
 export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
     const [etape, setEtape] = useState<Etape>('pays');
+    // Voile « traitement » pendant la création du paiement en mode redirection :
+    // sans lui, l'écran reste figé quelques secondes et le client croit au bug.
+    const [redirection, setRedirection] = useState(false);
     const [paysDisponibles, setPaysDisponibles] = useState<Pays[]>([]);
     const [chargementPays, setChargementPays] = useState(true);
     const [malapayIndisponible, setMalapayIndisponible] = useState(false);
@@ -152,6 +155,11 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
         if (modeIntegration === 'api') {
             setAttente(null);
             setEtape('attente_mobile');
+        } else {
+            // Mode redirection : on affiche tout de suite un voile « traitement »
+            // pour couvrir la latence d'initialisation, jusqu'au départ du
+            // navigateur vers la page Malapay.
+            setRedirection(true);
         }
 
         setEnCours(true);
@@ -168,22 +176,26 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
         if (!corps.ok) {
             // Retour au formulaire : la demande n'est jamais partie.
+            setRedirection(false);
             setErreur(corps.message ?? 'Le paiement mobile a échoué.');
             setEtape('mobile');
             return;
         }
 
-        // Redirection : on quitte la page sans rien afficher de plus. Le
-        // client saisit et valide sur la page Malapay, puis revient par
-        // l'url_retour.
+        // Redirection : on quitte la page. Le voile reste affiché jusqu'au
+        // chargement de la page Malapay, où le client saisit et valide.
         if (corps.url_paiement) {
             window.location.href = corps.url_paiement;
 
             return;
         }
 
+        // Pas d'URL (mode API) : on bascule sur l'écran d'attente mobile.
+        setRedirection(false);
         setAttente(corps);
-
+        if (modeIntegration !== 'api') {
+            setEtape('attente_mobile');
+        }
     };
 
     // Chargement des pays à l'ouverture
@@ -329,6 +341,27 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
         return () => { annule = true; clearInterval(minuteur); };
     }, [etape, attente]);
+
+    // ── Voile « traitement en cours » avant la redirection Malapay ─────────
+    // Affiché dès le clic en mode redirection et maintenu jusqu'au départ vers
+    // la page de paiement : le client voit que sa demande est prise en compte.
+    if (redirection) {
+        return (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 text-center text-white"
+                 style={{ background: 'radial-gradient(circle at 50% 30%, #10b981 0%, #06281a 72%)' }}
+                 role="dialog" aria-modal="true">
+                <div className="w-full max-w-xs">
+                    <Loader2 className="w-12 h-12 animate-spin mx-auto mb-5" strokeWidth={1.6} />
+                    <h3 className="text-lg font-extrabold">Traitement en cours…</h3>
+                    <p className="mt-2 text-sm text-emerald-50/85">Nous préparons votre paiement sécurisé. Vous allez être redirigé, merci de patienter et de ne pas fermer cette page.</p>
+                    <div className="mt-5 h-1 w-full overflow-hidden rounded-full bg-white/20">
+                        <div className="h-full w-1/3 rounded-full bg-white/80" style={{ animation: 'mpGlisse 1.1s ease-in-out infinite' }} />
+                    </div>
+                </div>
+                <style>{`@keyframes mpGlisse { 0% { margin-left: -35% } 100% { margin-left: 100% } }`}</style>
+            </div>
+        );
+    }
 
     // ── Écran d'attente du paiement mobile ─────────────────────────────────
     // Rendu seul, en plein écran : pendant que la demande est sur le téléphone
