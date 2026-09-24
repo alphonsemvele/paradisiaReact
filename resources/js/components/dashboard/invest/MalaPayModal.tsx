@@ -256,6 +256,16 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
         setEtape('succes');
     };
 
+    // Chronomètre de l'attente : sans repère de temps, l'utilisateur ne sait pas
+    // si le paiement avance ou si la page est figée.
+    const [secondes, setSecondes] = useState(0);
+
+    useEffect(() => {
+        if (etape !== 'attente_mobile') { setSecondes(0); return; }
+        const t = setInterval(() => setSecondes(s => s + 1), 1000);
+        return () => clearInterval(t);
+    }, [etape]);
+
     // Interroge le serveur pendant l'attente (validation e-mail OU paiement mobile).
     useEffect(() => {
         const enAttente = etape === 'attente_validation' || etape === 'attente_mobile';
@@ -295,6 +305,90 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
         return () => { annule = true; clearInterval(minuteur); };
     }, [etape, attente]);
+
+    // ── Écran d'attente du paiement mobile ─────────────────────────────────
+    // Rendu seul, en plein écran : pendant que la demande est sur le téléphone
+    // du client, plus rien d'autre ne compte. Volontairement non refermable —
+    // fermer par mégarde en cliquant à côté ferait perdre le suivi du paiement.
+    if (etape === 'attente_mobile' && attente) {
+        const minutes = Math.floor(secondes / 60);
+        const reste = String(secondes % 60).padStart(2, '0');
+
+        return (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto p-6 text-center text-white"
+                 style={{ background: 'radial-gradient(circle at 50% 30%, #10b981 0%, #06281a 72%)' }}
+                 role="dialog" aria-modal="true" aria-labelledby="mp-attente-titre">
+                <style>{`
+                    @keyframes mpOnde { 0% { transform: scale(.4); opacity: .75 } 75% { opacity: 0 } 100% { transform: scale(2.6); opacity: 0 } }
+                    @keyframes mpHalo { 0%,100% { transform: scale(1); opacity: .35 } 50% { transform: scale(1.12); opacity: .6 } }
+                    @keyframes mpFlotte { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-9px) } }
+                    @keyframes mpBat { 0%,100% { opacity: 1; transform: scale(1) } 50% { opacity: .25; transform: scale(.82) } }
+                    @keyframes mpGlisse { 0% { left: -45% } 100% { left: 100% } }
+                    @keyframes mpMonte { from { opacity: 0; transform: translateY(22px) scale(.94) } to { opacity: 1; transform: none } }
+                    .mp-onde { position:absolute; inset:0; border-radius:50%; border:2px solid rgba(255,255,255,.55); opacity:0; animation: mpOnde 3s cubic-bezier(.25,.6,.35,1) infinite }
+                    .mp-onde:nth-child(2){ animation-delay:.75s } .mp-onde:nth-child(3){ animation-delay:1.5s } .mp-onde:nth-child(4){ animation-delay:2.25s }
+                    @media (prefers-reduced-motion: reduce) { .mp-anim { animation: none !important } .mp-onde { animation: none !important; opacity:.2 } }
+                `}</style>
+
+                <div className="w-full max-w-md" style={{ animation: 'mpMonte .45s cubic-bezier(.2,.8,.25,1) both' }}>
+
+                    <div className="relative mx-auto" style={{ width: 190, height: 190 }}>
+                        <span className="mp-onde" /><span className="mp-onde" /><span className="mp-onde" /><span className="mp-onde" />
+                        <div className="mp-anim absolute left-1/2 top-1/2" style={{ width: 130, height: 130, margin: '-65px 0 0 -65px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,.28), transparent 68%)', animation: 'mpHalo 3s ease-in-out infinite' }} />
+                        <div className="mp-anim absolute left-1/2 top-1/2 flex items-center justify-center bg-white text-emerald-600"
+                             style={{ width: 104, height: 104, margin: '-52px 0 0 -52px', borderRadius: 30, boxShadow: '0 16px 44px rgba(0,0,0,.35)', animation: 'mpFlotte 3.2s ease-in-out infinite' }}>
+                            <Smartphone style={{ width: 52, height: 52 }} strokeWidth={1.5} />
+                        </div>
+                    </div>
+
+                    <div className="mt-4 mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-5 py-2 text-xs font-bold uppercase tracking-wider">
+                        <span className="mp-anim inline-block rounded-full" style={{ width: 9, height: 9, background: '#fbbf24', boxShadow: '0 0 12px #fbbf24', animation: 'mpBat 1.3s ease-in-out infinite' }} />
+                        En attente de validation
+                    </div>
+
+                    <h2 id="mp-attente-titre" className="mb-4 text-[26px] font-extrabold leading-tight tracking-tight">
+                        Validez sur votre téléphone
+                    </h2>
+
+                    <div className="text-[46px] font-extrabold leading-none tracking-tight" style={{ textShadow: '0 4px 24px rgba(0,0,0,.3)' }}>
+                        {attente.montant_formate}
+                    </div>
+
+                    {telephone && (
+                        <div className="mt-3 inline-block rounded-lg bg-white/15 px-4 py-1.5 text-[15px] font-bold tracking-wider tabular-nums">
+                            {telephone}
+                        </div>
+                    )}
+
+                    <p className="mt-5 text-sm leading-relaxed text-white/80">
+                        Une demande de paiement vient d&apos;être envoyée sur votre ligne.
+                        <br />Saisissez votre <strong>code secret Mobile Money</strong> pour confirmer.
+                    </p>
+
+                    <div className="relative mx-auto mt-6 mb-3 h-1 max-w-[260px] overflow-hidden rounded bg-white/20">
+                        <span className="mp-anim absolute top-0 h-full rounded" style={{ width: '45%', background: 'linear-gradient(90deg, transparent, white, transparent)', animation: 'mpGlisse 1.8s ease-in-out infinite' }} />
+                    </div>
+
+                    <div className="text-[15px] font-bold tabular-nums text-white/70">{minutes}:{reste}</div>
+
+                    {secondes >= 90 && (
+                        <p className="mt-6 rounded-xl border px-4 py-3 text-[13px] leading-relaxed"
+                           style={{ background: 'rgba(251,191,36,.16)', borderColor: 'rgba(251,191,36,.42)', color: '#fde68a' }}>
+                            Rien ne s&apos;affiche sur votre téléphone ? Vérifiez que votre ligne est active,
+                            puis relancez le paiement.
+                        </p>
+                    )}
+
+                    <button type="button" onClick={onClose}
+                        className="mt-7 text-xs text-white/45 underline underline-offset-4 hover:text-white/70">
+                        Abandonner ce paiement
+                    </button>
+
+                    <div className="mt-4 text-[11px] tracking-wide text-white/40">Réf. {attente.reference}</div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
