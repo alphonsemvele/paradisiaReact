@@ -79,10 +79,14 @@ class MailSettingController extends Controller
         $data = $request->validate(['email' => ['required', 'email']]);
 
         try {
+            // Corps volontairement sans aucun lien ni adresse e-mail : les
+            // clients de messagerie transforment automatiquement une URL ou un
+            // e-mail en lien cliquable, ce qui fausserait un test « sans lien ».
             Mail::raw(
-                "Test d'envoi Paradisia via SMTP.\n\nTransport : ".config('mail.default').
-                "\nExpéditeur : ".config('mail.from.address')."\nDate : ".now()->format('d/m/Y H:i:s'),
-                fn ($m) => $m->to($data['email'])->subject('Test e-mail — Paradisia')
+                "Bonjour,\n\nCeci est un message de test Paradisia. ".
+                "Si vous le lisez dans votre boite de reception, la configuration e-mail est bonne.\n\n".
+                'Date : '.now()->format('d/m/Y H:i:s'),
+                fn ($m) => $m->to($data['email'])->subject('Message de test Paradisia')
             );
 
             return back()->with('success', "E-mail de test envoyé à {$data['email']}. Vérifie la réception (et les spams).");
