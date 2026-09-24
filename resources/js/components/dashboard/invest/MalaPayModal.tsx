@@ -165,9 +165,15 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
         setAttente(corps);
 
-        // Mode « page hébergée » : on y envoie le client.
+        // Mode « page hébergée » : on y conduit le client, dans cet onglet.
+        //
+        // Ouvrir un second onglet tout en gardant un écran d'attente ici
+        // affichait deux fenêtres de validation concurrentes — et celle de
+        // Paradisia mentait, puisque le numéro se saisit sur la page ouverte.
+        // Rediriger, c'est ce que le mode annonce. Le client revient ensuite
+        // par l'url_retour, et la page d'investissement conclut son paiement.
         if (corps.url_paiement) {
-            window.open(corps.url_paiement, '_blank', 'noopener,noreferrer');
+            window.location.href = corps.url_paiement;
         }
     };
 
@@ -367,7 +373,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                     <h2 id="mp-attente-titre" className="mb-4 text-[26px] font-extrabold leading-tight tracking-tight">
                         {envoiEnCours
                             ? 'Préparation du paiement'
-                            : surPageHebergee ? 'Finalisez sur la page ouverte' : 'Validez sur votre téléphone'}
+                            : surPageHebergee ? 'Ouverture de la page de paiement' : 'Validez sur votre téléphone'}
                     </h2>
 
                     <div className="text-[46px] font-extrabold leading-none tracking-tight" style={{ textShadow: '0 4px 24px rgba(0,0,0,.3)' }}>
@@ -384,8 +390,8 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                         {envoiEnCours ? (
                             <>Nous contactons votre opérateur.<br />Gardez votre téléphone à portée de main.</>
                         ) : surPageHebergee ? (
-                            <>Une page de paiement vient de s&apos;ouvrir dans un nouvel onglet.
-                            <br />Terminez-y votre paiement, cet écran se mettra à jour tout seul.</>
+                            <>Nous vous conduisons vers la page de paiement sécurisée.
+                            <br />Vous reviendrez ici automatiquement une fois le paiement terminé.</>
                         ) : (
                             <>Une demande de paiement vient d&apos;être envoyée sur votre ligne.
                             <br />Saisissez votre <strong>code secret Mobile Money</strong> pour confirmer.</>
@@ -407,9 +413,9 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                     )}
 
                     {surPageHebergee && (
-                        <a href={attente!.url_paiement!} target="_blank" rel="noopener noreferrer"
+                        <a href={attente!.url_paiement!}
                            className="mt-6 block w-full rounded-xl bg-white py-3 text-sm font-bold text-emerald-700 transition hover:bg-white/90">
-                            Rouvrir la page de paiement
+                            Continuer vers le paiement
                         </a>
                     )}
 
