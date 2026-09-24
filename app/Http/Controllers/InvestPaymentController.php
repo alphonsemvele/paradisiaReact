@@ -460,6 +460,36 @@ class InvestPaymentController extends Controller
     /**
      * Rapproche un paiement mobile money de l'état constaté chez MalaPay.
      */
+    /**
+     * Conclut un paiement en attente à partir de l'état chez Malapay, hors de
+     * tout contexte de requête du client.
+     *
+     * Appelé au chargement de la page d'investissement : c'est ce qui garantit
+     * qu'un achat valide sur le téléphone finit dans l'historique, même si
+     * l'investisseur a fermé l'onglet aussitôt après.
+     */
+    public function conclureSiTermine(Payment $payment): void
+    {
+        $resultat = $this->malapay->statutMobile($payment->ref);
+
+        if (! $resultat['ok']) {
+            return;
+        }
+
+        $statut = $resultat['data']['statut'] ?? 'en_attente';
+
+        if ($statut === 'reussi') {
+            $payment->update(['status' => 'Success']);
+            $this->notifierInvestisseur($payment);
+
+            return;
+        }
+
+        if (in_array($statut, ['echoue', 'annule', 'expire'], true)) {
+            $payment->update(['status' => 'Failed', 'error_code' => strtoupper($statut)]);
+        }
+    }
+
     private function statutMobile(Payment $payment, string $reference): JsonResponse
     {
         $resultat = $this->malapay->statutMobile($reference);

@@ -16,6 +16,12 @@ class InvestController extends Controller
 {
     public function index(): Response
     {
+        // Rattrape les paiements restés en attente avant d'afficher la page.
+        // L'opérateur ne notifie pas de façon fiable et l'investisseur ferme
+        // souvent l'onglet après avoir validé sur son téléphone : sans cette
+        // reprise, son achat n'apparaîtrait jamais dans son historique.
+        $this->reconcilierPaiementsEnAttente();
+
         return Inertia::render('dashboard/invest/index', [
             'stats' => $this->getGlobalStats(),
             'currentRound' => $this->getCurrentRound(),
@@ -33,6 +39,31 @@ class InvestController extends Controller
         }
 
         return back()->with('info', 'Le service d\'investissement Malpay sera bientôt disponible.');
+    }
+
+    /**
+     * Conclut les paiements mobiles que l'investisseur a laissés en suspens.
+     *
+     * Volontairement borné dans le temps et en nombre : cette page ne doit pas
+     * devenir lente parce qu'un compte traîne d'anciens paiements avortés.
+     */
+    private function reconcilierPaiementsEnAttente(): void
+    {
+        if (! Auth::check()) {
+            return;
+        }
+
+        $enAttente = Payment::where('id_user', Auth::id())
+            ->where('status', 'pending')
+            ->where('type_paiement', 'Mobile')
+            ->where('created_at', '>=', now()->subHours(6))
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        foreach ($enAttente as $paiement) {
+            app(InvestPaymentController::class)->conclureSiTermine($paiement);
+        }
     }
 
     private function getGlobalStats(): array
