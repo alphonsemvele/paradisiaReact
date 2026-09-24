@@ -166,6 +166,8 @@ class MalaPay
         ?string $description = null,
         ?string $service = null,
         ?string $urlRetour = null,
+        ?string $clientNom = null,
+        ?string $clientEmail = null,
     ): array {
         return $this->appeler('post', '/v1/paiements/mobile', [
             'reference' => $reference,
@@ -177,6 +179,10 @@ class MalaPay
             'description' => $description,
             'service' => $service,
             'url_retour' => $urlRetour,
+            // Malapay ne connaît du payeur que son numéro : sans ces champs,
+            // il ne peut lui envoyer aucun reçu.
+            'client_nom' => $clientNom,
+            'client_email' => $clientEmail,
         ]);
     }
 

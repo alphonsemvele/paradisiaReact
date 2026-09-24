@@ -341,6 +341,8 @@ class InvestPaymentController extends Controller
             ),
             service: 'investissement',
             urlRetour: url('/invest?ref='.$reference),
+            clientNom: $user->name,
+            clientEmail: $user->email,
         );
 
         if (! $resultat['ok']) {
