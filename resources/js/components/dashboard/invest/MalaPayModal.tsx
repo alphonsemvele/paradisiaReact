@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import {
     X, Wallet, Globe, Loader2, AlertCircle, CheckCircle2,
     ArrowRight, Phone, MessageCircle, ShieldCheck, PlusCircle, LifeBuoy, MailCheck,
-    Smartphone, ExternalLink,
+    Smartphone,
 } from 'lucide-react';
 
 interface Pays {
@@ -136,8 +136,15 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
     const payerMobile = async () => {
         if (!paysChoisi || !operateurChoisi || telephone.trim().length < 6) return;
-        setEnCours(true);
         reinitialiserErreur();
+
+        // L'écran d'attente s'affiche AU CLIC, sans attendre la réponse. La
+        // demande traverse Malapay puis l'opérateur : plusieurs secondes
+        // pendant lesquelles l'utilisateur resterait devant un formulaire figé,
+        // à se demander si son clic a été pris en compte.
+        setAttente(null);
+        setEtape('attente_mobile');
+        setEnCours(true);
 
         const { corps } = await poster('/invest/paiement/mobile', {
             pays: paysChoisi.code,
@@ -150,14 +157,15 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
         setEnCours(false);
 
         if (!corps.ok) {
+            // Retour au formulaire : la demande n'est jamais partie.
             setErreur(corps.message ?? 'Le paiement mobile a échoué.');
+            setEtape('mobile');
             return;
         }
 
         setAttente(corps);
-        setEtape('attente_mobile');
 
-        // Ouvre la page de paiement de l'opérateur dans un nouvel onglet.
+        // Mode « page hébergée » : on y envoie le client.
         if (corps.url_paiement) {
             window.open(corps.url_paiement, '_blank', 'noopener,noreferrer');
         }
@@ -269,6 +277,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
     // Interroge le serveur pendant l'attente (validation e-mail OU paiement mobile).
     useEffect(() => {
         const enAttente = etape === 'attente_validation' || etape === 'attente_mobile';
+        // Pas de référence tant que le serveur n'a pas répondu : rien à sonder.
         if (!enAttente || !attente?.reference) return;
 
         const retourSurEchec: Etape = etape === 'attente_mobile' ? 'moyen' : 'portefeuille';
@@ -310,9 +319,13 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
     // Rendu seul, en plein écran : pendant que la demande est sur le téléphone
     // du client, plus rien d'autre ne compte. Volontairement non refermable —
     // fermer par mégarde en cliquant à côté ferait perdre le suivi du paiement.
-    if (etape === 'attente_mobile' && attente) {
+    if (etape === 'attente_mobile') {
         const minutes = Math.floor(secondes / 60);
         const reste = String(secondes % 60).padStart(2, '0');
+        // Tant que le serveur n'a pas répondu, on affiche le montant calculé
+        // localement : l'écran ne doit jamais rester vide.
+        const sommeAffichee = attente?.montant_formate ?? `${nf(total)} ${paysChoisi?.devise ?? ''}`;
+        const envoiEnCours = !attente;
 
         return (
             <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto p-6 text-center text-white"
@@ -343,15 +356,15 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
                     <div className="mt-4 mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-5 py-2 text-xs font-bold uppercase tracking-wider">
                         <span className="mp-anim inline-block rounded-full" style={{ width: 9, height: 9, background: '#fbbf24', boxShadow: '0 0 12px #fbbf24', animation: 'mpBat 1.3s ease-in-out infinite' }} />
-                        En attente de validation
+                        {envoiEnCours ? 'Envoi de la demande…' : 'En attente de validation'}
                     </div>
 
                     <h2 id="mp-attente-titre" className="mb-4 text-[26px] font-extrabold leading-tight tracking-tight">
-                        Validez sur votre téléphone
+                        {envoiEnCours ? 'Préparation du paiement' : 'Validez sur votre téléphone'}
                     </h2>
 
                     <div className="text-[46px] font-extrabold leading-none tracking-tight" style={{ textShadow: '0 4px 24px rgba(0,0,0,.3)' }}>
-                        {attente.montant_formate}
+                        {sommeAffichee}
                     </div>
 
                     {telephone && (
@@ -361,8 +374,12 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                     )}
 
                     <p className="mt-5 text-sm leading-relaxed text-white/80">
-                        Une demande de paiement vient d&apos;être envoyée sur votre ligne.
-                        <br />Saisissez votre <strong>code secret Mobile Money</strong> pour confirmer.
+                        {envoiEnCours ? (
+                            <>Nous contactons votre opérateur.<br />Gardez votre téléphone à portée de main.</>
+                        ) : (
+                            <>Une demande de paiement vient d&apos;être envoyée sur votre ligne.
+                            <br />Saisissez votre <strong>code secret Mobile Money</strong> pour confirmer.</>
+                        )}
                     </p>
 
                     <div className="relative mx-auto mt-6 mb-3 h-1 max-w-[260px] overflow-hidden rounded bg-white/20">
@@ -380,11 +397,18 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                     )}
 
                     <button type="button" onClick={onClose}
-                        className="mt-7 text-xs text-white/45 underline underline-offset-4 hover:text-white/70">
-                        Abandonner ce paiement
+                        className="mt-7 w-full rounded-xl border border-white/30 bg-white/10 py-3 text-sm font-bold text-white transition hover:bg-white/20">
+                        Annuler et revenir au site
                     </button>
 
-                    <div className="mt-4 text-[11px] tracking-wide text-white/40">Réf. {attente.reference}</div>
+                    <p className="mt-3 text-[11px] leading-relaxed text-white/40">
+                        Annuler ferme seulement cette fenêtre. Si vous avez déjà validé sur votre
+                        téléphone, l&apos;investissement sera bien enregistré.
+                    </p>
+
+                    {attente && (
+                        <div className="mt-4 text-[11px] tracking-wide text-white/40">Réf. {attente.reference}</div>
+                    )}
                 </div>
             </div>
         );
@@ -591,44 +615,6 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                                 </button>
                             </div>
                         </>
-                    )}
-
-                    {/* ── Étape mobile money : attente de confirmation ─── */}
-                    {etape === 'attente_mobile' && attente && (
-                        <div className="text-center py-2">
-                            <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-                                <Smartphone className="w-7 h-7 text-emerald-600" />
-                            </div>
-                            <h4 className="text-lg font-bold text-zinc-900 mb-1">Finalisez votre paiement</h4>
-                            <p className="text-sm text-zinc-600 mb-4">
-                                {attente.message ?? 'Terminez le paiement sur la page ouverte, puis revenez ici.'}
-                            </p>
-
-                            <div className="rounded-xl border border-zinc-200 p-4 text-left mb-4">
-                                <Ligne label="Montant" valeur={attente.montant_formate} />
-                                <Ligne label="Référence" valeur={attente.reference} />
-                            </div>
-
-                            {attente.url_paiement && (
-                                <a
-                                    href={attente.url_paiement}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="w-full inline-flex items-center justify-center gap-2 py-2.5 mb-3 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-lg"
-                                >
-                                    <ExternalLink className="w-4 h-4" /> Rouvrir la page de paiement
-                                </a>
-                            )}
-
-                            <div className="flex items-center justify-center gap-2 rounded-xl bg-zinc-50 border border-zinc-200 px-4 py-3">
-                                <Loader2 className="w-4 h-4 text-emerald-600 animate-spin" />
-                                <span className="text-sm text-zinc-600">En attente de la confirmation du paiement…</span>
-                            </div>
-
-                            <p className="text-xs text-zinc-500 mt-3">
-                                Cette page se met à jour automatiquement dès que le paiement est confirmé.
-                            </p>
-                        </div>
                     )}
 
                     {/* ── Étape 2 : code du portefeuille ──────────────── */}
