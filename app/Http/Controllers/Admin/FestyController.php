@@ -7,7 +7,9 @@ use App\Models\BannedIp;
 use App\Models\FestyRegistration;
 use App\Models\FestySetting;
 use App\Models\FestyTeam;
+use App\Models\FestyTicket;
 use App\Models\User;
+use App\Services\FestyTickets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -38,7 +40,10 @@ class FestyController extends Controller
             ]);
 
         return Inertia::render('admin/festy/index', [
-            'settings' => $settings->only(['titre', 'sous_titre', 'date_label', 'prix', 'description', 'inscriptions_ouvertes']),
+            'settings' => $settings->only([
+                'titre', 'sous_titre', 'date_label', 'prix', 'description', 'inscriptions_ouvertes',
+                'prix_participant', 'prix_fan', 'prix_participant_promo', 'prix_fan_promo', 'promo_fin',
+            ]),
             'equipes' => $equipes,
             'stats' => [
                 'inscrits' => FestyRegistration::count(),
@@ -58,11 +63,79 @@ class FestyController extends Controller
             'prix' => ['nullable', 'string', 'max:120'],
             'description' => ['nullable', 'string', 'max:2000'],
             'inscriptions_ouvertes' => ['boolean'],
+            'prix_participant' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'prix_fan' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'prix_participant_promo' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'prix_fan_promo' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'promo_fin' => ['nullable', 'date'],
         ]);
 
         FestySetting::actuel()->update($validated);
 
         return back()->with('success', 'Réglages enregistrés.');
+    }
+
+    /** Liste des tickets vendus, filtrable par statut. */
+    public function tickets(Request $request): Response
+    {
+        $statut = $request->string('statut')->toString() ?: null;
+
+        $query = FestyTicket::with(['user', 'team'])->latest();
+        if ($statut) {
+            $query->where('statut', $statut);
+        }
+
+        $tickets = $query->limit(300)->get()->map(fn (FestyTicket $t) => [
+            'id' => $t->id,
+            'reference' => $t->reference,
+            'code' => $t->code_ticket,
+            'type' => $t->type,
+            'type_libelle' => $t->typeLibelle(),
+            'montant' => $t->montant,
+            'promo' => $t->promo,
+            'moyen' => $t->moyen,
+            'statut' => $t->statut,
+            'client' => $t->user?->name,
+            'email' => $t->user?->email,
+            'telephone' => $t->telephone ?: $t->user?->phone,
+            'equipe' => $t->team?->nom,
+            'couleur' => $t->team?->couleur,
+            'date' => $t->created_at->isoFormat('D MMM YYYY [à] HH:mm'),
+            'paye_le' => $t->paid_at?->isoFormat('D MMM YYYY [à] HH:mm'),
+        ]);
+
+        return Inertia::render('admin/festy/tickets', [
+            'tickets' => $tickets,
+            'filtre' => $statut,
+            'stats' => [
+                'total' => FestyTicket::count(),
+                'payes' => FestyTicket::where('statut', 'paye')->count(),
+                'en_attente' => FestyTicket::where('statut', 'en_attente')->count(),
+                'recette' => (int) FestyTicket::where('statut', 'paye')->sum('montant'),
+                'participants' => FestyTicket::where('statut', 'paye')->where('type', 'participant')->count(),
+                'fans' => FestyTicket::where('statut', 'paye')->where('type', 'fan')->count(),
+            ],
+        ]);
+    }
+
+    /** Valide un ticket Orange Money (preuve reçue) : envoi e-mail + notif. */
+    public function validerTicket(FestyTicket $ticket, FestyTickets $service): RedirectResponse
+    {
+        if ($ticket->statut === 'paye') {
+            return back()->with('info', 'Ce ticket est déjà validé.');
+        }
+
+        $service->finaliser($ticket, auth()->id());
+
+        return back()->with('success', "Ticket {$ticket->code_ticket} validé — envoyé par e-mail au client.");
+    }
+
+    /** Annule un ticket (paiement non reçu / abandonné). */
+    public function refuserTicket(FestyTicket $ticket): RedirectResponse
+    {
+        $ticket->update(['statut' => 'annule']);
+
+        return back()->with('success', "Ticket {$ticket->code_ticket} annulé.");
     }
 
     public function storeTeam(Request $request): RedirectResponse

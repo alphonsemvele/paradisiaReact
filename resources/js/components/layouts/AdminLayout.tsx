@@ -26,6 +26,7 @@ import {
     Mail,
     Trophy,
     PartyPopper,
+    Ticket,
     ShieldBan,
     History,
     Boxes,
@@ -95,6 +96,7 @@ const menuSections: MenuSection[] = [
         title: 'Paradisia Festy',
         items: [
             { label: 'Configuration', href: '/admin/festy', icon: PartyPopper },
+            { label: 'Tickets vendus', href: '/admin/festy/tickets', icon: Ticket },
             { label: 'Inscrits', href: '/admin/festy/inscrits', icon: Users },
         ],
     },

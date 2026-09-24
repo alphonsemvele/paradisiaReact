@@ -69,4 +69,17 @@ return [
         'site'    => env('MALAPAY_SITE_URL', 'https://mala-pay.com'),
     ],
 
+    /*
+    |---------------------------------------------------------------------------
+    | PARADISIA FESTY — paiement manuel Orange Money
+    |---------------------------------------------------------------------------
+    | Le client paie par code marchand puis envoie la preuve sur WhatsApp ;
+    | un admin valide ensuite le ticket depuis l'administration.
+    */
+    'festy' => [
+        'om_ussd'  => env('FESTY_OM_USSD', '#150*47#'),
+        'om_code'  => env('FESTY_OM_CODE', '1023095'),
+        'whatsapp' => env('FESTY_WHATSAPP', '237687984282'),
+    ],
+
 ];

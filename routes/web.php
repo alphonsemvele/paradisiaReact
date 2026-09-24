@@ -212,6 +212,9 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::delete('/festy/inscrits/{registration}/compte', [\App\Http\Controllers\Admin\FestyController::class, 'destroyAccount'])->name('festy.inscrits.compte');
         Route::post('/festy/inscrits/{registration}/bannir-ip', [\App\Http\Controllers\Admin\FestyController::class, 'bannirIp'])->name('festy.inscrits.bannir-ip');
         Route::get('/festy/export', [\App\Http\Controllers\Admin\FestyController::class, 'export'])->name('festy.export');
+        Route::get('/festy/tickets', [\App\Http\Controllers\Admin\FestyController::class, 'tickets'])->name('festy.tickets');
+        Route::post('/festy/tickets/{ticket}/valider', [\App\Http\Controllers\Admin\FestyController::class, 'validerTicket'])->name('festy.tickets.valider');
+        Route::post('/festy/tickets/{ticket}/refuser', [\App\Http\Controllers\Admin\FestyController::class, 'refuserTicket'])->name('festy.tickets.refuser');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 
         // ── Résultats DERNIÈRE PHASE (barème 5 pts/réponse + likes + commentaires) ──
@@ -346,6 +349,15 @@ Route::get('/events', [\App\Http\Controllers\EventController::class, 'index'])->
 // ── PARADISIA FESTY (public) ──────────────────────────────────────────────────
 Route::get('/festy', [\App\Http\Controllers\FestyController::class, 'index'])->name('festy.index');
 Route::post('/festy/inscription', [\App\Http\Controllers\FestyController::class, 'register'])->middleware('auth')->name('festy.register');
+
+// ── PARADISIA FESTY — tickets (paiement MTN auto / Orange Money manuel) ────────
+Route::get('/festy/ticket', [\App\Http\Controllers\FestyTicketController::class, 'page'])->name('festy.ticket');
+Route::middleware('auth')->group(function () {
+    Route::post('/festy/ticket/mobile', [\App\Http\Controllers\FestyTicketController::class, 'payerMobile'])->name('festy.ticket.mobile');
+    Route::post('/festy/ticket/manuel', [\App\Http\Controllers\FestyTicketController::class, 'commanderManuel'])->name('festy.ticket.manuel');
+    Route::get('/festy/ticket/statut/{reference}', [\App\Http\Controllers\FestyTicketController::class, 'statut'])->name('festy.ticket.statut');
+    Route::post('/festy/ticket/equipe', [\App\Http\Controllers\FestyTicketController::class, 'choisirEquipe'])->name('festy.ticket.equipe');
+});
 
 // ── Commande par lien partagé (public, sans compte) ───────────────────────────
 Route::get('/commander', [\App\Http\Controllers\OrderLinkController::class, 'create'])->name('order-link.create');

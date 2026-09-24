@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { PartyPopper, Users, MessageCircle, AlertTriangle, Plus, Pencil, Trash2, X, Save } from 'lucide-react';
+import { PartyPopper, Users, MessageCircle, AlertTriangle, Plus, Pencil, Trash2, X, Save, Ticket } from 'lucide-react';
 
 interface Equipe {
     id: number;
@@ -20,6 +20,11 @@ interface Settings {
     prix: string | null;
     description: string | null;
     inscriptions_ouvertes: boolean;
+    prix_participant: number | null;
+    prix_fan: number | null;
+    prix_participant_promo: number | null;
+    prix_fan_promo: number | null;
+    promo_fin: string | null;
 }
 interface Props {
     settings: Settings;
@@ -33,7 +38,7 @@ const vide: Omit<Equipe, 'id' | 'membres'> = {
 
 export default function AdminFesty({ settings, equipes, stats }: Props) {
     const flash = (usePage().props as any).flash?.success as string | undefined;
-    const [form, setForm] = useState<Settings>(settings);
+    const [form, setForm] = useState<Settings>({ ...settings, promo_fin: settings.promo_fin ? settings.promo_fin.slice(0, 10) : null });
     const [edition, setEdition] = useState<(Partial<Equipe> & { id?: number }) | null>(null);
     const [busy, setBusy] = useState(false);
 
@@ -68,6 +73,12 @@ export default function AdminFesty({ settings, equipes, stats }: Props) {
 
             {flash && <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 text-sm">{flash}</div>}
 
+            <div className="flex justify-end mb-3">
+                <Link href="/admin/festy/tickets" className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold px-4 py-2">
+                    <Ticket className="w-4 h-4" /> Tickets vendus
+                </Link>
+            </div>
+
             {/* Stats */}
             <div className="grid grid-cols-3 gap-3 mb-6">
                 <Stat icon={Users} label="Inscrits" value={stats.inscrits} color="#14532d" />
@@ -87,6 +98,20 @@ export default function AdminFesty({ settings, equipes, stats }: Props) {
                             <L label="Lot à gagner"><input className="ipt" value={form.prix ?? ''} onChange={(e) => setForm({ ...form, prix: e.target.value })} placeholder="300 000 FCFA" /></L>
                         </div>
                         <L label="Description"><textarea className="ipt" rows={4} value={form.description ?? ''} onChange={(e) => setForm({ ...form, description: e.target.value })} /></L>
+
+                        {/* Tarifs des tickets */}
+                        <div className="rounded-xl border border-zinc-200 p-3.5 bg-zinc-50/60">
+                            <p className="text-xs font-bold text-zinc-700 mb-2">🎟️ Tarifs des tickets</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <L label="Participant (normal)"><input type="number" className="ipt" value={form.prix_participant ?? ''} onChange={(e) => setForm({ ...form, prix_participant: e.target.value === '' ? null : parseInt(e.target.value, 10) })} placeholder="7000" /></L>
+                                <L label="Fan (normal)"><input type="number" className="ipt" value={form.prix_fan ?? ''} onChange={(e) => setForm({ ...form, prix_fan: e.target.value === '' ? null : parseInt(e.target.value, 10) })} placeholder="4000" /></L>
+                                <L label="Participant (promo)"><input type="number" className="ipt" value={form.prix_participant_promo ?? ''} onChange={(e) => setForm({ ...form, prix_participant_promo: e.target.value === '' ? null : parseInt(e.target.value, 10) })} placeholder="5000" /></L>
+                                <L label="Fan (promo)"><input type="number" className="ipt" value={form.prix_fan_promo ?? ''} onChange={(e) => setForm({ ...form, prix_fan_promo: e.target.value === '' ? null : parseInt(e.target.value, 10) })} placeholder="3000" /></L>
+                            </div>
+                            <L label="Fin de la promo" className="mt-2"><input type="date" className="ipt" value={form.promo_fin ?? ''} onChange={(e) => setForm({ ...form, promo_fin: e.target.value || null })} /></L>
+                            <p className="text-[11px] text-zinc-400 mt-1.5">Tant que la date n'est pas dépassée, le prix promo s'applique. Laisse vide pour désactiver la promo.</p>
+                        </div>
+
                         <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
                             <input type="checkbox" checked={form.inscriptions_ouvertes} onChange={(e) => setForm({ ...form, inscriptions_ouvertes: e.target.checked })} />
                             Inscriptions ouvertes
