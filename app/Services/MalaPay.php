@@ -127,13 +127,20 @@ class MalaPay
     /**
      * Opérateurs mobile money disponibles pour un pays (vide = portefeuille seul).
      *
-     * @return array<int, array{code:string, nom:string}>
+     * @return array{operateurs: array<int, array{code:string, nom:string}>, mode_integration: string}
      */
     public function operateurs(string $pays): array
     {
         $resultat = $this->appeler('get', '/v1/operateurs', ['pays' => $pays]);
 
-        return $resultat['ok'] ? ($resultat['data']['operateurs'] ?? []) : [];
+        // Le mode d'intégration accompagne la liste : il décide si le client
+        // paie sur notre page ou sur celle de Malapay, et l'interface doit le
+        // savoir AVANT le clic pour ne pas afficher un écran qu'elle va
+        // aussitôt quitter.
+        return [
+            'operateurs' => $resultat['ok'] ? ($resultat['data']['operateurs'] ?? []) : [],
+            'mode_integration' => $resultat['ok'] ? ($resultat['data']['mode_integration'] ?? 'redirection') : 'redirection',
+        ];
     }
 
     /**

@@ -53,9 +53,12 @@ class InvestPaymentController extends Controller
             'pays' => ['required', 'string', 'size:2'],
         ]);
 
+        $donnees = $this->malapay->operateurs(strtoupper($validated['pays']));
+
         return response()->json([
             'ok' => true,
-            'operateurs' => $this->malapay->operateurs(strtoupper($validated['pays'])),
+            'operateurs' => $donnees['operateurs'],
+            'mode_integration' => $donnees['mode_integration'],
         ]);
     }
 

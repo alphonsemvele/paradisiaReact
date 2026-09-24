@@ -101,6 +101,9 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
     const [code, setCode] = useState('');
 
     const [operateurs, setOperateurs] = useState<Operateur[]>([]);
+    // Connu avant le clic : en redirection, tout se passe sur la page Malapay
+    // et rien de l'écran de paiement ne doit apparaître ici.
+    const [modeIntegration, setModeIntegration] = useState<'redirection' | 'api'>('redirection');
     const [chargementOperateurs, setChargementOperateurs] = useState(false);
     const [operateurChoisi, setOperateurChoisi] = useState<Operateur | null>(null);
     const [telephone, setTelephone] = useState('');
@@ -127,6 +130,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
             });
             const d = await res.json();
             setOperateurs(d.operateurs ?? []);
+            setModeIntegration(d.mode_integration === 'api' ? 'api' : 'redirection');
         } catch {
             setOperateurs([]);
         } finally {
@@ -138,12 +142,18 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
         if (!paysChoisi || !operateurChoisi || telephone.trim().length < 6) return;
         reinitialiserErreur();
 
-        // L'écran d'attente s'affiche AU CLIC, sans attendre la réponse. La
-        // demande traverse Malapay puis l'opérateur : plusieurs secondes
-        // pendant lesquelles l'utilisateur resterait devant un formulaire figé,
-        // à se demander si son clic a été pris en compte.
-        setAttente(null);
-        setEtape('attente_mobile');
+        // En mode API, le paiement se déroule ici : l'écran d'attente s'affiche
+        // au clic, sans attendre la réponse, pour que l'utilisateur voie que
+        // son geste a été pris en compte.
+        //
+        // En redirection, rien ne s'affiche : le client part sur la page
+        // Malapay dès que l'URL arrive. Montrer un écran de paiement qu'on
+        // quitte aussitôt ne fait que doublonner celui de destination.
+        if (modeIntegration === 'api') {
+            setAttente(null);
+            setEtape('attente_mobile');
+        }
+
         setEnCours(true);
 
         const { corps } = await poster('/invest/paiement/mobile', {
@@ -163,18 +173,17 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
             return;
         }
 
-        setAttente(corps);
-
-        // Mode « page hébergée » : on y conduit le client, dans cet onglet.
-        //
-        // Ouvrir un second onglet tout en gardant un écran d'attente ici
-        // affichait deux fenêtres de validation concurrentes — et celle de
-        // Paradisia mentait, puisque le numéro se saisit sur la page ouverte.
-        // Rediriger, c'est ce que le mode annonce. Le client revient ensuite
-        // par l'url_retour, et la page d'investissement conclut son paiement.
+        // Redirection : on quitte la page sans rien afficher de plus. Le
+        // client saisit et valide sur la page Malapay, puis revient par
+        // l'url_retour.
         if (corps.url_paiement) {
             window.location.href = corps.url_paiement;
+
+            return;
         }
+
+        setAttente(corps);
+
     };
 
     // Chargement des pays à l'ouverture
@@ -373,7 +382,7 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                     <h2 id="mp-attente-titre" className="mb-4 text-[26px] font-extrabold leading-tight tracking-tight">
                         {envoiEnCours
                             ? 'Préparation du paiement'
-                            : surPageHebergee ? 'Ouverture de la page de paiement' : 'Validez sur votre téléphone'}
+                            : 'Validez sur votre téléphone'}
                     </h2>
 
                     <div className="text-[46px] font-extrabold leading-none tracking-tight" style={{ textShadow: '0 4px 24px rgba(0,0,0,.3)' }}>
