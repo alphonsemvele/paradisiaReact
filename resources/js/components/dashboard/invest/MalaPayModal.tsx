@@ -326,6 +326,11 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
         // localement : l'écran ne doit jamais rester vide.
         const sommeAffichee = attente?.montant_formate ?? `${nf(total)} ${paysChoisi?.devise ?? ''}`;
         const envoiEnCours = !attente;
+        // Malapay a renvoyé une page de paiement : c'est elle qui recueille le
+        // numéro et déclenche la demande. Afficher ici « validez sur votre
+        // téléphone » serait faux — rien n'est encore parti — et doublonnerait
+        // l'écran de cette page.
+        const surPageHebergee = !!attente?.url_paiement;
 
         return (
             <div className="fixed inset-0 z-[60] flex items-center justify-center overflow-y-auto p-6 text-center text-white"
@@ -356,18 +361,20 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
                     <div className="mt-4 mb-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-5 py-2 text-xs font-bold uppercase tracking-wider">
                         <span className="mp-anim inline-block rounded-full" style={{ width: 9, height: 9, background: '#fbbf24', boxShadow: '0 0 12px #fbbf24', animation: 'mpBat 1.3s ease-in-out infinite' }} />
-                        {envoiEnCours ? 'Envoi de la demande…' : 'En attente de validation'}
+                        {envoiEnCours ? 'Envoi de la demande…' : surPageHebergee ? 'Paiement en cours' : 'En attente de validation'}
                     </div>
 
                     <h2 id="mp-attente-titre" className="mb-4 text-[26px] font-extrabold leading-tight tracking-tight">
-                        {envoiEnCours ? 'Préparation du paiement' : 'Validez sur votre téléphone'}
+                        {envoiEnCours
+                            ? 'Préparation du paiement'
+                            : surPageHebergee ? 'Finalisez sur la page ouverte' : 'Validez sur votre téléphone'}
                     </h2>
 
                     <div className="text-[46px] font-extrabold leading-none tracking-tight" style={{ textShadow: '0 4px 24px rgba(0,0,0,.3)' }}>
                         {sommeAffichee}
                     </div>
 
-                    {telephone && (
+                    {telephone && !surPageHebergee && (
                         <div className="mt-3 inline-block rounded-lg bg-white/15 px-4 py-1.5 text-[15px] font-bold tracking-wider tabular-nums">
                             {telephone}
                         </div>
@@ -376,6 +383,9 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                     <p className="mt-5 text-sm leading-relaxed text-white/80">
                         {envoiEnCours ? (
                             <>Nous contactons votre opérateur.<br />Gardez votre téléphone à portée de main.</>
+                        ) : surPageHebergee ? (
+                            <>Une page de paiement vient de s&apos;ouvrir dans un nouvel onglet.
+                            <br />Terminez-y votre paiement, cet écran se mettra à jour tout seul.</>
                         ) : (
                             <>Une demande de paiement vient d&apos;être envoyée sur votre ligne.
                             <br />Saisissez votre <strong>code secret Mobile Money</strong> pour confirmer.</>
@@ -396,8 +406,15 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
                         </p>
                     )}
 
+                    {surPageHebergee && (
+                        <a href={attente!.url_paiement!} target="_blank" rel="noopener noreferrer"
+                           className="mt-6 block w-full rounded-xl bg-white py-3 text-sm font-bold text-emerald-700 transition hover:bg-white/90">
+                            Rouvrir la page de paiement
+                        </a>
+                    )}
+
                     <button type="button" onClick={onClose}
-                        className="mt-7 w-full rounded-xl border border-white/30 bg-white/10 py-3 text-sm font-bold text-white transition hover:bg-white/20">
+                        className="mt-3 w-full rounded-xl border border-white/30 bg-white/10 py-3 text-sm font-bold text-white transition hover:bg-white/20">
                         Annuler et revenir au site
                     </button>
 
