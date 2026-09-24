@@ -413,15 +413,11 @@ export default function MalaPayModal({ parts, prixPart, onClose }: Props) {
 
                     <div className="text-[15px] font-bold tabular-nums text-white/70">{minutes}:{reste}</div>
 
-                    {secondes >= 25 && attente?.code_ussd && (
-                        <div className="mt-6 rounded-2xl border border-white/25 bg-white/12 px-5 py-4">
-                            <div className="text-[12.5px] text-white/80">Rien ne s&apos;affiche sur votre téléphone ?</div>
-                            <div className="my-2 text-[30px] font-extrabold tracking-wider tabular-nums">{attente.code_ussd}</div>
-                            <div className="text-xs leading-relaxed text-white/70">
-                                Composez ce code, puis choisissez <strong>Approuver</strong> ou
-                                <strong> Mes transactions en attente</strong> pour valider ce paiement.
-                            </div>
-                        </div>
+                    {attente?.code_ussd && (
+                        <p className="mt-4 text-[12.5px] leading-relaxed text-white/70">
+                            Le paiement ne s&apos;affiche pas sur votre téléphone ?
+                            Composez <strong className="tracking-wider text-white">{attente.code_ussd}</strong> pour le valider.
+                        </p>
                     )}
 
                     {secondes >= 120 && (
