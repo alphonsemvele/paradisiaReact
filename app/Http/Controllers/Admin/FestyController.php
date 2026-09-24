@@ -135,12 +135,26 @@ class FestyController extends Controller
             return back()->with('info', 'Ce ticket est déjà validé.');
         }
 
-        $service->finaliser($ticket, auth()->id());
+        $envoye = $service->finaliser($ticket, auth()->id());
 
-        return back()->with('success', "Ticket {$ticket->code_ticket} validé — envoyé par e-mail au client.");
+        return $envoye
+            ? back()->with('success', "Ticket {$ticket->code_ticket} validé — envoyé par e-mail au client.")
+            : back()->with('error', "Ticket {$ticket->code_ticket} validé, mais l'e-mail n'a pas pu partir. Configurez les Réglages e-mail puis cliquez « Renvoyer l'e-mail ».");
     }
 
-    /** Annule un ticket (paiement non reçu / abandonné). */
+    /** Renvoie le ticket par e-mail (échec précédent, e-mail perdu…). */
+    public function renvoyerTicket(FestyTicket $ticket, FestyTickets $service): RedirectResponse
+    {
+        if ($ticket->statut !== 'paye') {
+            return back()->with('error', 'Seul un ticket validé peut être renvoyé.');
+        }
+
+        return $service->renvoyer($ticket)
+            ? back()->with('success', "Ticket {$ticket->code_ticket} renvoyé par e-mail.")
+            : back()->with('error', "L'e-mail n'a pas pu être envoyé. Vérifiez les Réglages e-mail (SMTP).");
+    }
+
+    /** Annule un ticket, quel que soit son statut (erreur, remboursement, doublon). */
     public function refuserTicket(FestyTicket $ticket): RedirectResponse
     {
         $ticket->update(['statut' => 'annule']);
@@ -210,9 +224,11 @@ class FestyController extends Controller
             'payment_country' => 'CM',
         ]);
 
-        $service->finaliser($ticket, auth()->id());
+        $envoye = $service->finaliser($ticket, auth()->id());
 
-        return back()->with('success', "Ticket {$ticket->code_ticket} activé pour {$user->name} — envoyé par e-mail.");
+        return $envoye
+            ? back()->with('success', "Ticket {$ticket->code_ticket} activé pour {$user->name} — envoyé par e-mail.")
+            : back()->with('error', "Ticket {$ticket->code_ticket} activé pour {$user->name}, mais l'e-mail n'a pas pu partir. Configurez les Réglages e-mail puis cliquez « Renvoyer l'e-mail ».");
     }
 
     public function storeTeam(Request $request): RedirectResponse

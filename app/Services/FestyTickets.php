@@ -21,11 +21,13 @@ class FestyTickets
     /**
      * Marque un ticket comme payé, l'envoie par e-mail et notifie les admins.
      * Idempotent : un ticket déjà payé n'est pas retraité (ni ré-envoyé).
+     *
+     * @return bool l'e-mail du ticket a-t-il bien été envoyé ?
      */
-    public function finaliser(FestyTicket $ticket, ?int $validePar = null): void
+    public function finaliser(FestyTicket $ticket, ?int $validePar = null): bool
     {
         if ($ticket->statut === 'paye') {
-            return;
+            return false;
         }
 
         $ticket->loadMissing('user');
@@ -39,8 +41,16 @@ class FestyTickets
         ]);
 
         $frais = $ticket->fresh(['team', 'user']);
-        $this->envoyerTicket($frais);
+        $envoye = $this->envoyerTicket($frais);
         $this->notifierAdmins($frais);
+
+        return $envoye;
+    }
+
+    /** Renvoie le ticket par e-mail (bouton admin). */
+    public function renvoyer(FestyTicket $ticket): bool
+    {
+        return $this->envoyerTicket($ticket->fresh(['team', 'user']));
     }
 
     /**
@@ -118,17 +128,24 @@ class FestyTickets
         }
     }
 
-    /** Envoie le ticket par e-mail. Un échec d'envoi ne remet jamais en cause le paiement. */
-    private function envoyerTicket(FestyTicket $ticket): void
+    /**
+     * Envoie le ticket par e-mail. Un échec d'envoi ne remet jamais en cause le
+     * paiement, mais il est remonté (retour false) pour prévenir l'admin.
+     */
+    private function envoyerTicket(FestyTicket $ticket): bool
     {
         if (! $ticket->user?->email) {
-            return;
+            return false;
         }
 
         try {
             Mail::to($ticket->user->email)->send(new FestyTicketMail($ticket));
+
+            return true;
         } catch (\Throwable $e) {
             Log::error("Ticket Festy {$ticket->reference} non envoyé : ".$e->getMessage());
+
+            return false;
         }
     }
 

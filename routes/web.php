@@ -216,6 +216,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/festy/tickets/users', [\App\Http\Controllers\Admin\FestyController::class, 'rechercheUsers'])->name('festy.tickets.users');
         Route::post('/festy/tickets/activer', [\App\Http\Controllers\Admin\FestyController::class, 'activerTicket'])->name('festy.tickets.activer');
         Route::post('/festy/tickets/{ticket}/valider', [\App\Http\Controllers\Admin\FestyController::class, 'validerTicket'])->name('festy.tickets.valider');
+        Route::post('/festy/tickets/{ticket}/renvoyer', [\App\Http\Controllers\Admin\FestyController::class, 'renvoyerTicket'])->name('festy.tickets.renvoyer');
         Route::post('/festy/tickets/{ticket}/refuser', [\App\Http\Controllers\Admin\FestyController::class, 'refuserTicket'])->name('festy.tickets.refuser');
         Route::get('/concours/participant/{user}', [\App\Http\Controllers\Admin\ConcoursController::class, 'participant'])->name('concours.participant');
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { router, Head, usePage } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone, Gift, Search, UserCheck, Sparkles } from 'lucide-react';
+import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone, Gift, Search, UserCheck, Sparkles, Mail } from 'lucide-react';
 
 interface T {
     id: number; reference: string; code: string; type: string; type_libelle: string;
@@ -30,7 +30,9 @@ const STATUTS: Record<string, { label: string; cls: string }> = {
 };
 
 export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stats }: Props) {
-    const flash = (usePage().props as any).flash?.success as string | undefined;
+    const flashProps = (usePage().props as any).flash ?? {};
+    const flash = flashProps.success as string | undefined;
+    const flashErr = flashProps.error as string | undefined;
 
     const filtrer = (s: string | null) => router.get('/admin/festy/tickets', s ? { statut: s } : {}, { preserveScroll: true, preserveState: true });
 
@@ -38,8 +40,11 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
         if (!confirm(`Valider le ticket ${t.code} de ${t.client} ? Le ticket lui sera envoyé par e-mail.`)) return;
         router.post(`/admin/festy/tickets/${t.id}/valider`, {}, { preserveScroll: true });
     };
+    const renvoyer = (t: T) => {
+        router.post(`/admin/festy/tickets/${t.id}/renvoyer`, {}, { preserveScroll: true });
+    };
     const refuser = (t: T) => {
-        if (!confirm(`Annuler le ticket ${t.code} ?`)) return;
+        if (!confirm(`Annuler le ticket ${t.code} de ${t.client ?? ''} ?${t.statut === 'paye' ? ' Ce ticket est déjà payé.' : ''}`)) return;
         router.post(`/admin/festy/tickets/${t.id}/refuser`, {}, { preserveScroll: true });
     };
 
@@ -48,6 +53,7 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
             <Head title="Tickets Festy — Admin" />
 
             {flash && <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 text-sm">{flash}</div>}
+            {flashErr && <div className="mb-4 rounded-lg bg-amber-50 border border-amber-300 text-amber-800 px-4 py-2.5 text-sm">{flashErr}</div>}
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
@@ -117,12 +123,17 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
                                     </td>
                                     <td className="px-4 py-3 font-mono text-xs text-zinc-500">{t.code}</td>
                                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                                        {t.statut === 'en_attente' && (
-                                            <div className="inline-flex gap-1.5">
-                                                <button onClick={() => valider(t)} title="Valider" className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"><Check className="w-4 h-4" /></button>
-                                                <button onClick={() => refuser(t)} title="Annuler" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-500 hover:bg-red-50 hover:text-red-600"><X className="w-4 h-4" /></button>
-                                            </div>
-                                        )}
+                                        <div className="inline-flex gap-1.5">
+                                            {t.statut === 'en_attente' && (
+                                                <button onClick={() => valider(t)} title="Valider et envoyer" className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"><Check className="w-4 h-4" /></button>
+                                            )}
+                                            {t.statut === 'paye' && (
+                                                <button onClick={() => renvoyer(t)} title="Renvoyer l'e-mail" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-emerald-50 hover:text-emerald-700"><Mail className="w-4 h-4" /></button>
+                                            )}
+                                            {t.statut !== 'annule' && (
+                                                <button onClick={() => refuser(t)} title="Annuler le ticket" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-500 hover:bg-red-50 hover:text-red-600"><X className="w-4 h-4" /></button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
