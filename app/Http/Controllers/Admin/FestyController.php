@@ -194,13 +194,31 @@ class FestyController extends Controller
                 ->orWhere('phone', 'like', "%{$q}%")))
             ->orderBy('name')
             ->limit(15)
-            ->get(['id', 'name', 'last_name', 'email', 'phone'])
-            ->map(fn (User $u) => [
+            ->get(['id', 'name', 'last_name', 'email', 'phone']);
+
+        // Équipe déjà choisie par chacun lors de son inscription : la redemander
+        // à l'administrateur n'aurait aucun sens, et l'exposerait à inscrire le
+        // participant dans une autre équipe que celle qu'il a retenue.
+        $equipes = FestyRegistration::whereIn('user_id', $users->pluck('id'))
+            ->with('team:id,nom,couleur')
+            ->get()
+            ->keyBy('user_id');
+
+        $users = $users->map(function (User $u) use ($equipes): array {
+            $equipe = $equipes->get($u->id)?->team;
+
+            return [
                 'id' => $u->id,
                 'name' => trim($u->name.' '.($u->last_name ?? '')),
                 'email' => $u->email,
                 'phone' => $u->phone,
-            ]);
+                'equipe' => $equipe ? [
+                    'id' => $equipe->id,
+                    'nom' => $equipe->nom,
+                    'couleur' => $equipe->couleur,
+                ] : null,
+            ];
+        });
 
         return response()->json(['users' => $users]);
     }
@@ -220,6 +238,14 @@ class FestyController extends Controller
 
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
         $user = User::findOrFail($validated['user_id']);
+
+        // L'utilisateur a déjà choisi son équipe en s'inscrivant : on la reprend
+        // telle quelle. L'administrateur n'a rien à ressaisir, et le ticket ne
+        // risque pas d'atterrir dans une autre équipe que la sienne.
+        if (empty($validated['festy_team_id'])) {
+            $validated['festy_team_id'] = FestyRegistration::where('user_id', $user->id)
+                ->value('festy_team_id');
+        }
 
         // Équipe imposée : on y inscrit aussi l'utilisateur (groupe WhatsApp, page Festy).
         if (! empty($validated['festy_team_id'])) {

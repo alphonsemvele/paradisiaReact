@@ -11,7 +11,11 @@ interface T {
 }
 interface Prix { type: string; montant: number; normal: number; promo: boolean }
 interface Equipe { id: number; nom: string; couleur: string; places_restantes: number; occupees: number; limite: number; complet: boolean }
-interface U { id: number; name: string; email: string; phone: string | null }
+interface U {
+    id: number; name: string; email: string; phone: string | null;
+    // Équipe retenue par le participant lors de son inscription.
+    equipe: { id: number; nom: string; couleur: string | null } | null;
+}
 interface Props {
     tickets: T[];
     filtre: string | null;
@@ -239,8 +243,11 @@ function ActiverTicket({ equipes, prix }: { equipes: Equipe[]; prix: { participa
             {user ? (
                 <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 mb-3">
                     <UserCheck className="w-4 h-4 text-violet-600" />
-                    <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-zinc-900 truncate">{user.name}</p><p className="text-xs text-zinc-500 truncate">{user.email}{user.phone ? ' · ' + user.phone : ''}</p></div>
-                    <button onClick={() => { setUser(null); setQ(''); }} className="text-xs text-zinc-500 hover:text-red-600">changer</button>
+                    <div className="flex-1 min-w-0"><p className="text-sm font-semibold text-zinc-900 truncate">{user.name}</p><p className="text-xs text-zinc-500 truncate">
+                        {user.email}{user.phone ? ' · ' + user.phone : ''}
+                        {user.equipe && <span className="ml-1 font-medium text-violet-600">· {user.equipe.nom}</span>}
+                    </p></div>
+                    <button onClick={() => { setUser(null); setQ(''); setTeamId(''); }} className="text-xs text-zinc-500 hover:text-red-600">changer</button>
                 </div>
             ) : (
                 <div className="relative mb-3">
@@ -250,8 +257,12 @@ function ActiverTicket({ equipes, prix }: { equipes: Equipe[]; prix: { participa
                     {resultats.length > 0 && (
                         <div className="absolute z-10 mt-1 w-full bg-white border border-zinc-200 rounded-xl shadow-lg max-h-56 overflow-y-auto">
                             {resultats.map((u) => (
-                                <button key={u.id} onClick={() => { setUser(u); setResultats([]); }} className="w-full text-left px-3 py-2 hover:bg-zinc-50">
-                                    <p className="text-sm font-medium text-zinc-900">{u.name}</p><p className="text-xs text-zinc-400">{u.email}{u.phone ? ' · ' + u.phone : ''}</p>
+                                <button key={u.id} onClick={() => { setUser(u); setTeamId(u.equipe?.id ?? ''); setResultats([]); }} className="w-full text-left px-3 py-2 hover:bg-zinc-50">
+                                    <p className="text-sm font-medium text-zinc-900">{u.name}</p>
+                                    <p className="text-xs text-zinc-400">
+                                        {u.email}{u.phone ? ' · ' + u.phone : ''}
+                                        {u.equipe && <span className="ml-1 font-medium text-violet-600">· {u.equipe.nom}</span>}
+                                    </p>
                                 </button>
                             ))}
                         </div>
@@ -268,11 +279,19 @@ function ActiverTicket({ equipes, prix }: { equipes: Equipe[]; prix: { participa
                     </select>
                 </div>
                 <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1">Équipe (optionnel)</label>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">
+                        Équipe {user?.equipe ? <span className="text-violet-600">— reprise de son inscription</span> : '(optionnel)'}
+                    </label>
                     <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={teamId} onChange={(e) => setTeamId(e.target.value ? Number(e.target.value) : '')}>
-                        <option value="">— équipe actuelle —</option>
+                        <option value="">{user?.equipe ? 'Aucune' : '— équipe actuelle —'}</option>
                         {equipes.map((e) => <option key={e.id} value={e.id}>{e.nom}</option>)}
                     </select>
+                    {user?.equipe && (
+                        <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">
+                            Ne le changez que pour corriger une erreur : le participant a choisi
+                            <strong className="text-zinc-600"> {user.equipe.nom}</strong> lui-même.
+                        </p>
+                    )}
                 </div>
             </div>
 
