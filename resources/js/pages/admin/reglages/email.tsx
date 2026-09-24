@@ -32,7 +32,7 @@ export default function ReglagesEmail({ reglages, actuel }: Props) {
         username: reglages.username ?? 'no-reply@paradisia-africa.com',
         password: '',
         encryption: reglages.encryption ?? 'ssl',
-        from_address: reglages.from_address ?? 'no-reply@paradisia-africa.com',
+        from_address: reglages.from_address ?? 'contact@paradisia-africa.com',
         from_name: reglages.from_name ?? 'Paradisia',
     });
     const [testEmail, setTestEmail] = useState('');
@@ -89,7 +89,7 @@ export default function ReglagesEmail({ reglages, actuel }: Props) {
                         <input className="ipt" type="password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} placeholder={reglages.a_mot_de_passe ? '•••••••• (inchangé)' : 'Mot de passe'} />
                     </L>
                     <div className="grid sm:grid-cols-2 gap-3">
-                        <L label="Expéditeur (from)"><input className="ipt" value={f.from_address} onChange={(e) => setF({ ...f, from_address: e.target.value })} placeholder="no-reply@paradisia-africa.com" /></L>
+                        <L label="Expéditeur (from)"><input className="ipt" value={f.from_address} onChange={(e) => setF({ ...f, from_address: e.target.value })} placeholder="contact@paradisia-africa.com" /></L>
                         <L label="Nom expéditeur"><input className="ipt" value={f.from_name} onChange={(e) => setF({ ...f, from_name: e.target.value })} placeholder="Paradisia" /></L>
                     </div>
 

@@ -26,7 +26,10 @@ class MailSettingController extends Controller
                 'username' => $s->username,
                 'a_mot_de_passe' => ! empty($s->password),
                 'encryption' => $s->encryption,
-                'from_address' => $s->from_address,
+                // On n'affiche plus « no-reply@ » : l'expéditeur est contact@.
+                'from_address' => (! $s->from_address || str_starts_with((string) $s->from_address, 'no-reply@'))
+                    ? 'contact@paradisia-africa.com'
+                    : $s->from_address,
                 'from_name' => $s->from_name,
             ],
             // Config réellement active (utile pour diagnostiquer).

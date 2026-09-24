@@ -34,7 +34,11 @@ class AppServiceProvider extends ServiceProvider
         // ou un no-reply. Une adresse perso explicite reste, elle, respectée.
         $from = (string) config('mail.from.address');
         if ($from === '' || str_contains($from, 'example.com') || str_starts_with($from, 'no-reply@')) {
-            Mail::alwaysFrom('contact@paradisia-africa.com', config('mail.from.name') ?: 'Paradisia');
+            $nom = config('mail.from.name') ?: 'Paradisia';
+            // On met aussi à jour la config, pas seulement l'envoi : ainsi la page
+            // Réglages e-mail affiche le bon expéditeur (contact@) et non le .env.
+            config(['mail.from.address' => 'contact@paradisia-africa.com', 'mail.from.name' => $nom]);
+            Mail::alwaysFrom('contact@paradisia-africa.com', $nom);
         }
     }
 
