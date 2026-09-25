@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AppLayout from '@/components/layouts/AppLayout';
-import { Trophy, Users, CheckCircle2, MessageCircle, Phone, MapPin, Home, PartyPopper, ChevronDown, LogIn, UserPlus, User, Ticket } from 'lucide-react';
+import { Trophy, CheckCircle2, MessageCircle, Phone, MapPin, Home, PartyPopper, ChevronDown, LogIn, UserPlus, User, Ticket } from 'lucide-react';
 
-interface Equipe { id: number; nom: string; trait: string | null; couleur: string; emoji: string | null; image: string | null; membres: number }
+interface Equipe { id: number; nom: string; trait: string | null; couleur: string; emoji: string | null; image: string | null }
 interface Props {
     festy: { titre: string; sous_titre: string | null; date_label: string | null; prix: string | null; description: string | null; inscriptions_ouvertes: boolean };
     equipes: Equipe[];
@@ -243,7 +243,6 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                                                             <p className="font-bold text-sm" style={{ color: eq.couleur }}>Équipe {eq.nom}</p>
                                                             {eq.trait && <p className="text-[11px] text-zinc-400">{eq.trait}</p>}
                                                         </div>
-                                                        <span className="text-[11px] text-zinc-400 flex items-center gap-1"><Users className="w-3 h-3" />{eq.membres}</span>
                                                         {choix?.id === eq.id && <CheckCircle2 className="w-4 h-4" style={{ color: eq.couleur }} />}
                                                     </button>
                                                 ))}

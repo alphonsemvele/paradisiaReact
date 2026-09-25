@@ -27,9 +27,9 @@ class FestyController extends Controller
             $request->session()->put('url.intended', route('festy.index', ['bienvenue' => 1]));
         }
 
+        // Nombre de membres volontairement non exposé au public.
         $equipes = FestyTeam::where('actif', true)
             ->orderBy('position')
-            ->withCount('registrations')
             ->get()
             ->map(fn (FestyTeam $t) => [
                 'id' => $t->id,
@@ -38,7 +38,6 @@ class FestyController extends Controller
                 'couleur' => $t->couleur,
                 'emoji' => $t->emoji,
                 'image' => $this->mediaUrl($t->image),
-                'membres' => $t->registrations_count,
             ]);
 
         $user = auth()->user();
