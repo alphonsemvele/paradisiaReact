@@ -254,7 +254,7 @@ class FestyTicketController extends Controller
             $user->name,
             number_format($prix['montant'], 0, ',', ' '),
             $reference,
-        ));
+        ), url('/admin/festy/tickets'));
 
         return response()->json([
             'ok' => true,

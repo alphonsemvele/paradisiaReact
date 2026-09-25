@@ -130,7 +130,7 @@ class OrderController extends Controller
 
         session()->forget('cart');
 
-        WhatsAppNotifier::send(self::orderMessage($sale, $lines));
+        WhatsAppNotifier::send(self::orderMessage($sale, $lines), url('/admin/sales/list'));
 
         return redirect()->route('orders.confirmation', $sale->ref);
     }

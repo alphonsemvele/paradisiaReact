@@ -69,7 +69,8 @@ class FormationController extends Controller
             . "Nom : {$inscription->prenom} {$inscription->nom}\n"
             . ($inscription->telephone ? "Tél : {$inscription->telephone}\n" : '')
             . "Formation : {$formation->titre}\n"
-            . "Type : " . ($inscription->type === 'acceleree' ? 'Accélérée' : 'Normale')
+            . "Type : " . ($inscription->type === 'acceleree' ? 'Accélérée' : 'Normale'),
+            url('/admin/formations')
         );
 
         return back()->with('success', 'Votre inscription a bien été enregistrée. Nous vous contacterons bientôt !');

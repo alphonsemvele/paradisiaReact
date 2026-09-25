@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\NotificationRecipient;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -13,13 +14,17 @@ use Illuminate\Support\Facades\Mail;
  */
 class WhatsAppNotifier
 {
-    public static function send(string $message): void
+    /**
+     * @param string      $message texte de l'alerte (la 1re ligne sert d'objet)
+     * @param string|null $lien    URL admin pour aller traiter l'action (bouton)
+     */
+    public static function send(string $message, ?string $lien = null): void
     {
         // Différé après l'envoi de la réponse HTTP : les appels réseau ne
         // ralentissent jamais la requête de l'utilisateur.
-        app()->terminating(function () use ($message) {
-            self::envoyerWhatsApp($message);
-            self::notifierSuperadmin($message);
+        app()->terminating(function () use ($message, $lien) {
+            self::envoyerWhatsApp($lien ? $message."\n".$lien : $message);
+            self::notifierAdmins($message, $lien);
         });
     }
 
@@ -47,21 +52,25 @@ class WhatsAppNotifier
         }
     }
 
-    /** Notifie le superadmin par e-mail (tout paiement / événement). */
-    private static function notifierSuperadmin(string $message): void
+    /** Notifie par e-mail tous les destinataires admin (avec lien de traitement). */
+    private static function notifierAdmins(string $message, ?string $lien): void
     {
-        $email = config('services.superadmin_email');
+        $emails = NotificationRecipient::emailsActifs();
 
-        if (! $email) {
+        if (empty($emails)) {
             return;
         }
 
         try {
             $sujet = strtok($message, "\n") ?: 'Notification Paradisia';
-            Mail::raw($message, fn ($m) => $m->to($email)->subject('[Paradisia] '.$sujet));
-            Log::info("Notification superadmin envoyée à {$email}.");
+            Mail::send(
+                ['emails.admin-notification', 'emails.texte.admin-notification'],
+                ['contenu' => $message, 'lien' => $lien, 'sujet' => $sujet],
+                fn ($m) => $m->to($emails)->subject('[Paradisia] '.$sujet),
+            );
+            Log::info('Notification admin envoyée à '.implode(', ', $emails));
         } catch (\Throwable $e) {
-            Log::warning('Notification superadmin échouée : '.$e->getMessage());
+            Log::warning('Notification admin échouée : '.$e->getMessage());
         }
     }
 

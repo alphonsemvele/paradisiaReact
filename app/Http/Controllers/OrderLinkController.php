@@ -129,7 +129,7 @@ class OrderLinkController extends Controller
 
         // Alerte à l'entreprise, sans jamais faire échouer la commande.
         try {
-            WhatsAppNotifier::send($this->messageEntreprise($sale, $lignes));
+            WhatsAppNotifier::send($this->messageEntreprise($sale, $lignes), url('/admin/sales/list'));
         } catch (\Throwable) {
             // journalisé par le notifier
         }

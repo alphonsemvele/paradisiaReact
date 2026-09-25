@@ -201,6 +201,6 @@ class FestyTickets
             number_format($ticket->montant, 0, ',', ' '),
             $moyen,
             $ticket->code_ticket,
-        ));
+        ), url('/admin/festy/tickets'));
     }
 }

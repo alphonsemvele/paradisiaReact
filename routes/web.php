@@ -238,6 +238,10 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'index'])->name('reglages.email');
         Route::post('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'update'])->name('reglages.email.update');
         Route::post('/reglages/email/test', [\App\Http\Controllers\Admin\MailSettingController::class, 'test'])->name('reglages.email.test');
+        Route::get('/reglages/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'index'])->name('reglages.notifications');
+        Route::post('/reglages/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'store'])->name('reglages.notifications.store');
+        Route::patch('/reglages/notifications/{recipient}/toggle', [\App\Http\Controllers\Admin\NotificationController::class, 'toggle'])->name('reglages.notifications.toggle');
+        Route::delete('/reglages/notifications/{recipient}', [\App\Http\Controllers\Admin\NotificationController::class, 'destroy'])->name('reglages.notifications.destroy');
 
         // ── Investissements ─────────────────────────────────────────────────
         Route::get('/investments', [\App\Http\Controllers\Admin\InvestmentController::class, 'index'])->name('investments.index');

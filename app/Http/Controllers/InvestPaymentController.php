@@ -561,7 +561,7 @@ class InvestPaymentController extends Controller
             $payment->currency,
             $payment->type_paiement,
             $payment->ref,
-        ));
+        ), url('/admin/investments'));
     }
 
     /* ═══════════════════════ Interne ═══════════════════════ */
