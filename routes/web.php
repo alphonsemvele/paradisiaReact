@@ -233,6 +233,7 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'index'])->name('securite.ips');
         Route::post('/securite/ips', [\App\Http\Controllers\Admin\BannedIpController::class, 'store'])->name('securite.ips.store');
         Route::delete('/securite/ips/{bannedIp}', [\App\Http\Controllers\Admin\BannedIpController::class, 'destroy'])->name('securite.ips.destroy');
+        Route::post('/securite/ips/vider', [\App\Http\Controllers\Admin\BannedIpController::class, 'viderTout'])->name('securite.ips.vider');
 
         // Réglages e-mail (SMTP) sans toucher au .env
         Route::get('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'index'])->name('reglages.email');

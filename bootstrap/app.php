@@ -12,7 +12,12 @@ $app = Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Hébergement mutualisé (N0C) : la requête passe par un proxy qui
+        // termine le SSL. Sans lui faire confiance, $request->ip() renvoie l'IP
+        // du proxy (identique pour tout le monde) et le schéma est vu en http
+        // (d'où les liens signés qui plantent en 403). On récupère ainsi la
+        // VRAIE IP client (X-Forwarded-For) et le bon schéma (X-Forwarded-Proto).
+        $middleware->trustProxies(at: '*');
 
          $middleware->web(prepend: [
         \App\Http\Middleware\BlockBannedIp::class,

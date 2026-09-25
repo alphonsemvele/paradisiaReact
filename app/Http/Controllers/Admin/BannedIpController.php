@@ -7,6 +7,7 @@ use App\Models\BannedIp;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -120,5 +121,21 @@ class BannedIpController extends Controller
         $bannedIp->delete();
 
         return back()->with('success', "IP {$ip} débannie.");
+    }
+
+    /**
+     * Débloque TOUTES les IP d'un coup. Utile quand des bannissements trop
+     * larges (IP mobiles partagées / IP proxy) bloquent de vrais clients.
+     */
+    public function viderTout(): RedirectResponse
+    {
+        $n = BannedIp::count();
+        BannedIp::query()->delete();
+
+        // Le delete de masse ne déclenche pas l'événement modèle : on vide
+        // le cache de la liste à la main pour un effet immédiat.
+        Cache::forget(BannedIp::CACHE_KEY);
+
+        return back()->with('success', "{$n} IP débloquée(s). L'accès au site est rétabli pour tout le monde.");
     }
 }

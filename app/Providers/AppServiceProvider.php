@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\MailSetting;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -23,6 +24,15 @@ class AppServiceProvider extends ServiceProvider
     {
         // Interface et messages en français (le .env peut être resté sur « en »).
         app()->setLocale('fr');
+
+        // Hébergement mutualisé (N0C) : le SSL est terminé en amont, donc PHP
+        // voit souvent la requête en http. Les liens signés (confirmation de
+        // compte…) sont eux générés en https via APP_URL : à la validation, les
+        // deux URL diffèrent et Laravel renvoie 403 Forbidden. On force https en
+        // production pour que génération ET validation utilisent le même schéma.
+        if (app()->environment('production') || str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
 
         // Réglages e-mail saisis dans l'admin (SMTP) : ils priment sur le .env.
         $this->appliquerReglagesMail();

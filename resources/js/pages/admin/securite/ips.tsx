@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { ShieldBan, Plus, Trash2 } from 'lucide-react';
+import { ShieldBan, Plus, Trash2, AlertTriangle } from 'lucide-react';
 
 interface Ip { id: number; ip: string; raison: string | null; date: string }
 interface Props { ips: Ip[] }
@@ -30,6 +30,11 @@ export default function BannedIps({ ips }: Props) {
         router.delete(`/admin/securite/ips/${b.id}`, { preserveScroll: true });
     };
 
+    const viderTout = () => {
+        if (!confirm('Débloquer TOUTES les IP bannies ? Recommandé si des clients légitimes sont bloqués.')) return;
+        router.post('/admin/securite/ips/vider', {}, { preserveScroll: true });
+    };
+
     return (
         <AdminLayout title="IP bannies">
             <Head title="IP bannies — Admin" />
@@ -43,6 +48,22 @@ export default function BannedIps({ ips }: Props) {
             </div>
 
             {flash && <div className="mb-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 text-sm">{flash}</div>}
+
+            {/* Avertissement + tout débloquer */}
+            <div className="mb-5 rounded-xl bg-amber-50 border border-amber-200 p-4">
+                <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 text-sm text-amber-800">
+                        <p className="font-semibold">Attention : bannir une IP peut bloquer plusieurs vrais clients.</p>
+                        <p className="mt-1 text-amber-700">Au Cameroun, les connexions mobiles (MTN, Orange…) partagent souvent une <b>même IP entre des centaines d'abonnés</b>. Bannir une IP mobile bloque donc tout le monde derrière elle. Préfère <b>bloquer le compte</b> plutôt que l'IP. Si des clients ne peuvent plus accéder au site, débloque tout ci-dessous.</p>
+                    </div>
+                    {ips.length > 0 && (
+                        <button onClick={viderTout} className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-3 py-2">
+                            <Trash2 className="w-4 h-4" /> Tout débloquer ({ips.length})
+                        </button>
+                    )}
+                </div>
+            </div>
 
             {/* Ajout */}
             <div className="bg-white rounded-2xl border border-zinc-200 p-5 mb-6">
