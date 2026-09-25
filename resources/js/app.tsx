@@ -5,6 +5,7 @@ import './lib/pwa'; // enregistre le service worker + capture l'installation PWA
 import { createRoot } from 'react-dom/client';
 import { createInertiaApp } from '@inertiajs/react';
 import type { ComponentType } from 'react';
+import GlobalLoading from './components/GlobalLoading';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Paradisia';
 
@@ -20,7 +21,12 @@ createInertiaApp({
     },
     setup({ el, App, props }) {
         const root = createRoot(el);
-        root.render(<App {...props} />);
+        root.render(
+            <>
+                <App {...props} />
+                <GlobalLoading />
+            </>,
+        );
     },
     progress: {
         color: '#10b981',
