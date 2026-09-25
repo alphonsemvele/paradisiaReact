@@ -238,6 +238,8 @@ Route::patch('/formations/{formation}/toggle-status', [AdminFormationController:
         Route::get('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'index'])->name('reglages.email');
         Route::post('/reglages/email', [\App\Http\Controllers\Admin\MailSettingController::class, 'update'])->name('reglages.email.update');
         Route::post('/reglages/email/test', [\App\Http\Controllers\Admin\MailSettingController::class, 'test'])->name('reglages.email.test');
+        Route::get('/reglages/email-test', [\App\Http\Controllers\Admin\MailPreviewController::class, 'index'])->name('reglages.email-test');
+        Route::post('/reglages/email-test', [\App\Http\Controllers\Admin\MailPreviewController::class, 'send'])->name('reglages.email-test.send');
         Route::get('/reglages/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'index'])->name('reglages.notifications');
         Route::post('/reglages/notifications', [\App\Http\Controllers\Admin\NotificationController::class, 'store'])->name('reglages.notifications.store');
         Route::patch('/reglages/notifications/{recipient}/toggle', [\App\Http\Controllers\Admin\NotificationController::class, 'toggle'])->name('reglages.notifications.toggle');
