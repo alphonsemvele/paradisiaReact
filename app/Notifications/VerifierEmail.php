@@ -11,14 +11,17 @@ use Illuminate\Notifications\Messages\MailMessage;
  */
 class VerifierEmail extends BaseVerifyEmail
 {
-    protected function buildMailMessage($url): MailMessage
+    /**
+     * E-mail de confirmation, rendu avec le gabarit Paradisia (logo, couleurs,
+     * pied de page). On n'utilise pas le template markdown par défaut, qui
+     * ajoute un vilain bloc « copier-coller cette URL » en bas.
+     */
+    public function toMail($notifiable): MailMessage
     {
+        $url = $this->verificationUrl($notifiable);
+
         return (new MailMessage)
-            ->subject('Confirme ton compte Paradisia 🍍')
-            ->greeting('Bienvenue sur Paradisia !')
-            ->line('Merci pour ton inscription. Confirme ton adresse e-mail en cliquant sur le bouton ci-dessous.')
-            ->action('Confirmer mon compte', $url)
-            ->line('Ton compte est déjà actif — cette confirmation nous aide juste à vérifier ton adresse.')
-            ->salutation("À très vite,\nL'équipe Paradisia");
+            ->subject('Confirme ton compte Paradisia')
+            ->view('emails.verification', ['url' => $url, 'user' => $notifiable]);
     }
 }
