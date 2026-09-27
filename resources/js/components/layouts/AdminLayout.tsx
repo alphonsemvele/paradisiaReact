@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect } from 'react';
+import { ReactNode, useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { Link, usePage, router } from '@inertiajs/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -144,6 +144,23 @@ export default function AdminLayout({ children, title = 'Administration' }: Prop
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
+    // Le layout est re-monté à chaque navigation : on restaure la position de
+    // scroll de la barre latérale pour qu'elle ne « saute » pas en haut.
+    const navRef = useRef<HTMLElement>(null);
+    useLayoutEffect(() => {
+        const el = navRef.current;
+        if (!el) return;
+        try {
+            const s = sessionStorage.getItem('adminNavScroll');
+            if (s) el.scrollTop = parseInt(s, 10) || 0;
+        } catch { /* stockage indisponible */ }
+        const onScroll = () => {
+            try { sessionStorage.setItem('adminNavScroll', String(el.scrollTop)); } catch { /* ignore */ }
+        };
+        el.addEventListener('scroll', onScroll, { passive: true });
+        return () => el.removeEventListener('scroll', onScroll);
+    }, []);
+
     // Fermer le menu user au clic extérieur
     useEffect(() => {
         const handleClickOutside = () => setUserMenuOpen(false);
@@ -162,14 +179,16 @@ export default function AdminLayout({ children, title = 'Administration' }: Prop
         router.post('/logout');
     };
 
-    const isActive = (path: string) => {
-        if (path === '/admin') return currentPath === '/admin';
-        // Cas spécial pour /admin/sales : ne pas activer si on est sur /admin/sales/list ou /admin/sales/create
-        if (path === '/admin/sales') {
-            return currentPath === '/admin/sales';
-        }
-        return currentPath.startsWith(path);
-    };
+    // Un seul menu actif : le lien le PLUS précis (le plus long) qui correspond
+    // au chemin courant. Évite que /admin/festy et /admin/festy/tickets (ou
+    // /admin/reglages/email et .../email-test) s'allument en même temps.
+    const path = (currentPath.split('?')[0].replace(/\/+$/, '')) || '/';
+    const activeHref = menuSections
+        .flatMap((s) => s.items.map((i) => i.href))
+        .filter((h) => path === h || path.startsWith(h + '/'))
+        .reduce<string | null>((best, h) => (best === null || h.length > best.length ? h : best), null);
+
+    const isActive = (href: string) => href === activeHref;
 
     return (
         <div className="min-h-screen bg-zinc-50 flex">
@@ -191,7 +210,7 @@ export default function AdminLayout({ children, title = 'Administration' }: Prop
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+                <nav ref={navRef} className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
                     {menuSections.map((section) => (
                         <div key={section.title}>
                             <h3 className="px-3 mb-2 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">
