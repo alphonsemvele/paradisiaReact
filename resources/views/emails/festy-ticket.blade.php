@@ -37,6 +37,12 @@
       @if($ticket->team)
         <div class="trow"><div class="tlbl">Équipe</div><div class="tval" style="color:{{ $couleur }}">{{ $equipe }}</div></div>
       @endif
+      @if($ticket->zoneLibelle())
+        <div class="trow"><div class="tlbl">Zone</div><div class="tval">{{ $ticket->zoneLibelle() }}</div></div>
+      @endif
+      @if($ticket->dossardFormate())
+        <div class="trow"><div class="tlbl">Dossard</div><div class="tval" style="font-size:18px;letter-spacing:.05em">N° {{ $ticket->dossardFormate() }}</div></div>
+      @endif
       <div class="trow"><div class="tlbl">Formule</div><div class="tval">{{ $estFan ? 'Fan' : 'Participant' }}</div></div>
       <div class="trow"><div class="tlbl">Montant payé</div><div class="tval">{{ number_format((float) $ticket->montant, 0, ',', ' ') }} FCFA @if($ticket->promo)<span style="color:#E8792B;font-size:12px"> · promo</span>@endif</div></div>
       <div class="trow"><div class="tlbl">Date</div><div class="tval">{{ $ticket->paid_at?->format('d/m/Y à H:i') ?? $ticket->created_at?->format('d/m/Y à H:i') }}</div></div>

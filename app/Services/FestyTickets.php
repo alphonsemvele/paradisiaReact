@@ -89,7 +89,8 @@ class FestyTickets
         }
 
         if (in_array($statut, ['echoue', 'annule', 'expire'], true)) {
-            $ticket->update(['statut' => 'echoue', 'error_code' => strtoupper($statut)]);
+            // Dossard libéré pour qu'il redevienne disponible.
+            $ticket->update(['statut' => 'echoue', 'error_code' => strtoupper($statut), 'dossard' => null]);
         }
     }
 

@@ -100,6 +100,16 @@ class FestyTicketController extends Controller
                 ->where('moyen', 'om_manuel')->latest()->first()
             : null;
 
+        // Dossards déjà pris (payés ou en attente) par zone, pour désactiver
+        // les numéros indisponibles à l'écran.
+        $dossardsPris = [];
+        foreach (array_keys(FestyTicket::ZONES) as $z) {
+            $dossardsPris[$z] = FestyTicket::where('zone', $z)
+                ->whereIn('statut', ['paye', 'en_attente'])
+                ->whereNotNull('dossard')
+                ->pluck('dossard')->map(fn ($d) => (int) $d)->all();
+        }
+
         return Inertia::render('festy/ticket', [
             'festy' => [
                 'titre' => $settings->titre,
@@ -111,6 +121,9 @@ class FestyTicketController extends Controller
             ],
             'promo_fin' => $settings->enPromo() ? $settings->promo_fin?->format('d/m/Y') : null,
             'places_limite' => (int) ($settings->places_participant_equipe ?? 20),
+            'zones' => collect(FestyTicket::ZONES)->map(fn ($label, $code) => ['code' => $code, 'label' => $label])->values(),
+            'dossard_max' => FestyTicket::DOSSARD_MAX,
+            'dossards_pris' => $dossardsPris,
             'moi' => $user ? [
                 'nom' => trim($user->name.' '.($user->last_name ?? '')),
                 'telephone' => $user->phone,
@@ -140,6 +153,8 @@ class FestyTicketController extends Controller
             'type' => ['required', 'string', 'in:participant,fan'],
             'telephone' => ['required', 'string', 'max:20'],
             'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
+            'zone' => ['nullable', 'string', 'max:20'],
+            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.FestyTicket::DOSSARD_MAX],
         ]);
 
         $user = Auth::user();
@@ -150,24 +165,36 @@ class FestyTicketController extends Controller
             return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
         }
 
+        // Participant : zone + dossard requis et dossard libre dans la zone.
+        $zd = $this->zoneDossard($validated['type'], $validated['zone'] ?? null, $validated['dossard'] ?? null);
+        if (! $zd['ok']) {
+            return response()->json(['ok' => false, 'message' => $zd['message']], 422);
+        }
+
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
         $montant = $prix['montant'];
         $reference = 'FST_'.strtoupper(Str::random(12));
 
-        $ticket = FestyTicket::create([
-            'reference' => $reference,
-            'code_ticket' => $this->genererCode(),
-            'user_id' => $user->id,
-            'festy_team_id' => $equipe['teamId'],
-            'type' => $prix['type'],
-            'montant' => $montant,
-            'devise' => self::DEVISE,
-            'promo' => $prix['promo'],
-            'moyen' => 'mtn',
-            'statut' => 'en_attente',
-            'payment_country' => self::PAYS,
-            'telephone' => $validated['telephone'],
-        ]);
+        try {
+            $ticket = FestyTicket::create([
+                'reference' => $reference,
+                'code_ticket' => $this->genererCode(),
+                'user_id' => $user->id,
+                'festy_team_id' => $equipe['teamId'],
+                'zone' => $zd['zone'],
+                'dossard' => $zd['dossard'],
+                'type' => $prix['type'],
+                'montant' => $montant,
+                'devise' => self::DEVISE,
+                'promo' => $prix['promo'],
+                'moyen' => 'mtn',
+                'statut' => 'en_attente',
+                'payment_country' => self::PAYS,
+                'telephone' => $validated['telephone'],
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['ok' => false, 'message' => 'Ce dossard vient d\'être pris. Choisis-en un autre.'], 422);
+        }
 
         $resultat = $this->malapay->payerMobile(
             reference: $reference,
@@ -221,6 +248,8 @@ class FestyTicketController extends Controller
         $validated = $request->validate([
             'type' => ['required', 'string', 'in:participant,fan'],
             'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
+            'zone' => ['nullable', 'string', 'max:20'],
+            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.FestyTicket::DOSSARD_MAX],
         ]);
 
         $user = Auth::user();
@@ -230,22 +259,33 @@ class FestyTicketController extends Controller
             return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
         }
 
+        $zd = $this->zoneDossard($validated['type'], $validated['zone'] ?? null, $validated['dossard'] ?? null);
+        if (! $zd['ok']) {
+            return response()->json(['ok' => false, 'message' => $zd['message']], 422);
+        }
+
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
         $reference = 'FST_'.strtoupper(Str::random(12));
 
-        $ticket = FestyTicket::create([
-            'reference' => $reference,
-            'code_ticket' => $this->genererCode(),
-            'user_id' => $user->id,
-            'festy_team_id' => $equipe['teamId'],
-            'type' => $prix['type'],
-            'montant' => $prix['montant'],
-            'devise' => self::DEVISE,
-            'promo' => $prix['promo'],
-            'moyen' => 'om_manuel',
-            'statut' => 'en_attente',
-            'payment_country' => self::PAYS,
-        ]);
+        try {
+            $ticket = FestyTicket::create([
+                'reference' => $reference,
+                'code_ticket' => $this->genererCode(),
+                'user_id' => $user->id,
+                'festy_team_id' => $equipe['teamId'],
+                'zone' => $zd['zone'],
+                'dossard' => $zd['dossard'],
+                'type' => $prix['type'],
+                'montant' => $prix['montant'],
+                'devise' => self::DEVISE,
+                'promo' => $prix['promo'],
+                'moyen' => 'om_manuel',
+                'statut' => 'en_attente',
+                'payment_country' => self::PAYS,
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return response()->json(['ok' => false, 'message' => 'Ce dossard vient d\'être pris. Choisis-en un autre.'], 422);
+        }
 
         // Alerte les admins qu'un paiement Orange Money est à vérifier.
         WhatsAppNotifier::send(sprintf(
@@ -313,7 +353,8 @@ class FestyTicketController extends Controller
         }
 
         if (in_array($statut, ['echoue', 'annule', 'expire'], true)) {
-            $ticket->update(['statut' => 'echoue', 'error_code' => strtoupper($statut)]);
+            // On libère le dossard (remis à null) pour qu'il redevienne dispo.
+            $ticket->update(['statut' => 'echoue', 'error_code' => strtoupper($statut), 'dossard' => null]);
 
             return response()->json([
                 'ok' => true,
@@ -417,6 +458,36 @@ class FestyTicketController extends Controller
         return ['ok' => true, 'teamId' => $teamId];
     }
 
+    /**
+     * Valide la zone + le dossard d'un participant (fan : non concerné). Le
+     * dossard doit être dans la plage 1..160 et libre dans la zone.
+     *
+     * @return array{ok:bool, zone?:?string, dossard?:?int, message?:string}
+     */
+    private function zoneDossard(string $type, ?string $zone, ?int $dossard): array
+    {
+        if ($type !== 'participant') {
+            return ['ok' => true, 'zone' => null, 'dossard' => null];
+        }
+
+        if (! $zone || ! array_key_exists($zone, FestyTicket::ZONES)) {
+            return ['ok' => false, 'message' => 'Choisis ta zone de participation (Yaoundé ou Douala).'];
+        }
+
+        if (! $dossard || $dossard < 1 || $dossard > FestyTicket::DOSSARD_MAX) {
+            return ['ok' => false, 'message' => 'Choisis un numéro de dossard valide.'];
+        }
+
+        $pris = FestyTicket::where('zone', $zone)->where('dossard', $dossard)
+            ->whereIn('statut', ['paye', 'en_attente'])->exists();
+
+        if ($pris) {
+            return ['ok' => false, 'message' => 'Le dossard '.str_pad((string) $dossard, 3, '0', STR_PAD_LEFT).' est déjà pris dans cette zone. Choisis-en un autre.'];
+        }
+
+        return ['ok' => true, 'zone' => $zone, 'dossard' => $dossard];
+    }
+
     /** @return array<string, mixed> */
     private function presenter(FestyTicket $t): array
     {
@@ -433,6 +504,8 @@ class FestyTicketController extends Controller
             'equipe' => $t->team?->nom,
             'couleur' => $t->team?->couleur,
             'whatsapp' => $t->team?->whatsapp_group,
+            'zone' => $t->zoneLibelle(),
+            'dossard' => $t->dossardFormate(),
             'titulaire' => $t->user?->name ?? $this->moiNom(),
             'date' => $t->created_at?->isoFormat('D MMM YYYY'),
             'paye_le' => $t->paid_at?->isoFormat('D MMM YYYY [à] HH:mm'),
@@ -463,7 +536,8 @@ class FestyTicketController extends Controller
             return;
         }
 
-        $ticket->update(['statut' => 'echoue', 'error_code' => $code]);
+        // Dossard libéré (null) : il redevient disponible pour un autre.
+        $ticket->update(['statut' => 'echoue', 'error_code' => $code, 'dossard' => null]);
     }
 
     private function statutHttp(string $code): int

@@ -104,6 +104,8 @@ class FestyController extends Controller
             'telephone' => $t->telephone ?: $t->user?->phone,
             'equipe' => $t->team?->nom,
             'couleur' => $t->team?->couleur,
+            'zone' => $t->zoneLibelle(),
+            'dossard' => $t->dossardFormate(),
             'date' => $t->created_at->isoFormat('D MMM YYYY [à] HH:mm'),
             'paye_le' => $t->paid_at?->isoFormat('D MMM YYYY [à] HH:mm'),
         ]);
@@ -167,7 +169,8 @@ class FestyController extends Controller
     /** Annule un ticket, quel que soit son statut (erreur, remboursement, doublon). */
     public function refuserTicket(FestyTicket $ticket): RedirectResponse
     {
-        $ticket->update(['statut' => 'annule']);
+        // Dossard libéré à l'annulation.
+        $ticket->update(['statut' => 'annule', 'dossard' => null]);
 
         return back()->with('success', "Ticket {$ticket->code_ticket} annulé.");
     }

@@ -12,13 +12,18 @@ interface TicketData {
     id: number; reference: string; code: string; type: string; type_libelle: string;
     montant: number; promo: boolean; statut: string; moyen: string;
     equipe: string | null; couleur: string | null; whatsapp: string | null;
+    zone: string | null; dossard: string | null;
     titulaire: string; date: string | null; paye_le: string | null;
 }
+interface Zone { code: string; label: string }
 interface Props {
     festy: { titre: string; date_label: string | null };
     prix: { participant: Prix; fan: Prix };
     promo_fin: string | null;
     places_limite: number;
+    zones: Zone[];
+    dossard_max: number;
+    dossards_pris: Record<string, number[]>;
     moi: { nom: string; telephone: string | null; email: string } | null;
     equipe: { id: number; nom: string; couleur: string; whatsapp: string | null; places_restantes: number; complet: boolean } | null;
     equipes: Equipe[];
@@ -48,7 +53,7 @@ async function postJSON(url: string, body: Record<string, unknown>) {
     return { ok: r.ok, status: r.status, data } as { ok: boolean; status: number; data: any };
 }
 
-export default function FestyTicket({ festy, prix, promo_fin, places_limite, moi, equipe, equipes, tickets, en_attente, om, mtn_disponible }: Props) {
+export default function FestyTicket({ festy, prix, promo_fin, places_limite, zones, dossard_max, dossards_pris, moi, equipe, equipes, tickets, en_attente, om, mtn_disponible }: Props) {
     const page = usePage();
     const { auth } = page.props as any;
     const connecte = !!auth?.user && !!moi;
@@ -56,6 +61,8 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, moi
 
     const [type, setType] = useState<'participant' | 'fan'>('participant');
     const [teamChoisie, setTeamChoisie] = useState<number | ''>('');
+    const [zone, setZone] = useState<string>('');
+    const [dossard, setDossard] = useState<number | ''>('');
     const [moyen, setMoyen] = useState<'mtn' | 'om' | null>(null);
     const [tel, setTel] = useState(moi?.telephone ?? '');
     const [busy, setBusy] = useState(false);
@@ -74,7 +81,12 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, moi
     const equipeChoisie = teamChoisie ? equipes.find((e) => e.id === teamChoisie) : undefined;
     const teamParticipant: number | null = type === 'participant' ? (equipe?.id ?? (teamChoisie || null)) : null;
     const equipeComplet = type === 'participant' && (equipe ? equipe.complet : !!equipeChoisie?.complet);
-    const participantPret = type !== 'participant' || (!!teamParticipant && !equipeComplet);
+
+    // Zone + dossard (participant) : dossards disponibles = tous sauf ceux pris.
+    const dossardsDispo = zone
+        ? Array.from({ length: dossard_max }, (_, i) => i + 1).filter((n) => !(dossards_pris?.[zone] ?? []).includes(n))
+        : [];
+    const participantPret = type !== 'participant' || (!!teamParticipant && !equipeComplet && !!zone && !!dossard);
 
     // Reprise du paiement MTN après retour de redirection (?ref=...).
     useEffect(() => {
@@ -100,10 +112,10 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, moi
 
     const payerMtn = async () => {
         setErreur(null);
-        if (type === 'participant' && !participantPret) { setErreur('Choisis une équipe avec des places disponibles.'); return; }
+        if (type === 'participant' && !participantPret) { setErreur('Choisis ton équipe, ta zone et ton dossard.'); return; }
         if (!tel.trim() || tel.replace(/\D/g, '').length < 8) { setErreur('Entre un numéro MTN valide.'); return; }
         setBusy(true); setTraitement(true);
-        const { ok, data } = await postJSON('/festy/ticket/mobile', { type, telephone: tel, festy_team_id: teamParticipant });
+        const { ok, data } = await postJSON('/festy/ticket/mobile', { type, telephone: tel, festy_team_id: teamParticipant, zone: zone || null, dossard: dossard || null });
         if (!ok) { setBusy(false); setTraitement(false); setErreur(data?.message ?? 'Paiement impossible pour le moment.'); return; }
         // Redirection : on garde le voile affiché jusqu'au chargement de la page Malapay.
         if (data.url_paiement) { window.location.href = data.url_paiement; return; }
@@ -115,9 +127,9 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, moi
 
     const commanderOm = async () => {
         setErreur(null);
-        if (type === 'participant' && !participantPret) { setErreur('Choisis une équipe avec des places disponibles.'); return; }
+        if (type === 'participant' && !participantPret) { setErreur('Choisis ton équipe, ta zone et ton dossard.'); return; }
         setBusy(true); setTraitement(true);
-        const { ok, data } = await postJSON('/festy/ticket/manuel', { type, festy_team_id: teamParticipant });
+        const { ok, data } = await postJSON('/festy/ticket/manuel', { type, festy_team_id: teamParticipant, zone: zone || null, dossard: dossard || null });
         setBusy(false); setTraitement(false);
         if (!ok) { setErreur(data?.message ?? 'Réservation impossible pour le moment.'); return; }
         setOmMontant(data.montant ?? p.montant);
@@ -266,6 +278,30 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, moi
                                                 )}
                                             </>
                                         )}
+
+                                        {/* Zone de participation + dossard */}
+                                        <div className="grid grid-cols-2 gap-3 mt-3">
+                                            <div>
+                                                <label className="block text-xs font-medium text-zinc-500 mb-1">Zone</label>
+                                                <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={zone} onChange={(e) => { setZone(e.target.value); setDossard(''); }}>
+                                                    <option value="">Choisis ta zone…</option>
+                                                    {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-medium text-zinc-500 mb-1">Dossard</label>
+                                                <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white disabled:bg-zinc-100 disabled:text-zinc-400" value={dossard} disabled={!zone} onChange={(e) => setDossard(e.target.value ? Number(e.target.value) : '')}>
+                                                    <option value="">{zone ? 'N°…' : "Choisis la zone d'abord"}</option>
+                                                    {dossardsDispo.map((n) => <option key={n} value={n}>N° {String(n).padStart(3, '0')}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {zone && dossardsDispo.length === 0 && (
+                                            <p className="text-xs text-red-600 mt-1.5">Zone complète : tous les dossards sont pris. Choisis une autre zone.</p>
+                                        )}
+                                        {zone && dossardsDispo.length > 0 && (
+                                            <p className="text-[11px] text-zinc-400 mt-1.5">{dossardsDispo.length} dossard{dossardsDispo.length > 1 ? 's' : ''} disponible{dossardsDispo.length > 1 ? 's' : ''} sur {dossard_max} dans cette zone.</p>
+                                        )}
                                     </div>
                                 )}
 
@@ -402,7 +438,13 @@ function TicketCard({ t }: { t: TicketData }) {
                     <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-200"><Check className="w-3.5 h-3.5" /> Validé</span>
                 </div>
                 <p className="mt-3 text-xl font-extrabold">PARADISIA FESTY</p>
-                <p className="text-xs text-white/70">{t.equipe ? `Équipe ${t.equipe}` : 'Le grand challenge'}</p>
+                <p className="text-xs text-white/70">{t.equipe ? `Équipe ${t.equipe}` : 'Le grand challenge'}{t.zone ? ` · ${t.zone}` : ''}</p>
+                {t.dossard && (
+                    <div className="mt-2.5 inline-flex items-center gap-2 bg-white text-emerald-950 rounded-lg px-3 py-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Dossard</span>
+                        <span className="text-lg font-extrabold tracking-widest">N° {t.dossard}</span>
+                    </div>
+                )}
             </div>
             <div className="border-t-2 border-dashed border-zinc-200 relative">
                 <span className="absolute -left-2 -top-2 w-4 h-4 rounded-full bg-white border border-zinc-200" />

@@ -7,7 +7,8 @@ interface T {
     id: number; reference: string; code: string; type: string; type_libelle: string;
     montant: number; promo: boolean; moyen: string; statut: string;
     client: string | null; email: string | null; telephone: string | null;
-    equipe: string | null; couleur: string | null; date: string; paye_le: string | null;
+    equipe: string | null; couleur: string | null; zone: string | null; dossard: string | null;
+    date: string; paye_le: string | null;
 }
 interface Prix { type: string; montant: number; normal: number; promo: boolean }
 interface Equipe { id: number; nom: string; couleur: string; places_restantes: number; occupees: number; limite: number; complet: boolean }
@@ -137,6 +138,9 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
                                     <td className="px-4 py-3 text-zinc-700">{t.type_libelle}</td>
                                     <td className="px-4 py-3">
                                         {t.equipe ? <span className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: t.couleur ?? '#999' }} />{t.equipe}</span> : <span className="text-zinc-400">—</span>}
+                                        {(t.zone || t.dossard) && (
+                                            <p className="text-[11px] text-zinc-400 mt-0.5">{t.zone}{t.dossard ? ` · N° ${t.dossard}` : ''}</p>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right font-semibold text-zinc-900">{fcfa(t.montant)}{t.promo && <span className="ml-1 text-[10px] text-orange-500">promo</span>}</td>
                                     <td className="px-4 py-3">
