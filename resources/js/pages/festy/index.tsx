@@ -139,9 +139,9 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                     )}
                     {festy.description && <p className="mt-5 max-w-2xl mx-auto text-emerald-50/90 text-sm leading-relaxed">{festy.description}</p>}
                     <div className="mt-6">
-                        <Link href="/festy/ticket" className="inline-flex items-center gap-2 bg-white text-emerald-800 hover:bg-emerald-50 font-extrabold px-6 py-3 rounded-full shadow-lg">
-                            <Ticket className="w-5 h-5" /> Prendre mon ticket
-                        </Link>
+                        <span className="inline-flex items-center gap-2 bg-white/15 text-white font-semibold px-4 py-2 rounded-full text-sm">
+                            🎉 Inscription 100 % gratuite — choisis ton équipe ci-dessous
+                        </span>
                     </div>
                 </div>
             </div>
@@ -184,8 +184,11 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                             ) : (
                                 <p className="text-sm text-zinc-500 bg-zinc-50 rounded-xl p-3">Le lien du groupe WhatsApp de ton équipe arrive très bientôt.</p>
                             )}
-                            <Link href="/festy/ticket" className="mt-2.5 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold">
-                                <Ticket className="w-5 h-5" /> Prendre mon ticket
+                            <p className="mt-4 text-xs text-zinc-400 leading-relaxed">
+                                Ton inscription est gratuite. Le ticket n'est <b>pas obligatoire</b> pour participer au groupe — tu pourras le prendre quand tu veux.
+                            </p>
+                            <Link href="/festy/ticket" className="mt-1 inline-flex items-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-900 font-medium">
+                                <Ticket className="w-4 h-4" /> Prendre mon ticket (plus tard)
                             </Link>
                         </div>
                     </div>
