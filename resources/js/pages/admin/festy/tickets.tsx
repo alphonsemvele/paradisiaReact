@@ -113,7 +113,7 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, zones, occ
             </div>
 
             {/* Activer un ticket pour un utilisateur */}
-            <ActiverTicket equipes={equipes} prix={prix} />
+            <ActiverTicket equipes={equipes} prix={prix} zones={zones} dossardMax={dossard_max} />
 
             {/* Filtres */}
             <div className="flex flex-wrap gap-2 mb-4">
@@ -269,13 +269,15 @@ function Stat({ icon: Icon, label, value, color }: { icon: any; label: string; v
     );
 }
 
-function ActiverTicket({ equipes, prix }: { equipes: Equipe[]; prix: { participant: Prix; fan: Prix } }) {
+function ActiverTicket({ equipes, prix, zones, dossardMax }: { equipes: Equipe[]; prix: { participant: Prix; fan: Prix }; zones: Zone[]; dossardMax: number }) {
     const [ouvert, setOuvert] = useState(false);
     const [q, setQ] = useState('');
     const [resultats, setResultats] = useState<U[]>([]);
     const [user, setUser] = useState<U | null>(null);
     const [type, setType] = useState<'participant' | 'fan'>('participant');
     const [teamId, setTeamId] = useState<number | ''>('');
+    const [zone, setZone] = useState<string>('');
+    const [dossard, setDossard] = useState<string>('');
     const [montant, setMontant] = useState<string>('');
     const [busy, setBusy] = useState(false);
 
@@ -298,9 +300,10 @@ function ActiverTicket({ equipes, prix }: { equipes: Equipe[]; prix: { participa
         setBusy(true);
         router.post('/admin/festy/tickets/activer', {
             user_id: user.id, type, festy_team_id: teamId || null, montant: montant ? Number(montant) : null,
+            zone: zone || null, dossard: dossard ? Number(dossard) : null,
         }, {
             preserveScroll: true,
-            onSuccess: () => { setUser(null); setQ(''); setTeamId(''); setResultats([]); setOuvert(false); },
+            onSuccess: () => { setUser(null); setQ(''); setTeamId(''); setZone(''); setDossard(''); setResultats([]); setOuvert(false); },
             onFinish: () => setBusy(false),
         });
     };
@@ -379,6 +382,22 @@ function ActiverTicket({ equipes, prix }: { equipes: Equipe[]; prix: { participa
                     )}
                 </div>
             </div>
+
+            {type === 'participant' && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Zone</label>
+                        <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={zone} onChange={(e) => setZone(e.target.value)}>
+                            <option value="">— zone —</option>
+                            {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Dossard (1–{dossardMax})</label>
+                        <input type="number" min={1} max={dossardMax} className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm" value={dossard} onChange={(e) => setDossard(e.target.value)} placeholder="ex : 42" />
+                    </div>
+                </div>
+            )}
 
             <div className="mt-3">
                 <label className="block text-xs font-medium text-zinc-500 mb-1">Montant payé (FCFA)</label>

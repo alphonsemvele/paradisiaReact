@@ -292,10 +292,25 @@ class FestyController extends Controller
             'type' => ['required', 'string', 'in:participant,fan'],
             'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
             'montant' => ['nullable', 'integer', 'min:0', 'max:10000000'],
+            'zone' => ['nullable', 'string', 'in:'.implode(',', array_keys(FestyTicket::ZONES))],
+            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.FestyTicket::DOSSARD_MAX],
         ]);
 
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
         $user = User::findOrFail($validated['user_id']);
+
+        // Zone + dossard uniquement pour les participants.
+        $zone = $prix['type'] === 'participant' ? ($validated['zone'] ?? null) : null;
+        $dossard = $prix['type'] === 'participant' ? ($validated['dossard'] ?? null) : null;
+
+        // Dossard libre dans la zone ?
+        if ($dossard && $zone) {
+            $pris = FestyTicket::where('zone', $zone)->where('dossard', $dossard)
+                ->whereIn('statut', ['paye', 'en_attente'])->exists();
+            if ($pris) {
+                return back()->with('error', "Le dossard {$dossard} est déjà pris à ".(FestyTicket::ZONES[$zone] ?? $zone).'.');
+            }
+        }
 
         // L'utilisateur a déjà choisi son équipe en s'inscrivant : on la reprend
         // telle quelle. L'administrateur n'a rien à ressaisir, et le ticket ne
@@ -313,19 +328,25 @@ class FestyController extends Controller
             }
         }
 
-        $ticket = FestyTicket::create([
-            'reference' => 'FST_'.strtoupper(Str::random(12)),
-            'code_ticket' => $service->genererCode(),
-            'user_id' => $user->id,
-            'festy_team_id' => $validated['festy_team_id'] ?? null,
-            'type' => $prix['type'],
-            'montant' => $validated['montant'] ?? $prix['montant'],
-            'devise' => 'XAF',
-            'promo' => $prix['promo'],
-            'moyen' => 'offert',
-            'statut' => 'en_attente',
-            'payment_country' => 'CM',
-        ]);
+        try {
+            $ticket = FestyTicket::create([
+                'reference' => 'FST_'.strtoupper(Str::random(12)),
+                'code_ticket' => $service->genererCode(),
+                'user_id' => $user->id,
+                'festy_team_id' => $validated['festy_team_id'] ?? null,
+                'zone' => $zone,
+                'dossard' => $dossard,
+                'type' => $prix['type'],
+                'montant' => $validated['montant'] ?? $prix['montant'],
+                'devise' => 'XAF',
+                'promo' => $prix['promo'],
+                'moyen' => 'offert',
+                'statut' => 'en_attente',
+                'payment_country' => 'CM',
+            ]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return back()->with('error', 'Ce dossard est déjà utilisé dans cette zone.');
+        }
 
         $envoye = $service->finaliser($ticket, auth()->id());
 
