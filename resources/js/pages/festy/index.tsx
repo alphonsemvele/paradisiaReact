@@ -185,10 +185,10 @@ export default function FestyIndex({ festy, equipes, moi, inscription }: Props) 
                                 <p className="text-sm text-zinc-500 bg-zinc-50 rounded-xl p-3">Le lien du groupe WhatsApp de ton équipe arrive très bientôt.</p>
                             )}
                             <p className="mt-4 text-xs text-zinc-400 leading-relaxed">
-                                Ton inscription est gratuite. Le ticket n'est <b>pas obligatoire</b> pour participer au groupe — tu pourras le prendre quand tu veux.
+                                Ton inscription est gratuite. Le ticket n'est <b>pas obligatoire</b> pour participer au groupe — tu pourras payer quand tu veux.
                             </p>
-                            <Link href="/festy/ticket" className="mt-1 inline-flex items-center gap-1.5 text-sm text-emerald-700 hover:text-emerald-900 font-medium">
-                                <Ticket className="w-4 h-4" /> Prendre mon ticket (plus tard)
+                            <Link href="/festy/ticket" className="mt-2.5 w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-500 text-red-600 hover:bg-red-50 font-bold">
+                                <Ticket className="w-5 h-5" /> Payer mon ticket
                             </Link>
                         </div>
                     </div>
