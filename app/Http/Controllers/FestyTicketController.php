@@ -161,6 +161,12 @@ class FestyTicketController extends Controller
 
         $user = Auth::user();
 
+        // Anti-doublon : un seul ticket actif par (utilisateur, formule).
+        $uniq = $this->verifierUnicite($user, $validated['type']);
+        if (! $uniq['ok']) {
+            return response()->json(['ok' => false, 'message' => $uniq['message']], 422);
+        }
+
         // Participant : zone + dossard requis (dossard libre dans la zone).
         $zd = $this->zoneDossard($validated['type'], $validated['zone'] ?? null, $validated['dossard'] ?? null);
         if (! $zd['ok']) {
@@ -255,6 +261,12 @@ class FestyTicketController extends Controller
         ]);
 
         $user = Auth::user();
+
+        // Anti-doublon : un seul ticket actif par (utilisateur, formule).
+        $uniq = $this->verifierUnicite($user, $validated['type']);
+        if (! $uniq['ok']) {
+            return response()->json(['ok' => false, 'message' => $uniq['message']], 422);
+        }
 
         $zd = $this->zoneDossard($validated['type'], $validated['zone'] ?? null, $validated['dossard'] ?? null);
         if (! $zd['ok']) {
@@ -438,6 +450,41 @@ class FestyTicketController extends Controller
      *
      * @return array{ok:bool, teamId?:int|null, message?:string}
      */
+    /**
+     * Empêche les doublons : un seul ticket actif par (utilisateur, formule).
+     * - déjà PAYÉ → on bloque ;
+     * - MTN en cours → on bloque (pas de second paiement) ;
+     * - réservation Orange non validée → on la remplace (libère son dossard).
+     *
+     * @return array{ok:bool, message?:string}
+     */
+    private function verifierUnicite(User $user, string $type): array
+    {
+        // Rapproche d'abord les paiements MTN en attente (onglet fermé, etc.).
+        if ($this->malapay->estConfigure()) {
+            FestyTicket::where('user_id', $user->id)->where('type', $type)
+                ->where('statut', 'en_attente')->where('moyen', 'mtn')
+                ->get()->each(fn (FestyTicket $t) => $this->tickets->reconcilier($t, $this->malapay));
+        }
+
+        $label = $type === 'fan' ? 'Fan' : 'Participant';
+
+        if (FestyTicket::where('user_id', $user->id)->where('type', $type)->where('statut', 'paye')->exists()) {
+            return ['ok' => false, 'message' => "Tu as déjà un ticket {$label} — retrouve-le sur cette page. Pas besoin d'en reprendre un."];
+        }
+
+        if (FestyTicket::where('user_id', $user->id)->where('type', $type)
+            ->where('statut', 'en_attente')->where('moyen', 'mtn')->exists()) {
+            return ['ok' => false, 'message' => 'Un paiement MTN est déjà en cours pour ce ticket. Patiente un instant ou réessaie.'];
+        }
+
+        // Réservations Orange non validées : on les supprime (le dossard se libère).
+        FestyTicket::where('user_id', $user->id)->where('type', $type)
+            ->where('statut', 'en_attente')->where('moyen', 'om_manuel')->delete();
+
+        return ['ok' => true];
+    }
+
     private function equipePourTicket(User $user, string $type, ?int $festyTeamId, ?string $zone = null): array
     {
         // Équipe visée : celle demandée, sinon celle déjà rejointe.
