@@ -64,30 +64,31 @@ class FestyTicketController extends Controller
         if ($user) {
             $equipe = $this->tickets->equipeUtilisateur($user);
             if ($equipe) {
-                $places = $this->tickets->placesParticipant($equipe->id);
                 $equipeActuelle = [
                     'id' => $equipe->id,
                     'nom' => $equipe->nom,
                     'couleur' => $equipe->couleur,
                     'whatsapp' => $equipe->whatsapp_group,
-                    'places_restantes' => $places['restantes'],
-                    'complet' => $places['complet'],
                 ];
             }
         }
 
         $equipes = FestyTeam::where('actif', true)->orderBy('position')->get()
-            ->map(function (FestyTeam $t) {
-                $places = $this->tickets->placesParticipant($t->id);
+            ->map(fn (FestyTeam $t) => [
+                'id' => $t->id,
+                'nom' => $t->nom,
+                'trait' => $t->trait,
+                'couleur' => $t->couleur,
+            ]);
 
-                return [
-                    'id' => $t->id,
-                    'nom' => $t->nom,
-                    'trait' => $t->trait,
-                    'couleur' => $t->couleur,
-                    'places_restantes' => $places['restantes'],
-                    'complet' => $places['complet'],
-                ];
+        // Occupation des places par (équipe, zone) : payées + en attente.
+        $occupation = [];
+        FestyTicket::selectRaw('festy_team_id, zone, COUNT(*) as n')
+            ->where('type', 'participant')->whereIn('statut', ['paye', 'en_attente'])
+            ->whereNotNull('festy_team_id')->whereNotNull('zone')
+            ->groupBy('festy_team_id', 'zone')->get()
+            ->each(function ($r) use (&$occupation) {
+                $occupation[$r->festy_team_id][$r->zone] = (int) $r->n;
             });
 
         $tickets = $user
@@ -121,6 +122,7 @@ class FestyTicketController extends Controller
             ],
             'promo_fin' => $settings->enPromo() ? $settings->promo_fin?->format('d/m/Y') : null,
             'places_limite' => (int) ($settings->places_participant_equipe ?? 20),
+            'occupation' => $occupation,
             'zones' => collect(FestyTicket::ZONES)->map(fn ($label, $code) => ['code' => $code, 'label' => $label])->values(),
             'dossard_max' => FestyTicket::DOSSARD_MAX,
             'dossards_pris' => $dossardsPris,
@@ -159,16 +161,16 @@ class FestyTicketController extends Controller
 
         $user = Auth::user();
 
-        // Participant : équipe requise et place disponible (20 par équipe).
-        $equipe = $this->equipePourTicket($user, $validated['type'], $validated['festy_team_id'] ?? null);
-        if (! $equipe['ok']) {
-            return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
-        }
-
-        // Participant : zone + dossard requis et dossard libre dans la zone.
+        // Participant : zone + dossard requis (dossard libre dans la zone).
         $zd = $this->zoneDossard($validated['type'], $validated['zone'] ?? null, $validated['dossard'] ?? null);
         if (! $zd['ok']) {
             return response()->json(['ok' => false, 'message' => $zd['message']], 422);
+        }
+
+        // Participant : équipe requise + place dispo DANS CETTE ZONE (20/équipe/zone).
+        $equipe = $this->equipePourTicket($user, $validated['type'], $validated['festy_team_id'] ?? null, $zd['zone']);
+        if (! $equipe['ok']) {
+            return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
         }
 
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
@@ -254,14 +256,14 @@ class FestyTicketController extends Controller
 
         $user = Auth::user();
 
-        $equipe = $this->equipePourTicket($user, $validated['type'], $validated['festy_team_id'] ?? null);
-        if (! $equipe['ok']) {
-            return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
-        }
-
         $zd = $this->zoneDossard($validated['type'], $validated['zone'] ?? null, $validated['dossard'] ?? null);
         if (! $zd['ok']) {
             return response()->json(['ok' => false, 'message' => $zd['message']], 422);
+        }
+
+        $equipe = $this->equipePourTicket($user, $validated['type'], $validated['festy_team_id'] ?? null, $zd['zone']);
+        if (! $equipe['ok']) {
+            return response()->json(['ok' => false, 'message' => $equipe['message']], 422);
         }
 
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
@@ -436,7 +438,7 @@ class FestyTicketController extends Controller
      *
      * @return array{ok:bool, teamId?:int|null, message?:string}
      */
-    private function equipePourTicket(User $user, string $type, ?int $festyTeamId): array
+    private function equipePourTicket(User $user, string $type, ?int $festyTeamId, ?string $zone = null): array
     {
         // Équipe visée : celle demandée, sinon celle déjà rejointe.
         $teamId = $festyTeamId ?: $this->tickets->equipeUtilisateur($user)?->id;
@@ -449,10 +451,12 @@ class FestyTicketController extends Controller
             return ['ok' => false, 'message' => 'Choisis ton équipe pour un ticket participant.'];
         }
 
-        if ($this->tickets->placesParticipant($teamId)['complet']) {
+        // Places comptées PAR ZONE (Yaoundé complet ≠ Douala complet).
+        if ($this->tickets->placesParticipant($teamId, $zone)['complet']) {
             $nom = FestyTeam::find($teamId)?->nom;
+            $zl = $zone ? (FestyTicket::ZONES[$zone] ?? $zone) : '';
 
-            return ['ok' => false, 'message' => "L'équipe {$nom} est complète (places participants épuisées). Choisis une autre équipe."];
+            return ['ok' => false, 'message' => "L'équipe {$nom} est complète à {$zl}. Choisis une autre équipe ou une autre zone."];
         }
 
         return ['ok' => true, 'teamId' => $teamId];

@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { router, Head, usePage } from '@inertiajs/react';
 import AdminLayout from '@/components/layouts/AdminLayout';
-import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone, Gift, Search, UserCheck, Sparkles, Mail, Trash2 } from 'lucide-react';
+import { Ticket, CheckCircle2, Clock, Coins, Check, X, Smartphone, Gift, Search, UserCheck, Sparkles, Mail, Trash2, Pencil } from 'lucide-react';
 
 interface T {
     id: number; reference: string; code: string; type: string; type_libelle: string;
     montant: number; promo: boolean; moyen: string; statut: string;
     client: string | null; email: string | null; telephone: string | null;
-    equipe: string | null; couleur: string | null; zone: string | null; dossard: string | null;
+    equipe: string | null; couleur: string | null; festy_team_id: number | null;
+    zone: string | null; zone_code: string | null; dossard: string | null; dossard_num: number | null;
     date: string; paye_le: string | null;
 }
 interface Prix { type: string; montant: number; normal: number; promo: boolean }
-interface Equipe { id: number; nom: string; couleur: string; places_restantes: number; occupees: number; limite: number; complet: boolean }
+interface Equipe { id: number; nom: string; couleur: string }
+interface Zone { code: string; label: string }
 interface U {
     id: number; name: string; email: string; phone: string | null;
     // Équipe retenue par le participant lors de son inscription.
@@ -21,6 +23,10 @@ interface Props {
     tickets: T[];
     filtre: string | null;
     equipes: Equipe[];
+    zones: Zone[];
+    occupation: Record<number, Record<string, number>>;
+    places_limite: number;
+    dossard_max: number;
     prix: { participant: Prix; fan: Prix };
     stats: { total: number; payes: number; en_attente: number; recette: number; participants: number; fans: number };
 }
@@ -34,10 +40,11 @@ const STATUTS: Record<string, { label: string; cls: string }> = {
     annule: { label: 'Annulé', cls: 'bg-zinc-100 text-zinc-500' },
 };
 
-export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stats }: Props) {
+export default function AdminFestyTickets({ tickets, filtre, equipes, zones, occupation, places_limite, dossard_max, prix, stats }: Props) {
     const flashProps = (usePage().props as any).flash ?? {};
     const flash = flashProps.success as string | undefined;
     const flashErr = flashProps.error as string | undefined;
+    const [edit, setEdit] = useState<T | null>(null);
 
     const filtrer = (s: string | null) => router.get('/admin/festy/tickets', s ? { statut: s } : {}, { preserveScroll: true, preserveState: true });
 
@@ -72,21 +79,34 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
                 <Stat icon={Ticket} label="Part. / Fans" value={`${stats.participants} / ${stats.fans}`} color="#E8792B" />
             </div>
 
-            {/* Places participants par équipe */}
+            {/* Places participants par équipe ET par zone */}
             <div className="bg-white rounded-2xl border border-zinc-200 p-4 mb-5">
-                <p className="text-xs font-bold text-zinc-700 mb-3">Places participants par équipe</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <p className="text-xs font-bold text-zinc-700 mb-3">Places participants par équipe (par zone)</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {equipes.map((e) => (
                         <div key={e.id} className="rounded-xl border border-zinc-100 p-3">
-                            <div className="flex items-center gap-1.5 mb-1.5">
+                            <div className="flex items-center gap-1.5 mb-2">
                                 <span className="w-2.5 h-2.5 rounded-full" style={{ background: e.couleur }} />
                                 <span className="text-sm font-semibold text-zinc-800 truncate">{e.nom}</span>
                             </div>
-                            <p className="text-lg font-extrabold" style={{ color: e.complet ? '#dc2626' : '#14532d' }}>{e.places_restantes}<span className="text-xs font-medium text-zinc-400"> / {e.limite}</span></p>
-                            <div className="mt-1.5 h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (e.occupees / Math.max(1, e.limite)) * 100)}%`, background: e.complet ? '#dc2626' : e.couleur }} />
+                            <div className="space-y-1.5">
+                                {zones.map((z) => {
+                                    const occ = occupation?.[e.id]?.[z.code] ?? 0;
+                                    const rest = Math.max(0, places_limite - occ);
+                                    const complet = occ >= places_limite;
+                                    return (
+                                        <div key={z.code}>
+                                            <div className="flex items-center justify-between text-[11px]">
+                                                <span className="text-zinc-500">{z.label}</span>
+                                                <span className="font-semibold" style={{ color: complet ? '#dc2626' : '#14532d' }}>{rest} / {places_limite}</span>
+                                            </div>
+                                            <div className="mt-0.5 h-1.5 w-full rounded-full bg-zinc-100 overflow-hidden">
+                                                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (occ / Math.max(1, places_limite)) * 100)}%`, background: complet ? '#dc2626' : e.couleur }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                            <p className="text-[10px] text-zinc-400 mt-1">{e.complet ? 'Complet' : `${e.occupees} pris`}</p>
                         </div>
                     ))}
                 </div>
@@ -156,6 +176,9 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
                                     <td className="px-4 py-3 font-mono text-xs text-zinc-500">{t.code}</td>
                                     <td className="px-4 py-3 text-right whitespace-nowrap">
                                         <div className="inline-flex gap-1.5">
+                                            {t.type === 'participant' && (
+                                                <button onClick={() => setEdit(t)} title="Modifier zone / équipe / dossard" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-violet-50 hover:text-violet-700"><Pencil className="w-4 h-4" /></button>
+                                            )}
                                             {t.statut === 'en_attente' && (
                                                 <button onClick={() => valider(t)} title="Valider et envoyer" className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"><Check className="w-4 h-4" /></button>
                                             )}
@@ -175,7 +198,65 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, prix, stat
                     </table>
                 </div>
             </div>
+
+            {edit && (
+                <EditTicket ticket={edit} zones={zones} equipes={equipes} dossardMax={dossard_max} onClose={() => setEdit(null)} />
+            )}
         </AdminLayout>
+    );
+}
+
+function EditTicket({ ticket, zones, equipes, dossardMax, onClose }: { ticket: T; zones: Zone[]; equipes: Equipe[]; dossardMax: number; onClose: () => void }) {
+    const [zone, setZone] = useState<string>(ticket.zone_code ?? '');
+    const [teamId, setTeamId] = useState<number | ''>(ticket.festy_team_id ?? '');
+    const [dossard, setDossard] = useState<string>(ticket.dossard_num ? String(ticket.dossard_num) : '');
+    const [busy, setBusy] = useState(false);
+
+    const enregistrer = () => {
+        setBusy(true);
+        router.patch(`/admin/festy/tickets/${ticket.id}/modifier`, {
+            zone: zone || null,
+            festy_team_id: teamId || null,
+            dossard: dossard ? Number(dossard) : null,
+        }, { preserveScroll: true, onSuccess: onClose, onFinish: () => setBusy(false) });
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-bold text-zinc-900">Modifier le ticket {ticket.code}</h3>
+                    <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700"><X className="w-5 h-5" /></button>
+                </div>
+                <p className="text-xs text-zinc-500 mb-4">Zone, équipe et dossard de <b>{ticket.client ?? '—'}</b>.</p>
+
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Zone</label>
+                        <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={zone} onChange={(e) => setZone(e.target.value)}>
+                            <option value="">—</option>
+                            {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Équipe</label>
+                        <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={teamId} onChange={(e) => setTeamId(e.target.value ? Number(e.target.value) : '')}>
+                            <option value="">—</option>
+                            {equipes.map((e) => <option key={e.id} value={e.id}>{e.nom}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-medium text-zinc-500 mb-1">Dossard (1–{dossardMax})</label>
+                        <input type="number" min={1} max={dossardMax} className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm" value={dossard} onChange={(e) => setDossard(e.target.value)} placeholder="ex : 42" />
+                    </div>
+                </div>
+
+                <button onClick={enregistrer} disabled={busy}
+                    className="mt-5 w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold text-sm disabled:opacity-60">
+                    Enregistrer
+                </button>
+            </div>
+        </div>
     );
 }
 

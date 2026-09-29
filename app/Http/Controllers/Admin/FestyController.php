@@ -104,27 +104,36 @@ class FestyController extends Controller
             'telephone' => $t->telephone ?: $t->user?->phone,
             'equipe' => $t->team?->nom,
             'couleur' => $t->team?->couleur,
+            'festy_team_id' => $t->festy_team_id,
             'zone' => $t->zoneLibelle(),
+            'zone_code' => $t->zone,
             'dossard' => $t->dossardFormate(),
+            'dossard_num' => $t->dossard,
             'date' => $t->created_at->isoFormat('D MMM YYYY [à] HH:mm'),
             'paye_le' => $t->paid_at?->isoFormat('D MMM YYYY [à] HH:mm'),
         ]);
 
         $settings = FestySetting::actuel();
 
+        // Occupation par (équipe, zone).
+        $occupation = [];
+        FestyTicket::selectRaw('festy_team_id, zone, COUNT(*) as n')
+            ->where('type', 'participant')->whereIn('statut', ['paye', 'en_attente'])
+            ->whereNotNull('festy_team_id')->whereNotNull('zone')
+            ->groupBy('festy_team_id', 'zone')->get()
+            ->each(function ($r) use (&$occupation) {
+                $occupation[$r->festy_team_id][$r->zone] = (int) $r->n;
+            });
+
         return Inertia::render('admin/festy/tickets', [
             'tickets' => $tickets,
             'filtre' => $statut,
             'equipes' => FestyTeam::where('actif', true)->orderBy('position')->get(['id', 'nom', 'couleur'])
-                ->map(function (FestyTeam $t) use ($service) {
-                    $p = $service->placesParticipant($t->id);
-
-                    return [
-                        'id' => $t->id, 'nom' => $t->nom, 'couleur' => $t->couleur,
-                        'places_restantes' => $p['restantes'], 'occupees' => $p['occupees'],
-                        'limite' => $p['limite'], 'complet' => $p['complet'],
-                    ];
-                }),
+                ->map(fn (FestyTeam $t) => ['id' => $t->id, 'nom' => $t->nom, 'couleur' => $t->couleur]),
+            'zones' => collect(FestyTicket::ZONES)->map(fn ($label, $code) => ['code' => $code, 'label' => $label])->values(),
+            'occupation' => $occupation,
+            'places_limite' => (int) ($settings->places_participant_equipe ?? 20),
+            'dossard_max' => FestyTicket::DOSSARD_MAX,
             'prix' => [
                 'participant' => $settings->prixTicket('participant'),
                 'fan' => $settings->prixTicket('fan'),
@@ -173,6 +182,52 @@ class FestyController extends Controller
         $ticket->update(['statut' => 'annule', 'dossard' => null]);
 
         return back()->with('success', "Ticket {$ticket->code_ticket} annulé.");
+    }
+
+    /** Modifie la zone / l'équipe / le dossard d'un ticket (attribution admin). */
+    public function modifierTicket(Request $request, FestyTicket $ticket, FestyTickets $service): RedirectResponse
+    {
+        $data = $request->validate([
+            'zone' => ['nullable', 'string', 'in:'.implode(',', array_keys(FestyTicket::ZONES))],
+            'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
+            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.FestyTicket::DOSSARD_MAX],
+        ]);
+
+        $zone = $data['zone'] ?? $ticket->zone;
+        $teamId = $data['festy_team_id'] ?? $ticket->festy_team_id;
+        $dossard = array_key_exists('dossard', $data) ? $data['dossard'] : $ticket->dossard;
+
+        // Dossard libre dans la zone cible (hors ce ticket) ?
+        if ($dossard && $zone) {
+            $pris = FestyTicket::where('zone', $zone)->where('dossard', $dossard)
+                ->whereIn('statut', ['paye', 'en_attente'])->where('id', '!=', $ticket->id)->exists();
+            if ($pris) {
+                return back()->with('error', "Le dossard {$dossard} est déjà pris à ".(FestyTicket::ZONES[$zone] ?? $zone).'.');
+            }
+        }
+
+        // Équipe pas complète dans la zone cible (hors ce ticket) ?
+        if ($teamId && $zone && $ticket->type === 'participant') {
+            $occ = FestyTicket::where('type', 'participant')->where('festy_team_id', $teamId)->where('zone', $zone)
+                ->whereIn('statut', ['paye', 'en_attente'])->where('id', '!=', $ticket->id)->count();
+            $limite = (int) (FestySetting::actuel()->places_participant_equipe ?? 20);
+            if ($occ >= $limite) {
+                return back()->with('error', 'Cette équipe est complète à '.(FestyTicket::ZONES[$zone] ?? $zone).'.');
+            }
+        }
+
+        try {
+            $ticket->update(['zone' => $zone, 'festy_team_id' => $teamId, 'dossard' => $dossard]);
+        } catch (\Illuminate\Database\QueryException $e) {
+            return back()->with('error', 'Ce dossard est déjà utilisé dans cette zone.');
+        }
+
+        // Répercute le changement d'équipe sur l'inscription de l'utilisateur.
+        if ($teamId && ($team = FestyTeam::find($teamId)) && $ticket->user) {
+            $service->inscrireEquipe($ticket->user, $team);
+        }
+
+        return back()->with('success', "Ticket {$ticket->code_ticket} mis à jour.");
     }
 
     /** Supprime définitivement une ligne de ticket (quel que soit son statut). */

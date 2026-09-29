@@ -105,19 +105,25 @@ class FestyTickets
     }
 
     /**
-     * Places « participant » d'une équipe : limite, occupées (payées + réservées
-     * en attente) et restantes. Les tickets « fan » ne sont pas limités.
+     * Places « participant » d'une équipe, comptées PAR ZONE (chaque zone a sa
+     * propre équipe : Yaoundé complet ≠ Douala complet). Sans zone, on compte
+     * toutes zones confondues. Les tickets « fan » ne sont pas limités.
      *
      * @return array{limite:int, occupees:int, restantes:int, complet:bool}
      */
-    public function placesParticipant(int $teamId): array
+    public function placesParticipant(int $teamId, ?string $zone = null): array
     {
         $limite = (int) (FestySetting::actuel()->places_participant_equipe ?? 20);
 
-        $occupees = FestyTicket::where('type', 'participant')
+        $q = FestyTicket::where('type', 'participant')
             ->where('festy_team_id', $teamId)
-            ->whereIn('statut', ['paye', 'en_attente'])
-            ->count();
+            ->whereIn('statut', ['paye', 'en_attente']);
+
+        if ($zone !== null) {
+            $q->where('zone', $zone);
+        }
+
+        $occupees = $q->count();
 
         return [
             'limite' => $limite,
