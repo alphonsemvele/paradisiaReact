@@ -124,8 +124,14 @@ class HomeController extends Controller
         return Inertia::render('dashboard/home/index', [
             'publications' => $formattedPublications,
             'highlightedPublication' => $formattedHighlight,
-            // La boutique de l'accueil est un simple bloc-lien : plus besoin de
-            // charger des produits ici (ils sont sur la page /shop).
+            // La boutique de l'accueil est un simple bloc-lien avec la photo du
+            // dernier produit ; la liste complète est sur /shop.
+            'shopImage' => function () {
+                $p = Product::where('status', 'Success')->whereNotNull('img_1')
+                    ->orderByDesc('created_at')->first();
+
+                return $p ? $this->mediaUrl($p->img_1) : null;
+            },
             'pointsDeVente' => fn () => $this->getPointsDeVente(),
             // Prochain événement publié, pour la carte d'accueil
             'prochainEvent' => fn () => $this->prochainEvent(),

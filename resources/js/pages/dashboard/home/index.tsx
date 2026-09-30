@@ -31,6 +31,7 @@ interface ProchainEvent {
 interface DashboardProps extends PageProps {
     publications: Publication[];
     highlightedPublication: Publication | null;
+    shopImage: string | null;
     pointsDeVente: PointDeVenteType[];
     prochainEvent: ProchainEvent | null;
     cart: Cart;
@@ -40,6 +41,7 @@ export default function DashboardIndex() {
     const {
         publications,
         highlightedPublication,
+        shopImage,
         pointsDeVente,
         prochainEvent,
         cart,
@@ -155,7 +157,7 @@ export default function DashboardIndex() {
                         {/* Boutique : carte légère (image de jus) qui renvoie à /shop */}
                         <a href="/shop" className="group block rounded-2xl overflow-hidden shadow-sm relative">
                             <img
-                                src="https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=1200&q=70"
+                                src={shopImage ?? 'https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=1200&q=70'}
                                 alt="Jus naturels Paradisia"
                                 loading="lazy"
                                 className="w-full h-44 object-cover"
