@@ -134,7 +134,7 @@ export default function DashboardIndex() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.4 }}
-                        className="col-span-12 lg:col-span-3 space-y-4"
+                        className="hidden lg:block lg:col-span-3 space-y-4"
                     >
                         <ProfileCard user={auth.user} />
                         <QuickActions
@@ -206,7 +206,7 @@ export default function DashboardIndex() {
                         initial={{ opacity: 0, x: 20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ duration: 0.4, delay: 0.2 }}
-                        className="col-span-12 lg:col-span-3 space-y-4"
+                        className="hidden lg:block lg:col-span-3 space-y-4"
                     >
                         <ServicesSection />
                         <PromoCard />
