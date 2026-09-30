@@ -121,12 +121,25 @@ class HomeController extends Controller
 
         // Closures : évaluées uniquement quand la prop est demandée
         // (les rechargements partiels Inertia sautent le travail inutile).
-        // Accueil épuré (fil d'actualité) : seules les publications sont
-        // affichées. Boutique, formations, événements et points de vente ont
-        // leurs propres pages / entrées de menu.
         return Inertia::render('dashboard/home/index', [
             'publications' => $formattedPublications,
             'highlightedPublication' => $formattedHighlight,
+            'featuredProducts' => fn () => Product::with(['user', 'categories'])
+                ->where('status', 'Success')
+                ->orderBy('created_at', 'desc')
+                ->limit(3)
+                ->get()
+                ->map(fn ($p) => $this->formatProduct($p)),
+            'otherProducts' => fn () => Product::with(['user', 'categories'])
+                ->where('status', 'Success')
+                ->orderBy('created_at', 'desc')
+                ->skip(3)
+                ->take(4)
+                ->get()
+                ->map(fn ($p) => $this->formatProduct($p)),
+            'pointsDeVente' => fn () => $this->getPointsDeVente(),
+            // Prochain événement publié, pour la carte d'accueil
+            'prochainEvent' => fn () => $this->prochainEvent(),
             'cart' => session()->get('cart', []),
         ])->withViewData([
             // Aperçu de partage : la publication mise en avant si le lien en
