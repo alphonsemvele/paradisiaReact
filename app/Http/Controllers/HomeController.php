@@ -124,19 +124,8 @@ class HomeController extends Controller
         return Inertia::render('dashboard/home/index', [
             'publications' => $formattedPublications,
             'highlightedPublication' => $formattedHighlight,
-            'featuredProducts' => fn () => Product::with(['user', 'categories'])
-                ->where('status', 'Success')
-                ->orderBy('created_at', 'desc')
-                ->limit(3)
-                ->get()
-                ->map(fn ($p) => $this->formatProduct($p)),
-            'otherProducts' => fn () => Product::with(['user', 'categories'])
-                ->where('status', 'Success')
-                ->orderBy('created_at', 'desc')
-                ->skip(3)
-                ->take(4)
-                ->get()
-                ->map(fn ($p) => $this->formatProduct($p)),
+            // La boutique de l'accueil est un simple bloc-lien : plus besoin de
+            // charger des produits ici (ils sont sur la page /shop).
             'pointsDeVente' => fn () => $this->getPointsDeVente(),
             // Prochain événement publié, pour la carte d'accueil
             'prochainEvent' => fn () => $this->prochainEvent(),

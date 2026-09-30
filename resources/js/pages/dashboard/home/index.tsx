@@ -6,7 +6,6 @@ import ProfileCard from '@/components/dashboard/ProfileCard';
 import QuickActions from '@/components/dashboard/QuickActions';
 import PointsDeVente from '@/components/dashboard/PointsDeVente';
 import CreatePostBox from '@/components/dashboard/CreatePostBox';
-import ShopSection from '@/components/dashboard/ShopSection';
 import PublicationCard from '@/components/dashboard/PublicationCard';
 import ServicesSection from '@/components/dashboard/ServicesSection';
 import PromoCard from '@/components/dashboard/PromoCard';
@@ -15,7 +14,7 @@ import CreatePostModal from '@/components/dashboard/CreatePostModal';
 import PublicationModal from '@/components/dashboard/PublicationModal';
 import CartButton from '@/components/dashboard/CartButton';
 import CartDrawer from '@/components/dashboard/CartDrawer';
-import type { Publication, Product, PointDeVente as PointDeVenteType, Cart, PageProps } from '@/types';
+import type { Publication, PointDeVente as PointDeVenteType, Cart, PageProps } from '@/types';
 
 interface ProchainEvent {
     id: number;
@@ -32,8 +31,6 @@ interface ProchainEvent {
 interface DashboardProps extends PageProps {
     publications: Publication[];
     highlightedPublication: Publication | null;
-    featuredProducts: Product[];
-    otherProducts: Product[];
     pointsDeVente: PointDeVenteType[];
     prochainEvent: ProchainEvent | null;
     cart: Cart;
@@ -43,8 +40,6 @@ export default function DashboardIndex() {
     const {
         publications,
         highlightedPublication,
-        featuredProducts,
-        otherProducts,
         pointsDeVente,
         prochainEvent,
         cart,
@@ -157,11 +152,17 @@ export default function DashboardIndex() {
 
                         {prochainEvent && <EventCard event={prochainEvent} />}
 
-                        <ShopSection
-                            featured={featuredProducts}
-                            others={otherProducts}
-                            onAdded={() => setShowCart(true)}
-                        />
+                        {/* Boutique : bloc léger qui renvoie à la boutique complète */}
+                        <a href="/shop" className="block rounded-2xl p-5 text-white shadow-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition-colors">
+                            <div className="flex items-center gap-3">
+                                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">🛒</div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold leading-tight">Boutique Paradisia</p>
+                                    <p className="text-sm text-white/80 truncate">Nos jus naturels d'ananas & plus</p>
+                                </div>
+                                <span className="text-sm font-semibold bg-white/20 px-3 py-1.5 rounded-lg whitespace-nowrap">Voir tout →</span>
+                            </div>
+                        </a>
 
                         {posts.length > 0 ? (
                             <>
