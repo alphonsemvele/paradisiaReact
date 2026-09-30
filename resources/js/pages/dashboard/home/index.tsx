@@ -2,7 +2,6 @@ import { Head, usePage } from '@inertiajs/react';
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import AppLayout from '@/components/layouts/AppLayout';
-import HeroSection from '@/components/dashboard/HeroSection';
 import ProfileCard from '@/components/dashboard/ProfileCard';
 import QuickActions from '@/components/dashboard/QuickActions';
 import PointsDeVente from '@/components/dashboard/PointsDeVente';
@@ -130,9 +129,7 @@ export default function DashboardIndex() {
             <Head title="Accueil" />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <HeroSection />
-
-                <div className="grid grid-cols-12 gap-6 mt-8">
+                <div className="grid grid-cols-12 gap-6">
                     <motion.aside
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
