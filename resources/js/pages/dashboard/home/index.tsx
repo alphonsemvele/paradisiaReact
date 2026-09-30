@@ -152,15 +152,19 @@ export default function DashboardIndex() {
 
                         {prochainEvent && <EventCard event={prochainEvent} />}
 
-                        {/* Boutique : bloc léger qui renvoie à la boutique complète */}
-                        <a href="/shop" className="block rounded-2xl p-5 text-white shadow-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 transition-colors">
-                            <div className="flex items-center gap-3">
-                                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">🛒</div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-bold leading-tight">Boutique Paradisia</p>
-                                    <p className="text-sm text-white/80 truncate">Nos jus naturels d'ananas & plus</p>
-                                </div>
-                                <span className="text-sm font-semibold bg-white/20 px-3 py-1.5 rounded-lg whitespace-nowrap">Voir tout →</span>
+                        {/* Boutique : carte légère (image de jus) qui renvoie à /shop */}
+                        <a href="/shop" className="group block rounded-2xl overflow-hidden shadow-sm relative">
+                            <img
+                                src="https://images.unsplash.com/photo-1619566636858-adf3ef46400b?auto=format&fit=crop&w=1200&q=70"
+                                alt="Jus naturels Paradisia"
+                                loading="lazy"
+                                className="w-full h-44 object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/85 via-emerald-900/40 to-transparent" />
+                            <div className="absolute inset-0 p-5 flex flex-col justify-end text-white">
+                                <span className="w-fit mb-2 inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide bg-white/20 rounded-full px-2.5 py-1">🛒 Boutique</span>
+                                <p className="text-xl font-extrabold leading-tight">Commandez vos jus 100% naturels</p>
+                                <span className="w-fit mt-3 inline-flex items-center gap-1.5 text-sm font-semibold bg-white text-emerald-800 px-4 py-2 rounded-lg group-hover:bg-emerald-50 transition-colors">Commander →</span>
                             </div>
                         </a>
 
