@@ -19,6 +19,11 @@ abstract class Controller
             return null;
         }
 
+        // URL absolue déjà complète (image/vidéo externe) : on la renvoie telle quelle.
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
         if (file_exists(public_path($path))) {
             return asset($path);
         }
