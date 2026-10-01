@@ -33,11 +33,13 @@ class HomeController extends Controller
         // /p/{id} (lien de partage) ou /?highlight={id} (ancien format)
         $highlightId = $publication ?? $request->query('highlight');
 
-        // Graine de mélange stable pendant la session : l'ordre aléatoire ne
-        // « saute » pas quand un like ou un commentaire recharge le fil, mais
-        // change d'une visite à l'autre.
+        // Graine de mélange de l'ordre aléatoire. Un vrai rafraîchissement de
+        // page (chargement complet du document, sans en-tête X-Inertia) remélange
+        // le fil ; les rechargements internes (like, commentaire, navigation SPA)
+        // gardent la même graine pour que l'ordre ne « saute » pas, et « charger
+        // plus » enchaîne sans doublon.
         $seed = $request->session()->get('feed_seed');
-        if (! $seed) {
+        if (! $seed || ! $request->header('X-Inertia')) {
             $seed = random_int(1, 999999);
             $request->session()->put('feed_seed', $seed);
         }
