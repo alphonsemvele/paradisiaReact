@@ -45,7 +45,7 @@ export default function PublicationMedia({ publication }: Props) {
                             <img loading="lazy" decoding="async"
                                 src={images[0]}
                                 alt="Publication"
-                                className="w-full object-cover max-h-[500px] hover:opacity-95 transition-opacity"
+                                className="w-full object-cover max-h-[62vh] sm:max-h-[520px] bg-zinc-100 hover:opacity-95 transition-opacity"
                             />
                         </div>
                     )}
