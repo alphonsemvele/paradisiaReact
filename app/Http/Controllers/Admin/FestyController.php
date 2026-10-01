@@ -125,6 +125,16 @@ class FestyController extends Controller
                 $occupation[$r->festy_team_id][$r->zone] = (int) $r->n;
             });
 
+        // Dossards déjà pris (payés + en attente) par zone, triés.
+        $dossardsPris = [];
+        foreach (array_keys(FestyTicket::ZONES) as $z) {
+            $dossardsPris[$z] = FestyTicket::where('zone', $z)
+                ->whereIn('statut', ['paye', 'en_attente'])
+                ->whereNotNull('dossard')
+                ->orderBy('dossard')
+                ->pluck('dossard')->map(fn ($d) => (int) $d)->all();
+        }
+
         return Inertia::render('admin/festy/tickets', [
             'tickets' => $tickets,
             'filtre' => $statut,
@@ -132,6 +142,7 @@ class FestyController extends Controller
                 ->map(fn (FestyTeam $t) => ['id' => $t->id, 'nom' => $t->nom, 'couleur' => $t->couleur]),
             'zones' => collect(FestyTicket::ZONES)->map(fn ($label, $code) => ['code' => $code, 'label' => $label])->values(),
             'occupation' => $occupation,
+            'dossards_pris' => $dossardsPris,
             'places_limite' => (int) ($settings->places_participant_equipe ?? 20),
             'dossard_max' => FestyTicket::DOSSARD_MAX,
             'prix' => [
