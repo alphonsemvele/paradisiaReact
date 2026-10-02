@@ -51,7 +51,7 @@ Route::get('/pwa-icon.png', function () {
 
 Route::get('/sw.js', function () {
     $js = <<<'JS'
-const CACHE = 'paradisia-chat-v2';
+const CACHE = 'paradisia-chat-v3';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
