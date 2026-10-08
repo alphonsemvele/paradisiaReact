@@ -42,7 +42,18 @@ class FestyTicket extends Model
     /** Zones de participation et nombre de dossards par zone. */
     public const ZONES = ['yaounde' => 'Yaoundé', 'douala' => 'Douala'];
 
-    public const DOSSARD_MAX = 160;
+    /**
+     * Nombre de dossards par zone, propre à chaque formule : participants
+     * 001..160, fans 001..300. Les deux séries sont indépendantes (le dossard
+     * 042 participant et le 042 fan sont deux personnes différentes).
+     */
+    public const DOSSARD_MAX = ['participant' => 160, 'fan' => 300];
+
+    /** Dossard maximum pour une formule donnée. */
+    public static function dossardMax(string $type): int
+    {
+        return self::DOSSARD_MAX[$type] ?? self::DOSSARD_MAX['participant'];
+    }
 
     public function typeLibelle(): string
     {

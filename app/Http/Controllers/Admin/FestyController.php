@@ -125,14 +125,16 @@ class FestyController extends Controller
                 $occupation[$r->festy_team_id][$r->zone] = (int) $r->n;
             });
 
-        // Dossards déjà pris (payés + en attente) par zone, triés.
+        // Dossards déjà pris (payés + en attente) par FORMULE puis par zone, triés.
         $dossardsPris = [];
-        foreach (array_keys(FestyTicket::ZONES) as $z) {
-            $dossardsPris[$z] = FestyTicket::where('zone', $z)
-                ->whereIn('statut', ['paye', 'en_attente'])
-                ->whereNotNull('dossard')
-                ->orderBy('dossard')
-                ->pluck('dossard')->map(fn ($d) => (int) $d)->all();
+        foreach (['participant', 'fan'] as $t) {
+            foreach (array_keys(FestyTicket::ZONES) as $z) {
+                $dossardsPris[$t][$z] = FestyTicket::where('type', $t)->where('zone', $z)
+                    ->whereIn('statut', ['paye', 'en_attente'])
+                    ->whereNotNull('dossard')
+                    ->orderBy('dossard')
+                    ->pluck('dossard')->map(fn ($d) => (int) $d)->all();
+            }
         }
 
         return Inertia::render('admin/festy/tickets', [
@@ -201,16 +203,16 @@ class FestyController extends Controller
         $data = $request->validate([
             'zone' => ['nullable', 'string', 'in:'.implode(',', array_keys(FestyTicket::ZONES))],
             'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
-            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.FestyTicket::DOSSARD_MAX],
+            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.FestyTicket::dossardMax($ticket->type)],
         ]);
 
         $zone = $data['zone'] ?? $ticket->zone;
         $teamId = $data['festy_team_id'] ?? $ticket->festy_team_id;
         $dossard = array_key_exists('dossard', $data) ? $data['dossard'] : $ticket->dossard;
 
-        // Dossard libre dans la zone cible (hors ce ticket) ?
+        // Dossard libre dans la zone cible pour cette FORMULE (hors ce ticket) ?
         if ($dossard && $zone) {
-            $pris = FestyTicket::where('zone', $zone)->where('dossard', $dossard)
+            $pris = FestyTicket::where('type', $ticket->type)->where('zone', $zone)->where('dossard', $dossard)
                 ->whereIn('statut', ['paye', 'en_attente'])->where('id', '!=', $ticket->id)->exists();
             if ($pris) {
                 return back()->with('error', "Le dossard {$dossard} est déjà pris à ".(FestyTicket::ZONES[$zone] ?? $zone).'.');
@@ -304,19 +306,23 @@ class FestyController extends Controller
             'festy_team_id' => ['nullable', 'integer', 'exists:festy_teams,id'],
             'montant' => ['nullable', 'integer', 'min:0', 'max:10000000'],
             'zone' => ['nullable', 'string', 'in:'.implode(',', array_keys(FestyTicket::ZONES))],
-            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.FestyTicket::DOSSARD_MAX],
+            'dossard' => ['nullable', 'integer', 'min:1', 'max:'.max(FestyTicket::DOSSARD_MAX)],
         ]);
 
         $prix = FestySetting::actuel()->prixTicket($validated['type']);
         $user = User::findOrFail($validated['user_id']);
 
-        // Zone + dossard uniquement pour les participants.
-        $zone = $prix['type'] === 'participant' ? ($validated['zone'] ?? null) : null;
-        $dossard = $prix['type'] === 'participant' ? ($validated['dossard'] ?? null) : null;
+        // Zone + dossard pour les deux formules (participants 1..160, fans 1..300).
+        $zone = $validated['zone'] ?? null;
+        $dossard = $validated['dossard'] ?? null;
 
-        // Dossard libre dans la zone ?
+        if ($dossard && $dossard > FestyTicket::dossardMax($prix['type'])) {
+            return back()->with('error', 'Dossard hors plage pour cette formule (max '.FestyTicket::dossardMax($prix['type']).').');
+        }
+
+        // Dossard libre dans la zone pour cette FORMULE ?
         if ($dossard && $zone) {
-            $pris = FestyTicket::where('zone', $zone)->where('dossard', $dossard)
+            $pris = FestyTicket::where('type', $prix['type'])->where('zone', $zone)->where('dossard', $dossard)
                 ->whereIn('statut', ['paye', 'en_attente'])->exists();
             if ($pris) {
                 return back()->with('error', "Le dossard {$dossard} est déjà pris à ".(FestyTicket::ZONES[$zone] ?? $zone).'.');

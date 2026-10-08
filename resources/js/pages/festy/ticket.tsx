@@ -23,8 +23,8 @@ interface Props {
     places_limite: number;
     occupation: Record<number, Record<string, number>>;
     zones: Zone[];
-    dossard_max: number;
-    dossards_pris: Record<string, number[]>;
+    dossard_max: Record<string, number>;
+    dossards_pris: Record<string, Record<string, number[]>>;
     moi: { nom: string; telephone: string | null; email: string } | null;
     equipe: { id: number; nom: string; couleur: string; whatsapp: string | null } | null;
     equipes: Equipe[];
@@ -87,11 +87,17 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, occ
     const teamParticipant: number | null = type === 'participant' ? (equipe?.id ?? (teamChoisie || null)) : null;
     const equipeComplet = type === 'participant' && !!teamParticipant && teamComplet(teamParticipant);
 
-    // Dossards disponibles dans la zone = tous sauf ceux pris.
+    // Dossards disponibles dans la zone = tous sauf ceux pris, pour CETTE formule
+    // (participants 1..160, fans 1..300, deux séries indépendantes).
+    const dmax = dossard_max[type] ?? 0;
     const dossardsDispo = zone
-        ? Array.from({ length: dossard_max }, (_, i) => i + 1).filter((n) => !(dossards_pris?.[zone] ?? []).includes(n))
+        ? Array.from({ length: dmax }, (_, i) => i + 1).filter((n) => !(dossards_pris?.[type]?.[zone] ?? []).includes(n))
         : [];
-    const participantPret = type !== 'participant' || (!!zone && !!teamParticipant && !equipeComplet && !!dossard);
+    // Prêt à payer : zone + dossard pour tous ; équipe (non complète) en plus pour les participants.
+    const pret = !!zone && !!dossard && (type !== 'participant' || (!!teamParticipant && !equipeComplet));
+
+    // Changer de formule remet le dossard à zéro (les séries diffèrent).
+    const changerType = (t: 'participant' | 'fan') => { setType(t); setDossard(''); };
 
     // Reprise du paiement MTN après retour de redirection (?ref=...).
     useEffect(() => {
@@ -117,7 +123,7 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, occ
 
     const payerMtn = async () => {
         setErreur(null);
-        if (type === 'participant' && !participantPret) { setErreur('Choisis ton équipe, ta zone et ton dossard.'); return; }
+        if (!pret) { setErreur(type === 'participant' ? 'Choisis ton équipe, ta zone et ton dossard.' : 'Choisis ta zone et ton dossard.'); return; }
         if (!tel.trim() || tel.replace(/\D/g, '').length < 8) { setErreur('Entre un numéro MTN valide.'); return; }
         setBusy(true); setTraitement(true);
         const { ok, data } = await postJSON('/festy/ticket/mobile', { type, telephone: tel, festy_team_id: teamParticipant, zone: zone || null, dossard: dossard || null });
@@ -132,7 +138,7 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, occ
 
     const commanderOm = async () => {
         setErreur(null);
-        if (type === 'participant' && !participantPret) { setErreur('Choisis ton équipe, ta zone et ton dossard.'); return; }
+        if (!pret) { setErreur(type === 'participant' ? 'Choisis ton équipe, ta zone et ton dossard.' : 'Choisis ta zone et ton dossard.'); return; }
         setBusy(true); setTraitement(true);
         const { ok, data } = await postJSON('/festy/ticket/manuel', { type, festy_team_id: teamParticipant, zone: zone || null, dossard: dossard || null });
         setBusy(false); setTraitement(false);
@@ -246,70 +252,68 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, occ
 
                                 {/* Type */}
                                 <div className="grid grid-cols-2 gap-3 mb-4">
-                                    <TypeCard actif={type === 'participant'} onClick={() => setType('participant')}
+                                    <TypeCard actif={type === 'participant'} onClick={() => changerType('participant')}
                                         titre="Participant" sous="Je joue le challenge" prix={prix.participant} />
-                                    <TypeCard actif={type === 'fan'} onClick={() => setType('fan')}
+                                    <TypeCard actif={type === 'fan'} onClick={() => changerType('fan')}
                                         titre="Fan" sous="Je soutiens mon équipe" prix={prix.fan} />
                                 </div>
 
-                                {/* Participant : zone → équipe (places par zone) → dossard */}
-                                {type === 'participant' && (
-                                    <div className="mb-4 space-y-3">
-                                        {/* 1. Zone */}
-                                        <div>
-                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Zone de participation</label>
-                                            <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={zone}
-                                                onChange={(e) => { setZone(e.target.value); setDossard(''); if (!equipe) setTeamChoisie(''); }}>
-                                                <option value="">Choisis ta zone…</option>
-                                                {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
-                                            </select>
-                                        </div>
+                                {/* Zone + dossard (participant ET fan) ; l'équipe en plus pour les participants */}
+                                <div className="mb-4 space-y-3">
+                                    {/* 1. Zone */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Zone de participation</label>
+                                        <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={zone}
+                                            onChange={(e) => { setZone(e.target.value); setDossard(''); if (!equipe) setTeamChoisie(''); }}>
+                                            <option value="">Choisis ta zone…</option>
+                                            {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
+                                        </select>
+                                    </div>
 
-                                        {/* 2. Équipe — places comptées dans la zone choisie */}
-                                        {equipe ? (
-                                            <div className={`rounded-xl border p-3 ${zone && teamComplet(equipe.id) ? 'border-red-200 bg-red-50' : 'border-emerald-100 bg-emerald-50'}`}>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center" style={{ background: equipe.couleur }}>{equipe.nom[0]}</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold text-zinc-900">Équipe {equipe.nom}</p>
-                                                        <p className={`text-xs ${zone && teamComplet(equipe.id) ? 'text-red-600 font-semibold' : 'text-emerald-700'}`}>
-                                                            {!zone ? 'Choisis ta zone pour voir les places' : teamComplet(equipe.id) ? `Complète à ${zoneLabel}` : `${teamRestantes(equipe.id)} / ${places_limite} places à ${zoneLabel}`}
-                                                        </p>
-                                                    </div>
+                                    {/* 2. Équipe — participants uniquement, places comptées dans la zone choisie */}
+                                    {type === 'participant' && (equipe ? (
+                                        <div className={`rounded-xl border p-3 ${zone && teamComplet(equipe.id) ? 'border-red-200 bg-red-50' : 'border-emerald-100 bg-emerald-50'}`}>
+                                            <div className="flex items-center gap-2">
+                                                <span className="w-7 h-7 rounded-full text-white text-xs font-bold flex items-center justify-center" style={{ background: equipe.couleur }}>{equipe.nom[0]}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-semibold text-zinc-900">Équipe {equipe.nom}</p>
+                                                    <p className={`text-xs ${zone && teamComplet(equipe.id) ? 'text-red-600 font-semibold' : 'text-emerald-700'}`}>
+                                                        {!zone ? 'Choisis ta zone pour voir les places' : teamComplet(equipe.id) ? `Complète à ${zoneLabel}` : `${teamRestantes(equipe.id)} / ${places_limite} places à ${zoneLabel}`}
+                                                    </p>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <div>
-                                                <label className="block text-xs font-medium text-zinc-500 mb-1">Ton équipe <span className="text-zinc-400">(20 max / équipe / zone)</span></label>
-                                                <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white disabled:bg-zinc-100" value={teamChoisie} disabled={!zone}
-                                                    onChange={(e) => setTeamChoisie(e.target.value ? Number(e.target.value) : '')}>
-                                                    <option value="">{zone ? 'Choisis ton équipe…' : 'Choisis ta zone d’abord'}</option>
-                                                    {equipes.map((e) => (
-                                                        <option key={e.id} value={e.id} disabled={teamComplet(e.id)}>
-                                                            {e.nom}{zone ? ` — ${teamComplet(e.id) ? 'complet' : `${teamRestantes(e.id)} places`}` : ''}
-                                                        </option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
-
-                                        {/* 3. Dossard */}
-                                        <div>
-                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Numéro de dossard</label>
-                                            <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white disabled:bg-zinc-100 disabled:text-zinc-400" value={dossard} disabled={!zone}
-                                                onChange={(e) => setDossard(e.target.value ? Number(e.target.value) : '')}>
-                                                <option value="">{zone ? 'N°…' : 'Choisis ta zone d’abord'}</option>
-                                                {dossardsDispo.map((n) => <option key={n} value={n}>N° {String(n).padStart(3, '0')}</option>)}
-                                            </select>
-                                            {zone && dossardsDispo.length === 0 && (
-                                                <p className="text-xs text-red-600 mt-1">Zone complète : tous les dossards sont pris. Choisis une autre zone.</p>
-                                            )}
-                                            {zone && dossardsDispo.length > 0 && (
-                                                <p className="text-[11px] text-zinc-400 mt-1">{dossardsDispo.length} dossard{dossardsDispo.length > 1 ? 's' : ''} dispo sur {dossard_max} à {zoneLabel}.</p>
-                                            )}
                                         </div>
+                                    ) : (
+                                        <div>
+                                            <label className="block text-xs font-medium text-zinc-500 mb-1">Ton équipe <span className="text-zinc-400">(20 max / équipe / zone)</span></label>
+                                            <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white disabled:bg-zinc-100" value={teamChoisie} disabled={!zone}
+                                                onChange={(e) => setTeamChoisie(e.target.value ? Number(e.target.value) : '')}>
+                                                <option value="">{zone ? 'Choisis ton équipe…' : 'Choisis ta zone d’abord'}</option>
+                                                {equipes.map((e) => (
+                                                    <option key={e.id} value={e.id} disabled={teamComplet(e.id)}>
+                                                        {e.nom}{zone ? ` — ${teamComplet(e.id) ? 'complet' : `${teamRestantes(e.id)} places`}` : ''}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    ))}
+
+                                    {/* 3. Dossard — participant 001..160, fan 001..300 */}
+                                    <div>
+                                        <label className="block text-xs font-medium text-zinc-500 mb-1">Numéro de dossard {type === 'fan' && <span className="text-zinc-400">(fan)</span>}</label>
+                                        <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white disabled:bg-zinc-100 disabled:text-zinc-400" value={dossard} disabled={!zone}
+                                            onChange={(e) => setDossard(e.target.value ? Number(e.target.value) : '')}>
+                                            <option value="">{zone ? 'N°…' : 'Choisis ta zone d’abord'}</option>
+                                            {dossardsDispo.map((n) => <option key={n} value={n}>N° {String(n).padStart(3, '0')}</option>)}
+                                        </select>
+                                        {zone && dossardsDispo.length === 0 && (
+                                            <p className="text-xs text-red-600 mt-1">Zone complète : tous les dossards sont pris. Choisis une autre zone.</p>
+                                        )}
+                                        {zone && dossardsDispo.length > 0 && (
+                                            <p className="text-[11px] text-zinc-400 mt-1">{dossardsDispo.length} dossard{dossardsDispo.length > 1 ? 's' : ''} dispo sur {dmax} à {zoneLabel}.</p>
+                                        )}
                                     </div>
-                                )}
+                                </div>
 
                                 {/* Moyen de paiement */}
                                 <p className="text-xs font-medium text-zinc-500 mb-2">Moyen de paiement</p>
@@ -333,7 +337,7 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, occ
                                             <input value={tel} onChange={(e) => setTel(e.target.value)} inputMode="tel" placeholder="6XX XX XX XX"
                                                 className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" />
                                         </div>
-                                        <button onClick={payerMtn} disabled={busy || !participantPret}
+                                        <button onClick={payerMtn} disabled={busy || !pret}
                                             className="mt-4 w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60">
                                             {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Payer {fcfa(p.montant)} <ChevronRight className="w-4 h-4" /></>}
                                         </button>
@@ -342,7 +346,7 @@ export default function FestyTicket({ festy, prix, promo_fin, places_limite, occ
 
                                 {/* Orange : réserver puis instructions */}
                                 {moyen === 'om' && (
-                                    <button onClick={commanderOm} disabled={busy || !participantPret}
+                                    <button onClick={commanderOm} disabled={busy || !pret}
                                         className="mt-4 w-full py-3 rounded-xl text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60" style={{ background: '#ff7900' }}>
                                         {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Payer {fcfa(p.montant)} par Orange Money <ChevronRight className="w-4 h-4" /></>}
                                     </button>

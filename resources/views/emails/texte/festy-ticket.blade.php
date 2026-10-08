@@ -8,6 +8,12 @@ Votre paiement est confirmé. Voici votre ticket officiel :
 @if($ticket->team)
 - Équipe : {{ $ticket->team->nom }}
 @endif
+@if($ticket->zoneLibelle())
+- Zone : {{ $ticket->zoneLibelle() }}
+@endif
+@if($ticket->dossardFormate())
+- Dossard : N° {{ $ticket->dossardFormate() }}
+@endif
 - Montant payé : {{ number_format((float) $ticket->montant, 0, ',', ' ') }} FCFA
 - Date : {{ $ticket->paid_at?->format('d/m/Y à H:i') ?? $ticket->created_at?->format('d/m/Y à H:i') }}
 

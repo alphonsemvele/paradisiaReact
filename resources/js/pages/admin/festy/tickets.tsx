@@ -25,9 +25,9 @@ interface Props {
     equipes: Equipe[];
     zones: Zone[];
     occupation: Record<number, Record<string, number>>;
-    dossards_pris: Record<string, number[]>;
+    dossards_pris: Record<string, Record<string, number[]>>;
     places_limite: number;
-    dossard_max: number;
+    dossard_max: Record<string, number>;
     prix: { participant: Prix; fan: Prix };
     stats: { total: number; payes: number; en_attente: number; recette: number; participants: number; fans: number };
 }
@@ -113,34 +113,40 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, zones, occ
                 </div>
             </div>
 
-            {/* Dossards déjà pris par zone */}
-            <div className="bg-white rounded-2xl border border-zinc-200 p-4 mb-5">
-                <p className="text-xs font-bold text-zinc-700 mb-3">Dossards déjà pris (par zone)</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {zones.map((z) => {
-                        const pris = dossards_pris?.[z.code] ?? [];
-                        return (
-                            <div key={z.code} className="rounded-xl border border-zinc-100 p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-semibold text-zinc-800">{z.label}</span>
-                                    <span className="text-xs font-semibold text-zinc-500">{pris.length} / {dossard_max} pris</span>
-                                </div>
-                                {pris.length === 0 ? (
-                                    <p className="text-xs text-zinc-400">Aucun dossard pris pour l'instant.</p>
-                                ) : (
-                                    <div className="flex flex-wrap gap-1">
-                                        {pris.map((n) => (
-                                            <span key={n} className="text-[11px] font-mono font-semibold text-zinc-700 bg-zinc-100 rounded px-1.5 py-0.5">
-                                                {String(n).padStart(3, '0')}
-                                            </span>
-                                        ))}
+            {/* Dossards déjà pris, par formule puis par zone */}
+            {([
+                { type: 'participant', titre: 'Participants (001–' + String(dossard_max.participant ?? 160).padStart(3, '0') + ')' },
+                { type: 'fan', titre: 'Fans (001–' + String(dossard_max.fan ?? 300).padStart(3, '0') + ')' },
+            ] as const).map((grp) => (
+                <div key={grp.type} className="bg-white rounded-2xl border border-zinc-200 p-4 mb-5">
+                    <p className="text-xs font-bold text-zinc-700 mb-3">Dossards déjà pris — {grp.titre}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {zones.map((z) => {
+                            const pris = dossards_pris?.[grp.type]?.[z.code] ?? [];
+                            const max = dossard_max[grp.type] ?? 0;
+                            return (
+                                <div key={z.code} className="rounded-xl border border-zinc-100 p-3">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm font-semibold text-zinc-800">{z.label}</span>
+                                        <span className="text-xs font-semibold text-zinc-500">{pris.length} / {max} pris</span>
                                     </div>
-                                )}
-                            </div>
-                        );
-                    })}
+                                    {pris.length === 0 ? (
+                                        <p className="text-xs text-zinc-400">Aucun dossard pris pour l'instant.</p>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-1">
+                                            {pris.map((n) => (
+                                                <span key={n} className="text-[11px] font-mono font-semibold text-zinc-700 bg-zinc-100 rounded px-1.5 py-0.5">
+                                                    {String(n).padStart(3, '0')}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
+            ))}
 
             {/* Activer un ticket pour un utilisateur */}
             <ActiverTicket equipes={equipes} prix={prix} zones={zones} dossardMax={dossard_max} />
@@ -206,9 +212,7 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, zones, occ
                                     <td className="px-4 py-3 font-mono text-xs text-zinc-500">{t.code}</td>
                                     <td className="px-4 py-3 text-right whitespace-nowrap">
                                         <div className="inline-flex gap-1.5">
-                                            {t.type === 'participant' && (
-                                                <button onClick={() => setEdit(t)} title="Modifier zone / équipe / dossard" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-violet-50 hover:text-violet-700"><Pencil className="w-4 h-4" /></button>
-                                            )}
+                                            <button onClick={() => setEdit(t)} title="Modifier zone / équipe / dossard" className="p-1.5 rounded-lg bg-zinc-100 text-zinc-600 hover:bg-violet-50 hover:text-violet-700"><Pencil className="w-4 h-4" /></button>
                                             {t.statut === 'en_attente' && (
                                                 <button onClick={() => valider(t)} title="Valider et envoyer" className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"><Check className="w-4 h-4" /></button>
                                             )}
@@ -230,7 +234,7 @@ export default function AdminFestyTickets({ tickets, filtre, equipes, zones, occ
             </div>
 
             {edit && (
-                <EditTicket ticket={edit} zones={zones} equipes={equipes} dossardMax={dossard_max} onClose={() => setEdit(null)} />
+                <EditTicket ticket={edit} zones={zones} equipes={equipes} dossardMax={dossard_max[edit.type] ?? 300} onClose={() => setEdit(null)} />
             )}
         </AdminLayout>
     );
@@ -299,7 +303,7 @@ function Stat({ icon: Icon, label, value, color }: { icon: any; label: string; v
     );
 }
 
-function ActiverTicket({ equipes, prix, zones, dossardMax }: { equipes: Equipe[]; prix: { participant: Prix; fan: Prix }; zones: Zone[]; dossardMax: number }) {
+function ActiverTicket({ equipes, prix, zones, dossardMax }: { equipes: Equipe[]; prix: { participant: Prix; fan: Prix }; zones: Zone[]; dossardMax: Record<string, number> }) {
     const [ouvert, setOuvert] = useState(false);
     const [q, setQ] = useState('');
     const [resultats, setResultats] = useState<U[]>([]);
@@ -311,8 +315,9 @@ function ActiverTicket({ equipes, prix, zones, dossardMax }: { equipes: Equipe[]
     const [montant, setMontant] = useState<string>('');
     const [busy, setBusy] = useState(false);
 
-    // Prix par défaut quand on change de formule (montant reste modifiable).
-    useEffect(() => { setMontant(String(prix[type].montant)); }, [type, prix]);
+    // Prix par défaut quand on change de formule (montant reste modifiable) ;
+    // le dossard est réinitialisé car les séries participant / fan diffèrent.
+    useEffect(() => { setMontant(String(prix[type].montant)); setDossard(''); }, [type, prix]);
 
     useEffect(() => {
         if (user || !ouvert) return;
@@ -413,21 +418,19 @@ function ActiverTicket({ equipes, prix, zones, dossardMax }: { equipes: Equipe[]
                 </div>
             </div>
 
-            {type === 'participant' && (
-                <div className="grid grid-cols-2 gap-3 mt-3">
-                    <div>
-                        <label className="block text-xs font-medium text-zinc-500 mb-1">Zone</label>
-                        <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={zone} onChange={(e) => setZone(e.target.value)}>
-                            <option value="">— zone —</option>
-                            {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-medium text-zinc-500 mb-1">Dossard (1–{dossardMax})</label>
-                        <input type="number" min={1} max={dossardMax} className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm" value={dossard} onChange={(e) => setDossard(e.target.value)} placeholder="ex : 42" />
-                    </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+                <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Zone</label>
+                    <select className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm bg-white" value={zone} onChange={(e) => setZone(e.target.value)}>
+                        <option value="">— zone —</option>
+                        {zones.map((z) => <option key={z.code} value={z.code}>{z.label}</option>)}
+                    </select>
                 </div>
-            )}
+                <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1">Dossard (1–{dossardMax[type] ?? 0}{type === 'fan' ? ', fan' : ''})</label>
+                    <input type="number" min={1} max={dossardMax[type] ?? 0} className="w-full px-3 py-2.5 rounded-xl border border-zinc-200 text-sm" value={dossard} onChange={(e) => setDossard(e.target.value)} placeholder="ex : 42" />
+                </div>
+            </div>
 
             <div className="mt-3">
                 <label className="block text-xs font-medium text-zinc-500 mb-1">Montant payé (FCFA)</label>
